@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useLayoutEffect, useMemo, useRef } from "react";
+import Image from "next/image";
 import {
   motion,
   useMotionValue,
@@ -18,6 +19,31 @@ export type HeroPoster = {
   label: string;
   wide?: boolean;
 };
+
+function PhonePosterTile({
+  src,
+  alt,
+  priority,
+}: {
+  src: string;
+  alt: string;
+  priority?: boolean;
+}) {
+  return (
+    <div className="relative overflow-hidden rounded-2xl bg-black/10 ring-1 ring-black/10 shadow-[0_10px_30px_rgba(0,0,0,0.10)] aspect-[4/5]">
+      <Image
+        src={src}
+        alt={alt}
+        fill
+        priority={priority}
+        sizes="(max-width: 640px) 50vw, 33vw"
+        className="object-cover"
+      />
+      {/* subtle top gloss like your vibe */}
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(255,255,255,0.18),transparent_55%)]" />
+    </div>
+  );
+}
 
 export default function HeroStage() {
   const prefersReduced = useReducedMotion();
@@ -204,18 +230,22 @@ export default function HeroStage() {
 
           {/* Right: Visuals */}
           <div ref={visualsRef} className="space-y-4 sm:space-y-5 md:space-y-6">
-            {/* Poster Grid */}
+            {/* Posters */}
             <div>
-              {/* ✅ Phones: force real row heights so Posters can’t collapse */}
-              <div className="grid grid-cols-2 gap-2 auto-rows-[132px] sm:hidden">
-                <Poster src={posters[0].src} label={posters[0].label} priority />
-                <Poster src={posters[1].src} label={posters[1].label} />
-                <Poster src={posters[2].src} label={posters[2].label} />
-                <Poster src={posters[3].src} label={posters[3].label} />
+              {/* ✅ Phones: guaranteed visible + filled (no collapsing) */}
+              <div className="grid grid-cols-2 gap-2 sm:hidden">
+                <PhonePosterTile
+                  src={posters[0].src}
+                  alt={posters[0].label}
+                  priority
+                />
+                <PhonePosterTile src={posters[1].src} alt={posters[1].label} />
+                <PhonePosterTile src={posters[2].src} alt={posters[2].label} />
+                <PhonePosterTile src={posters[3].src} alt={posters[3].label} />
               </div>
 
-              {/* ✅ sm+ : keep your original layout, but also enforce row heights */}
-              <div className="hidden sm:grid grid-cols-2 gap-2 sm:gap-3 md:gap-4 sm:auto-rows-[180px] md:auto-rows-[210px]">
+              {/* ✅ sm+ : keep your exact original Poster layout */}
+              <div className="hidden sm:grid grid-cols-2 gap-2 sm:gap-3 md:gap-4">
                 <Poster src={posters[0].src} label={posters[0].label} priority />
                 <Poster src={posters[1].src} label={posters[1].label} />
                 <Poster src={posters[2].src} label={posters[2].label} />
@@ -276,9 +306,7 @@ export default function HeroStage() {
                 <div className="relative mt-2.5 sm:mt-3 h-1 sm:h-1.5 w-full overflow-hidden rounded-full bg-[rgb(var(--yard-gold))]/10">
                   <motion.div
                     className="h-full rounded-full bg-[rgb(var(--yard-gold))]/50"
-                    initial={
-                      prefersReduced ? { width: "60%" } : { width: "15%" }
-                    }
+                    initial={prefersReduced ? { width: "60%" } : { width: "15%" }}
                     animate={{ width: "60%" }}
                     transition={{
                       duration: 1.5,

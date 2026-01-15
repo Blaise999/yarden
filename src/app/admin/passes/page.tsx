@@ -21,7 +21,8 @@ export default function AdminPassesPage() {
       }
       if (!res.ok) throw new Error("Failed to fetch");
       const data = await res.json();
-      setPasses(data.passes || []);
+      setPasses(Array.isArray(data?.passes) ? data.passes : []);
+
       setIsAuthed(true);
     } catch (err) {
       setError("Failed to load passes");
