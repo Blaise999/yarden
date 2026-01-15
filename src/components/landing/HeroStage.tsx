@@ -89,7 +89,7 @@ export default function HeroStage() {
         mx.set(e.clientX - r.left);
         my.set(e.clientY - r.top);
       }}
-      className="heroStage relative min-h-[100svh]"
+      className="heroStage relative min-h-[100svh] overflow-hidden"
       style={{
         background:
           "linear-gradient(165deg, rgba(255, 225, 60, 0.15) 0%, rgba(255, 210, 0, 0.1) 100%)",
@@ -206,16 +206,16 @@ export default function HeroStage() {
           <div ref={visualsRef} className="space-y-4 sm:space-y-5 md:space-y-6">
             {/* Poster Grid */}
             <div>
-              {/* ✅ Phones: force 2 rows (no wide col-span) so ALL 4 show */}
-              <div className="grid grid-cols-2 gap-2 sm:hidden">
+              {/* ✅ Phones: force real row heights so Posters can’t collapse */}
+              <div className="grid grid-cols-2 gap-2 auto-rows-[132px] sm:hidden">
                 <Poster src={posters[0].src} label={posters[0].label} priority />
                 <Poster src={posters[1].src} label={posters[1].label} />
                 <Poster src={posters[2].src} label={posters[2].label} />
-                <Poster src={posters[3].src} label={posters[3].label} wide />
+                <Poster src={posters[3].src} label={posters[3].label} />
               </div>
 
-              {/* ✅ sm+ : keep your exact original layout */}
-              <div className="hidden sm:grid grid-cols-2 gap-2 sm:gap-3 md:gap-4">
+              {/* ✅ sm+ : keep your original layout, but also enforce row heights */}
+              <div className="hidden sm:grid grid-cols-2 gap-2 sm:gap-3 md:gap-4 sm:auto-rows-[180px] md:auto-rows-[210px]">
                 <Poster src={posters[0].src} label={posters[0].label} priority />
                 <Poster src={posters[1].src} label={posters[1].label} />
                 <Poster src={posters[2].src} label={posters[2].label} />
@@ -276,7 +276,9 @@ export default function HeroStage() {
                 <div className="relative mt-2.5 sm:mt-3 h-1 sm:h-1.5 w-full overflow-hidden rounded-full bg-[rgb(var(--yard-gold))]/10">
                   <motion.div
                     className="h-full rounded-full bg-[rgb(var(--yard-gold))]/50"
-                    initial={prefersReduced ? { width: "60%" } : { width: "15%" }}
+                    initial={
+                      prefersReduced ? { width: "60%" } : { width: "15%" }
+                    }
                     animate={{ width: "60%" }}
                     transition={{
                       duration: 1.5,
