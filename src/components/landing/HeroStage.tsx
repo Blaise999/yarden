@@ -103,9 +103,7 @@ export default function HeroStage() {
 
   return (
     <section
-      ref={(n) => {
-        sectionRef.current = n;
-      }}
+      ref={(n) => { sectionRef.current = n; }}
       onPointerMove={(e) => {
         if (prefersReduced) return;
         if (window.innerWidth < 768) return;
@@ -115,8 +113,7 @@ export default function HeroStage() {
       }}
       className="heroStage relative overflow-hidden"
       style={{
-        background:
-          "linear-gradient(165deg, rgba(255, 225, 60, 0.12) 0%, rgba(255, 210, 0, 0.08) 100%)",
+        background: "linear-gradient(165deg, rgba(255, 225, 60, 0.12) 0%, rgba(255, 210, 0, 0.08) 100%)",
       }}
     >
       <div className="absolute inset-0 micro-grid opacity-[0.12]" />
@@ -148,9 +145,7 @@ export default function HeroStage() {
 
             <h1 className="title-hero text-3xl sm:text-4xl md:text-5xl lg:text-6xl text-black">
               The Yard is a doorway.
-              <span className="block text-black/65 mt-1 sm:mt-2">
-                Not a feed. Not noise.
-              </span>
+              <span className="block text-black/65 mt-1 sm:mt-2">Not a feed. Not noise.</span>
               <span className="block mt-1 sm:mt-2 relative inline-block">
                 First access.
                 <span className="absolute -bottom-1 sm:-bottom-2 left-0 w-full h-[2px] sm:h-[3px] bg-black/10 rounded-full" />
@@ -163,19 +158,13 @@ export default function HeroStage() {
             </p>
 
             <div className="flex flex-col sm:flex-row gap-3">
-              <MagneticLink
-                href="#pass"
-                className="btn-primary text-sm sm:text-base justify-center"
-              >
+              <MagneticLink href="#pass" className="btn-primary text-sm sm:text-base justify-center">
                 <span>Generate Yard Pass</span>
                 <span className="text-base sm:text-lg">☥</span>
               </MagneticLink>
             </div>
 
-            <div
-              ref={statsRef}
-              className="grid grid-cols-3 gap-2 sm:gap-3 md:gap-4 pt-2 sm:pt-4"
-            >
+            <div ref={statsRef} className="grid grid-cols-3 gap-2 sm:gap-3 md:gap-4 pt-2 sm:pt-4">
               <div className="stat-item">
                 <Stat label="ACCESS" value="PRIVATE" />
               </div>
@@ -218,12 +207,8 @@ export default function HeroStage() {
 
               <div className="relative flex flex-wrap items-start justify-between gap-3 sm:gap-4">
                 <div>
-                  <p className="label-light text-[10px] sm:text-xs">
-                    Yard Pass (Preview)
-                  </p>
-                  <h3 className="mt-1.5 sm:mt-2 text-base sm:text-lg md:text-xl font-bold">
-                    Members-only access.
-                  </h3>
+                  <p className="label-light text-[10px] sm:text-xs">Yard Pass (Preview)</p>
+                  <h3 className="mt-1.5 sm:mt-2 text-base sm:text-lg md:text-xl font-bold">Members-only access.</h3>
                   <p className="mt-1 text-xs sm:text-sm font-medium text-white/55">
                     Generate your ID below.
                   </p>
@@ -237,9 +222,7 @@ export default function HeroStage() {
 
               <div className="relative mt-4 sm:mt-5 rounded-xl sm:rounded-2xl border border-[rgb(var(--yard-gold))]/20 bg-black/30 px-3 sm:px-4 py-2.5 sm:py-3">
                 <div className="flex items-center justify-between">
-                  <span className="text-[10px] sm:text-xs font-bold text-white/55">
-                    ID
-                  </span>
+                  <span className="text-[10px] sm:text-xs font-bold text-white/55">ID</span>
                   <span className="font-mono text-[10px] sm:text-xs font-bold tracking-wider text-white/75">
                     YARD-25-XXXXXXXX
                   </span>
