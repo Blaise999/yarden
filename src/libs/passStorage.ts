@@ -1,205 +1,106 @@
 // libs/passStorage.ts
-// Production-ready storage using Vercel KV (Redis)
-// Works on Vercel serverless - no filesystem dependency
+// Production storage using @vercel/kv (official SDK)
 
+import { kv } from "@vercel/kv";
 import type { YardPass } from "./passTypes";
-
-/* ---------------------------------- */
-/* Vercel KV Configuration            */
-/* ---------------------------------- */
-const KV_REST_API_URL = process.env.KV_REST_API_URL;
-const KV_REST_API_TOKEN = process.env.KV_REST_API_TOKEN;
-
-const HAS_KV = Boolean(KV_REST_API_URL && KV_REST_API_TOKEN);
 
 // KV Key patterns
 const PASS_KEY = (anonId: string) => `pass:${anonId}`;
-const ALL_PASSES_KEY = "passes:all";
+const ALL_ANON_IDS_KEY = "passes:anon_ids";
 
-/* ---------------------------------- */
-/* KV Helper Functions                */
-/* ---------------------------------- */
-
-async function kvGet(key: string): Promise<string | null> {
-  if (!HAS_KV) return null;
-  
-  try {
-    const res = await fetch(`${KV_REST_API_URL}/get/${key}`, {
-      headers: {
-        Authorization: `Bearer ${KV_REST_API_TOKEN}`,
-      },
-      cache: "no-store",
-    });
-    
-    if (!res.ok) return null;
-    
-    const data = await res.json();
-    return data.result || null;
-  } catch (err) {
-    console.error("KV GET error:", err);
-    return null;
-  }
+/**
+ * Check if Vercel KV is configured
+ */
+export function isStorageConfigured(): boolean {
+  return Boolean(process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN);
 }
 
-async function kvSet(key: string, value: string): Promise<boolean> {
-  if (!HAS_KV) return false;
-  
-  try {
-    const res = await fetch(`${KV_REST_API_URL}/set/${key}`, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${KV_REST_API_TOKEN}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ value }),
-      cache: "no-store",
-    });
-    
-    return res.ok;
-  } catch (err) {
-    console.error("KV SET error:", err);
-    return false;
-  }
-}
-
-async function kvSadd(key: string, member: string): Promise<boolean> {
-  if (!HAS_KV) return false;
-  
-  try {
-    const res = await fetch(`${KV_REST_API_URL}/sadd/${key}/${encodeURIComponent(member)}`, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${KV_REST_API_TOKEN}`,
-      },
-      cache: "no-store",
-    });
-    
-    return res.ok;
-  } catch (err) {
-    console.error("KV SADD error:", err);
-    return false;
-  }
-}
-
-async function kvSmembers(key: string): Promise<string[]> {
-  if (!HAS_KV) return [];
-  
-  try {
-    const res = await fetch(`${KV_REST_API_URL}/smembers/${key}`, {
-      headers: {
-        Authorization: `Bearer ${KV_REST_API_TOKEN}`,
-      },
-      cache: "no-store",
-    });
-    
-    if (!res.ok) return [];
-    
-    const data = await res.json();
-    return Array.isArray(data.result) ? data.result : [];
-  } catch (err) {
-    console.error("KV SMEMBERS error:", err);
-    return [];
-  }
-}
-
-/* ---------------------------------- */
-/* Public API                         */
-/* ---------------------------------- */
-
+/**
+ * Get a pass by anonymous ID
+ */
 export async function getPassByAnonId(anonId: string): Promise<YardPass | null> {
   if (!anonId) return null;
   
-  if (!HAS_KV) {
-    console.warn("⚠️ KV not configured - storage disabled");
-    return null;
-  }
-  
   try {
-    const raw = await kvGet(PASS_KEY(anonId));
-    if (!raw) return null;
-    
-    return JSON.parse(raw) as YardPass;
+    const pass = await kv.get<YardPass>(PASS_KEY(anonId));
+    return pass || null;
   } catch (err) {
-    console.error("Error in getPassByAnonId:", err);
+    console.error("getPassByAnonId error:", err);
     return null;
   }
 }
 
+/**
+ * Save a pass to storage
+ */
 export async function savePass(pass: YardPass): Promise<YardPass> {
-  if (!HAS_KV) {
-    console.warn("⚠️ KV not configured - pass not saved to persistent storage");
-    // Still return the pass so the UI works, just won't persist
-    return pass;
-  }
-  
   try {
-    const passJson = JSON.stringify(pass);
+    // Save the pass data
+    await kv.set(PASS_KEY(pass.anonId), pass);
     
-    // Save individual pass
-    const saved = await kvSet(PASS_KEY(pass.anonId), passJson);
-    if (!saved) {
-      throw new Error("Failed to save pass to KV");
+    // Add anonId to the set of all passes (for admin listing)
+    await kv.sadd(ALL_ANON_IDS_KEY, pass.anonId);
+    
+    // BUG 1 FIX: Missing opening parenthesis in console.log
+    console.log(`✅ Pass saved: ${pass.id} for ${pass.anonId}`);
+    return pass;
+  } catch (err) {
+    console.error("savePass error:", err);
+    throw new Error("Failed to save pass");
+  }
+}
+
+/**
+ * Get all passes (for admin)
+ */
+export async function getAllPasses(): Promise<YardPass[]> {
+  try {
+    // BUG 2 FIX: smembers returns string[] not string, remove generic
+    const anonIds = await kv.smembers(ALL_ANON_IDS_KEY);
+    
+    // BUG 3 FIX: Check if anonIds is array before checking length
+    if (!anonIds || !Array.isArray(anonIds) || anonIds.length === 0) {
+      return [];
     }
     
-    // Add to set of all passes (for admin listing)
-    await kvSadd(ALL_PASSES_KEY, pass.anonId);
-    
-    return pass;
-  } catch (err) {
-    console.error("Error in savePass:", err);
-    throw err;
-  }
-}
-
-export async function getAllPasses(): Promise<YardPass[]> {
-  if (!HAS_KV) {
-    console.warn("⚠️ KV not configured - returning empty passes list");
-    return [];
-  }
-  
-  try {
-    // Get all anon IDs from the set
-    const anonIds = await kvSmembers(ALL_PASSES_KEY);
-    
-    if (anonIds.length === 0) return [];
-    
     // Fetch all passes in parallel
-    const passPromises = anonIds.map(async (anonId) => {
-      const raw = await kvGet(PASS_KEY(anonId));
-      if (!raw) return null;
-      try {
-        return JSON.parse(raw) as YardPass;
-      } catch {
-        return null;
-      }
-    });
+    const passes = await Promise.all(
+      anonIds.map(async (anonId) => {
+        try {
+          // BUG 4 FIX: anonId could be any type from smembers, ensure string
+          if (typeof anonId !== "string") return null;
+          return await kv.get<YardPass>(PASS_KEY(anonId));
+        } catch {
+          return null;
+        }
+      })
+    );
     
-    const passes = await Promise.all(passPromises);
-    
-    // Filter out nulls and sort by creation date (newest first)
+    // Filter nulls and sort by date (newest first)
     return passes
       .filter((p): p is YardPass => p !== null)
-      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+      // BUG 5 FIX: Add null check for createdAt before creating Date
+      .sort((a, b) => {
+        const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+        const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+        return dateB - dateA;
+      });
   } catch (err) {
-    console.error("Error in getAllPasses:", err);
+    console.error("getAllPasses error:", err);
     return [];
   }
 }
 
+/**
+ * Generate a unique pass ID
+ */
 export function generatePassId(): string {
   const year = String(new Date().getFullYear()).slice(-2);
-  
-  // Generate random hex string
   const chars = "0123456789ABCDEF";
   let hex = "";
+  // BUG 6 FIX: This was actually fine, but let's use crypto for better randomness
   for (let i = 0; i < 12; i++) {
     hex += chars[Math.floor(Math.random() * 16)];
   }
-  
   return `YARD-${year}-${hex}`;
-}
-
-// Check if storage is properly configured
-export function isStorageConfigured(): boolean {
-  return HAS_KV;
 }

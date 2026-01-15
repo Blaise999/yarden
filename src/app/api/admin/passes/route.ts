@@ -1,40 +1,32 @@
 // app/api/admin/passes/route.ts
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
+import { cookies } from "next/headers";
 import { getAllPasses } from "@/libs/passStorage";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-function isAdminFromRequest(request: NextRequest): boolean {
-  const cookieHeader = request.headers.get("cookie") || "";
-  const match = cookieHeader.match(/yard_admin_session=([^;]+)/);
-  return !!match && match[1].length > 0;
+async function isAdmin(): Promise<boolean> {
+  const cookieStore = await cookies();
+  const token = cookieStore.get("yard_admin_token")?.value;
+  return Boolean(token && token.length > 10);
 }
 
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
-    const isAdmin = isAdminFromRequest(request);
-
-    if (!isAdmin) {
-      return NextResponse.json(
-        { passes: [], error: "Unauthorized" }, 
-        { status: 401 }
-      );
+    // Check admin auth
+    const authed = await isAdmin();
+    
+    if (!authed) {
+      return NextResponse.json({ error: "Unauthorized", passes: [] }, { status: 401 });
     }
 
+    // Fetch all passes
     const passes = await getAllPasses();
     
-    // Sort by creation date, newest first
-    const sortedPasses = passes.sort((a, b) => {
-      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
-    });
-
-    return NextResponse.json({ passes: sortedPasses });
+    return NextResponse.json({ passes, count: passes.length });
   } catch (error) {
-    console.error("Error fetching admin passes:", error);
-    return NextResponse.json(
-      { passes: [], error: "Failed to fetch passes" }, 
-      { status: 500 }
-    );
+    console.error("GET /api/admin/passes error:", error);
+    return NextResponse.json({ error: "Failed to fetch passes", passes: [] }, { status: 500 });
   }
 }

@@ -1,18 +1,11 @@
 // app/api/passes/route.ts
 import { NextRequest, NextResponse } from "next/server";
-import { headers } from "next/headers";
+import { cookies } from "next/headers";
 import { savePass, getPassByAnonId, generatePassId } from "@/libs/passStorage";
 import type { YardPass, Gender } from "@/libs/passTypes";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-
-// Helper to get or create anon ID from cookie
-function getAnonIdFromRequest(request: NextRequest): string | null {
-  const cookieHeader = request.headers.get("cookie") || "";
-  const match = cookieHeader.match(/yard_anon_id=([^;]+)/);
-  return match ? match[1] : null;
-}
 
 function generateUUID(): string {
   return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
@@ -24,7 +17,8 @@ function generateUUID(): string {
 
 export async function POST(request: NextRequest) {
   try {
-    const body = (await request.json()) as {
+    const body = await request.json();
+    const { name, email, phone, gender, pngDataUrl } = body as {
       name: string;
       email: string;
       phone: string;
@@ -32,41 +26,27 @@ export async function POST(request: NextRequest) {
       pngDataUrl: string;
     };
 
-    const { name, email, phone, gender, pngDataUrl } = body;
-
-    // Validate required fields
+    // Validate
     if (!name || !email || !phone || !gender || !pngDataUrl) {
-      return NextResponse.json(
-        { error: "Missing required fields" }, 
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
     }
 
     // Get or create anon ID
-    let anonId = getAnonIdFromRequest(request);
+    const cookieStore = await cookies();
+    let anonId = cookieStore.get("yard_anon_id")?.value;
     const isNewAnon = !anonId;
+    
     if (!anonId) {
       anonId = generateUUID();
     }
 
-    // Get metadata
-    const h = await headers();
-    const forwardedFor = h.get("x-forwarded-for");
-    const realIp = h.get("x-real-ip");
-    const ip = forwardedFor?.split(",")[0]?.trim() || realIp || "unknown";
-    const userAgent = h.get("user-agent") || "unknown";
+    // Get request metadata
+    const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() 
+      || request.headers.get("x-real-ip") 
+      || "unknown";
+    const userAgent = request.headers.get("user-agent") || "unknown";
 
-    // Determine title and status based on gender
-    const title: YardPass["title"] =
-      gender === "female" ? "YARDEN'S ANGEL" : "YARDEN'S DESCENDANT";
-
-    const status: YardPass["status"] =
-      gender === "female" ? "Angel Certified" : "Descendant Certified";
-
-    const now = new Date();
-    const yearJoined = now.getFullYear();
-    const createdAt = now.toISOString();
-
+    // Build pass object
     const pass: YardPass = {
       id: generatePassId(),
       anonId,
@@ -74,38 +54,33 @@ export async function POST(request: NextRequest) {
       email,
       phone,
       gender,
-      title,
-      status,
-      yearJoined,
-      createdAt,
+      title: gender === "female" ? "YARDEN'S ANGEL" : "YARDEN'S DESCENDANT",
+      status: gender === "female" ? "Angel Certified" : "Descendant Certified",
+      yearJoined: new Date().getFullYear(),
+      createdAt: new Date().toISOString(),
       pngDataUrl,
       ip,
       userAgent,
     };
 
-    // Save the pass
-    const savedPass = await savePass(pass);
+    // Save to KV
+    await savePass(pass);
 
-    // Create response with cookie if new anon
-    const response = NextResponse.json({ pass: savedPass }, { status: 201 });
-    
+    // Set cookie if new user
     if (isNewAnon) {
-      response.cookies.set("yard_anon_id", anonId, {
+      cookieStore.set("yard_anon_id", anonId, {
         httpOnly: true,
         secure: process.env.NODE_ENV === "production",
         sameSite: "lax",
-        maxAge: 365 * 24 * 60 * 60, // 1 year
+        maxAge: 365 * 24 * 60 * 60,
         path: "/",
       });
     }
 
-    return response;
+    return NextResponse.json({ pass, success: true }, { status: 201 });
   } catch (error) {
-    console.error("Error saving pass:", error);
-    return NextResponse.json(
-      { error: "Failed to save pass" }, 
-      { status: 500 }
-    );
+    console.error("POST /api/passes error:", error);
+    return NextResponse.json({ error: "Failed to save pass" }, { status: 500 });
   }
 }
 
@@ -113,22 +88,19 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const queryAnonId = searchParams.get("anonId");
-
+    
     // Try query param first, then cookie
-    const anonId = queryAnonId || getAnonIdFromRequest(request);
+    const cookieStore = await cookies();
+    const anonId = queryAnonId || cookieStore.get("yard_anon_id")?.value;
     
     if (!anonId) {
-      return NextResponse.json({ pass: null }, { status: 200 });
+      return NextResponse.json({ pass: null });
     }
 
     const pass = await getPassByAnonId(anonId);
-
-    return NextResponse.json({ pass }, { status: 200 });
+    return NextResponse.json({ pass });
   } catch (error) {
-    console.error("Error fetching pass:", error);
-    return NextResponse.json(
-      { error: "Failed to fetch pass" }, 
-      { status: 500 }
-    );
+    console.error("GET /api/passes error:", error);
+    return NextResponse.json({ error: "Failed to fetch pass" }, { status: 500 });
   }
 }

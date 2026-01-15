@@ -18,72 +18,39 @@ interface YardPass {
   userAgent: string;
 }
 
-export default function AdminPassesPage() {
-  const [isAuthed, setIsAuthed] = useState(false);
+type View = "login" | "dashboard";
+
+export default function AdminPage() {
+  const [view, setView] = useState<View>("login");
   const [password, setPassword] = useState("");
   const [passes, setPasses] = useState<YardPass[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [viewingPass, setViewingPass] = useState<YardPass | null>(null);
-  const [checkingAuth, setCheckingAuth] = useState(true);
-  const [storageWarning, setStorageWarning] = useState("");
+  const [selectedPass, setSelectedPass] = useState<YardPass | null>(null);
 
-  // Check storage health
+  // Check if already logged in on mount
   useEffect(() => {
-    fetch("/api/health")
-      .then(res => res.json())
-      .then(data => {
-        if (!data.checks?.storage?.configured) {
-          setStorageWarning("Storage not configured. Set up Vercel KV to persist passes.");
-        }
-      })
-      .catch(() => {});
+    checkAuth();
   }, []);
 
-  const fetchPasses = useCallback(async () => {
-    setLoading(true);
-    setError("");
+  const checkAuth = async () => {
     try {
-      const res = await fetch("/api/admin/passes", {
-        credentials: "include",
-      });
-      
-      if (res.status === 401) {
-        setIsAuthed(false);
-        setCheckingAuth(false);
-        return;
+      const res = await fetch("/api/admin/passes", { credentials: "include" });
+      if (res.ok) {
+        const data = await res.json();
+        setPasses(data.passes || []);
+        setView("dashboard");
       }
-      
-      if (!res.ok) {
-        throw new Error(`HTTP ${res.status}`);
-      }
-      
-      const data = await res.json();
-      
-      if (data.error) {
-        throw new Error(data.error);
-      }
-      
-      setPasses(Array.isArray(data.passes) ? data.passes : []);
-      setIsAuthed(true);
-    } catch (err) {
-      console.error("Fetch error:", err);
-      setError(err instanceof Error ? err.message : "Failed to load passes");
-    } finally {
-      setLoading(false);
-      setCheckingAuth(false);
+    } catch {
+      // Not logged in, stay on login
     }
-  }, []);
-
-  useEffect(() => {
-    fetchPasses();
-  }, [fetchPasses]);
+  };
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
     setLoading(true);
-    
+
     try {
       const res = await fetch("/api/admin/login", {
         method: "POST",
@@ -91,42 +58,61 @@ export default function AdminPassesPage() {
         body: JSON.stringify({ password }),
         credentials: "include",
       });
-      
+
       const data = await res.json();
-      
+
       if (!res.ok) {
         setError(data.error || "Login failed");
         return;
       }
-      
-      setIsAuthed(true);
+
+      // Login successful, fetch passes
       setPassword("");
-      // Fetch passes after successful login
       await fetchPasses();
+      setView("dashboard");
     } catch (err) {
-      console.error("Login error:", err);
-      setError("Login failed. Please try again.");
+      setError("Connection error. Please try again.");
     } finally {
       setLoading(false);
     }
   };
 
-  const downloadPass = (pass: YardPass) => {
-    if (!pass.pngDataUrl) {
-      alert("No image data available for this pass");
-      return;
+  const fetchPasses = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await fetch("/api/admin/passes", { credentials: "include" });
+      
+      if (res.status === 401) {
+        setView("login");
+        return;
+      }
+
+      const data = await res.json();
+      setPasses(data.passes || []);
+    } catch (err) {
+      setError("Failed to load passes");
+    } finally {
+      setLoading(false);
     }
+  }, []);
+
+  const handleLogout = async () => {
+    await fetch("/api/admin/login", { method: "DELETE", credentials: "include" });
+    setView("login");
+    setPasses([]);
+  };
+
+  const downloadPass = (pass: YardPass) => {
+    if (!pass.pngDataUrl) return alert("No image available");
     const link = document.createElement("a");
     link.href = pass.pngDataUrl;
     link.download = `${pass.id}.png`;
-    document.body.appendChild(link);
     link.click();
-    document.body.removeChild(link);
   };
 
   const formatDate = (iso: string) => {
     try {
-      return new Date(iso).toLocaleString("en-GB", {
+      return new Date(iso).toLocaleString("en-NG", {
         day: "2-digit",
         month: "short",
         year: "numeric",
@@ -138,185 +124,207 @@ export default function AdminPassesPage() {
     }
   };
 
-  // Show loading while checking auth
-  if (checkingAuth) {
+  // ============ LOGIN VIEW ============
+  if (view === "login") {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-yellow-400 to-yellow-500 flex items-center justify-center">
-        <div className="animate-spin w-10 h-10 border-4 border-black border-t-transparent rounded-full" />
-      </div>
-    );
-  }
-
-  // Login form
-  if (!isAuthed) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-yellow-400 to-yellow-500 flex items-center justify-center p-4">
-        <div className="bg-white rounded-2xl shadow-xl p-8 w-full max-w-md">
-          <div className="text-center mb-6">
-            <span className="text-4xl">☥</span>
-            <h1 className="text-2xl font-black text-gray-900 mt-2">Admin Login</h1>
-            <p className="text-sm text-gray-600 mt-1">Enter password to access the dashboard</p>
+      <div className="min-h-screen bg-gradient-to-br from-yellow-400 via-yellow-500 to-amber-500 flex items-center justify-center p-4">
+        <div className="bg-white rounded-3xl shadow-2xl p-8 w-full max-w-md">
+          {/* Logo */}
+          <div className="text-center mb-8">
+            <div className="inline-flex items-center justify-center w-16 h-16 bg-black rounded-2xl mb-4">
+              <span className="text-3xl text-yellow-400">☥</span>
+            </div>
+            <h1 className="text-2xl font-black text-gray-900">Admin Access</h1>
+            <p className="text-sm text-gray-500 mt-1">Enter password to continue</p>
           </div>
-          
+
+          {/* Login Form */}
           <form onSubmit={handleLogin} className="space-y-4">
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-1">
+              <label className="block text-sm font-semibold text-gray-700 mb-2">
                 Password
               </label>
               <input
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-yellow-500 focus:ring-2 focus:ring-yellow-200 outline-none transition"
-                placeholder="Enter admin password"
+                className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 focus:border-yellow-500 focus:outline-none transition-colors text-lg"
+                placeholder="••••••••"
                 required
                 autoFocus
+                disabled={loading}
               />
             </div>
-            
+
             {error && (
-              <div className="p-3 rounded-lg bg-red-50 border border-red-200">
-                <p className="text-sm text-red-600 font-medium">{error}</p>
+              <div className="p-3 rounded-xl bg-red-50 border border-red-200">
+                <p className="text-sm text-red-600 font-medium text-center">{error}</p>
               </div>
             )}
-            
+
             <button
               type="submit"
               disabled={loading || !password}
-              className="w-full py-3 px-4 bg-black text-yellow-400 font-bold rounded-xl hover:bg-gray-900 transition disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full py-4 bg-black text-yellow-400 font-bold text-lg rounded-xl hover:bg-gray-900 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
             >
               {loading ? (
-                <span className="flex items-center justify-center gap-2">
-                  <span className="animate-spin w-4 h-4 border-2 border-yellow-400 border-t-transparent rounded-full" />
+                <>
+                  <span className="w-5 h-5 border-2 border-yellow-400 border-t-transparent rounded-full animate-spin" />
                   Logging in...
-                </span>
+                </>
               ) : (
-                "Login"
+                <>
+                  Enter Dashboard
+                  <span>→</span>
+                </>
               )}
             </button>
           </form>
-          
+
           <p className="mt-6 text-center text-xs text-gray-400">
-            Set ADMIN_PASSWORD in your .env.local file
+            Set ADMIN_PASSWORD in your environment variables
           </p>
         </div>
       </div>
     );
   }
 
-  // Admin dashboard
+  // ============ DASHBOARD VIEW ============
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-100">
       {/* Header */}
-      <header className="bg-black text-yellow-400 py-4 px-6 sticky top-0 z-10">
-        <div className="max-w-7xl mx-auto flex items-center justify-between">
+      <header className="bg-black text-white sticky top-0 z-20 shadow-lg">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <span className="text-2xl">☥</span>
+            <div className="w-10 h-10 bg-yellow-400 rounded-xl flex items-center justify-center">
+              <span className="text-xl text-black">☥</span>
+            </div>
             <div>
-              <h1 className="text-lg font-bold">Admin Dashboard</h1>
-              <p className="text-xs text-yellow-400/70">Yard Pass Management</p>
+              <h1 className="text-lg font-bold text-yellow-400">The Yard</h1>
+              <p className="text-xs text-gray-400">Admin Dashboard</p>
             </div>
           </div>
+
           <div className="flex items-center gap-4">
-            <div className="text-sm">
-              <span className="text-yellow-400/70">Total passes:</span>{" "}
-              <span className="font-bold">{passes.length}</span>
+            <div className="hidden sm:block text-right">
+              <p className="text-xs text-gray-400">Total Passes</p>
+              <p className="text-xl font-bold text-yellow-400">{passes.length}</p>
             </div>
             <button
               onClick={fetchPasses}
               disabled={loading}
-              className="px-3 py-1.5 bg-yellow-400/20 text-yellow-400 rounded-lg text-sm font-semibold hover:bg-yellow-400/30 transition disabled:opacity-50"
+              className="px-4 py-2 bg-yellow-400/20 text-yellow-400 rounded-lg text-sm font-semibold hover:bg-yellow-400/30 transition disabled:opacity-50"
             >
               {loading ? "..." : "Refresh"}
+            </button>
+            <button
+              onClick={handleLogout}
+              className="px-4 py-2 bg-red-500/20 text-red-400 rounded-lg text-sm font-semibold hover:bg-red-500/30 transition"
+            >
+              Logout
             </button>
           </div>
         </div>
       </header>
 
-      {/* Content */}
-      <main className="max-w-7xl mx-auto p-6">
-        {storageWarning && (
-          <div className="mb-4 p-4 rounded-xl bg-yellow-50 border border-yellow-200">
-            <div className="flex items-start gap-3">
-              <span className="text-xl">⚠️</span>
-              <div>
-                <p className="text-sm text-yellow-800 font-medium">{storageWarning}</p>
-                <p className="text-xs text-yellow-600 mt-1">
-                  Go to Vercel Dashboard → Storage → Create KV Database
-                </p>
-              </div>
-            </div>
+      {/* Main Content */}
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 py-6">
+        {/* Stats Cards */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+          <div className="bg-white rounded-2xl p-4 shadow-sm">
+            <p className="text-xs text-gray-500 uppercase tracking-wide">Total</p>
+            <p className="text-2xl font-black text-gray-900">{passes.length}</p>
           </div>
-        )}
-
-        {error && (
-          <div className="mb-4 p-4 rounded-xl bg-red-50 border border-red-200">
-            <p className="text-sm text-red-600 font-medium">{error}</p>
+          <div className="bg-white rounded-2xl p-4 shadow-sm">
+            <p className="text-xs text-gray-500 uppercase tracking-wide">Angels</p>
+            <p className="text-2xl font-black text-pink-500">
+              {passes.filter(p => p.gender === "female").length}
+            </p>
           </div>
-        )}
+          <div className="bg-white rounded-2xl p-4 shadow-sm">
+            <p className="text-xs text-gray-500 uppercase tracking-wide">Descendants</p>
+            <p className="text-2xl font-black text-blue-500">
+              {passes.filter(p => p.gender === "male").length}
+            </p>
+          </div>
+          <div className="bg-white rounded-2xl p-4 shadow-sm">
+            <p className="text-xs text-gray-500 uppercase tracking-wide">Today</p>
+            <p className="text-2xl font-black text-green-500">
+              {passes.filter(p => {
+                const today = new Date().toDateString();
+                return new Date(p.createdAt).toDateString() === today;
+              }).length}
+            </p>
+          </div>
+        </div>
 
+        {/* Passes List */}
         {loading && passes.length === 0 ? (
-          <div className="text-center py-12">
-            <div className="animate-spin w-8 h-8 border-4 border-yellow-500 border-t-transparent rounded-full mx-auto" />
-            <p className="mt-4 text-gray-600">Loading passes...</p>
+          <div className="bg-white rounded-2xl p-12 text-center shadow-sm">
+            <div className="w-10 h-10 border-4 border-yellow-500 border-t-transparent rounded-full animate-spin mx-auto" />
+            <p className="mt-4 text-gray-500">Loading passes...</p>
           </div>
         ) : passes.length === 0 ? (
-          <div className="text-center py-12 bg-white rounded-xl shadow">
-            <span className="text-4xl">📭</span>
-            <p className="mt-4 text-gray-600 font-medium">No passes generated yet.</p>
-            <p className="text-sm text-gray-400 mt-1">Passes will appear here when users generate them.</p>
+          <div className="bg-white rounded-2xl p-12 text-center shadow-sm">
+            <span className="text-5xl">📭</span>
+            <h3 className="mt-4 text-lg font-bold text-gray-900">No Passes Yet</h3>
+            <p className="text-gray-500 mt-1">Passes will appear here when users generate them.</p>
           </div>
         ) : (
-          <div className="bg-white rounded-xl shadow overflow-hidden">
+          <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
             <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead className="bg-gray-100">
+              <table className="w-full">
+                <thead className="bg-gray-50 border-b border-gray-200">
                   <tr>
-                    <th className="px-4 py-3 text-left font-semibold text-gray-700">Created</th>
-                    <th className="px-4 py-3 text-left font-semibold text-gray-700">Name</th>
-                    <th className="px-4 py-3 text-left font-semibold text-gray-700">Email</th>
-                    <th className="px-4 py-3 text-left font-semibold text-gray-700">Phone</th>
-                    <th className="px-4 py-3 text-left font-semibold text-gray-700">Gender</th>
-                    <th className="px-4 py-3 text-left font-semibold text-gray-700">Title</th>
-                    <th className="px-4 py-3 text-left font-semibold text-gray-700">Year</th>
-                    <th className="px-4 py-3 text-left font-semibold text-gray-700">IP</th>
-                    <th className="px-4 py-3 text-left font-semibold text-gray-700">Actions</th>
+                    <th className="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase">Date</th>
+                    <th className="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase">Name</th>
+                    <th className="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase">Contact</th>
+                    <th className="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase">Type</th>
+                    <th className="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase">Pass ID</th>
+                    <th className="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
                   {passes.map((pass) => (
-                    <tr key={pass.id} className="hover:bg-gray-50">
-                      <td className="px-4 py-3 text-gray-600 whitespace-nowrap">
-                        {formatDate(pass.createdAt)}
+                    <tr key={pass.id} className="hover:bg-gray-50 transition-colors">
+                      <td className="px-4 py-4">
+                        <p className="text-sm text-gray-900 font-medium">
+                          {formatDate(pass.createdAt)}
+                        </p>
                       </td>
-                      <td className="px-4 py-3 font-medium text-gray-900">{pass.name}</td>
-                      <td className="px-4 py-3 text-gray-600">{pass.email}</td>
-                      <td className="px-4 py-3 text-gray-600">{pass.phone}</td>
-                      <td className="px-4 py-3">
-                        <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
-                          pass.gender === "female" 
-                            ? "bg-pink-100 text-pink-700" 
+                      <td className="px-4 py-4">
+                        <p className="text-sm font-bold text-gray-900">{pass.name}</p>
+                      </td>
+                      <td className="px-4 py-4">
+                        <p className="text-sm text-gray-600">{pass.email}</p>
+                        <p className="text-xs text-gray-400">{pass.phone}</p>
+                      </td>
+                      <td className="px-4 py-4">
+                        <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold ${
+                          pass.gender === "female"
+                            ? "bg-pink-100 text-pink-700"
                             : "bg-blue-100 text-blue-700"
                         }`}>
-                          {pass.gender}
+                          {pass.gender === "female" ? "👼" : "🧬"}
+                          {pass.gender === "female" ? "Angel" : "Descendant"}
                         </span>
                       </td>
-                      <td className="px-4 py-3 text-gray-600 text-xs">{pass.title}</td>
-                      <td className="px-4 py-3 text-gray-600">{pass.yearJoined}</td>
-                      <td className="px-4 py-3 text-gray-400 text-xs truncate max-w-[80px]">
-                        {pass.ip}
+                      <td className="px-4 py-4">
+                        <code className="text-xs bg-gray-100 px-2 py-1 rounded font-mono">
+                          {pass.id}
+                        </code>
                       </td>
-                      <td className="px-4 py-3">
+                      <td className="px-4 py-4">
                         <div className="flex gap-2">
                           <button
-                            onClick={() => setViewingPass(pass)}
-                            className="px-3 py-1.5 bg-yellow-100 text-yellow-800 rounded-lg text-xs font-semibold hover:bg-yellow-200 transition"
+                            onClick={() => setSelectedPass(pass)}
+                            className="px-3 py-1.5 bg-yellow-100 text-yellow-800 rounded-lg text-xs font-bold hover:bg-yellow-200 transition"
                           >
                             View
                           </button>
                           <button
                             onClick={() => downloadPass(pass)}
-                            className="px-3 py-1.5 bg-gray-100 text-gray-700 rounded-lg text-xs font-semibold hover:bg-gray-200 transition"
+                            className="px-3 py-1.5 bg-gray-100 text-gray-700 rounded-lg text-xs font-bold hover:bg-gray-200 transition"
                           >
                             Download
                           </button>
@@ -331,75 +339,78 @@ export default function AdminPassesPage() {
         )}
       </main>
 
-      {/* View Modal */}
-      {viewingPass && (
-        <div 
-          className="fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50"
-          onClick={() => setViewingPass(null)}
+      {/* Pass Detail Modal */}
+      {selectedPass && (
+        <div
+          className="fixed inset-0 bg-black/70 flex items-center justify-center p-4 z-50"
+          onClick={() => setSelectedPass(null)}
         >
-          <div 
-            className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-auto"
+          <div
+            className="bg-white rounded-3xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-auto"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="p-6 border-b border-gray-100 flex items-center justify-between">
+            {/* Modal Header */}
+            <div className="p-6 border-b border-gray-100 flex items-center justify-between sticky top-0 bg-white rounded-t-3xl">
               <div>
-                <h3 className="text-lg font-bold text-gray-900">{viewingPass.name}</h3>
-                <p className="text-sm text-gray-500 font-mono">{viewingPass.id}</p>
+                <h3 className="text-xl font-black text-gray-900">{selectedPass.name}</h3>
+                <p className="text-sm text-gray-500 font-mono">{selectedPass.id}</p>
               </div>
               <button
-                onClick={() => setViewingPass(null)}
+                onClick={() => setSelectedPass(null)}
                 className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition"
               >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
+                ✕
               </button>
             </div>
-            
+
+            {/* Pass Image */}
             <div className="p-6">
-              {viewingPass.pngDataUrl ? (
-                <img 
-                  src={viewingPass.pngDataUrl} 
-                  alt={`Pass for ${viewingPass.name}`}
-                  className="w-full rounded-xl shadow-lg"
+              {selectedPass.pngDataUrl ? (
+                <img
+                  src={selectedPass.pngDataUrl}
+                  alt={`Pass for ${selectedPass.name}`}
+                  className="w-full rounded-2xl shadow-lg"
                 />
               ) : (
-                <div className="p-8 bg-gray-100 rounded-xl text-center">
+                <div className="p-12 bg-gray-100 rounded-2xl text-center">
                   <p className="text-gray-500">No image available</p>
                 </div>
               )}
             </div>
-            
-            <div className="p-6 border-t border-gray-100 bg-gray-50 rounded-b-2xl">
-              <div className="grid grid-cols-2 gap-4 text-sm mb-4">
+
+            {/* Pass Details */}
+            <div className="p-6 bg-gray-50 rounded-b-3xl space-y-4">
+              <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <p className="text-gray-500 text-xs uppercase tracking-wide">Email</p>
-                  <p className="text-gray-700 font-medium">{viewingPass.email}</p>
+                  <p className="text-xs text-gray-500 uppercase tracking-wide">Email</p>
+                  <p className="text-sm font-medium text-gray-900">{selectedPass.email}</p>
                 </div>
                 <div>
-                  <p className="text-gray-500 text-xs uppercase tracking-wide">Phone</p>
-                  <p className="text-gray-700 font-medium">{viewingPass.phone}</p>
+                  <p className="text-xs text-gray-500 uppercase tracking-wide">Phone</p>
+                  <p className="text-sm font-medium text-gray-900">{selectedPass.phone}</p>
                 </div>
                 <div>
-                  <p className="text-gray-500 text-xs uppercase tracking-wide">Status</p>
-                  <p className="text-gray-700 font-medium">{viewingPass.status}</p>
+                  <p className="text-xs text-gray-500 uppercase tracking-wide">Status</p>
+                  <p className="text-sm font-medium text-gray-900">{selectedPass.status}</p>
                 </div>
                 <div>
-                  <p className="text-gray-500 text-xs uppercase tracking-wide">IP Address</p>
-                  <p className="text-gray-700 font-medium">{viewingPass.ip}</p>
+                  <p className="text-xs text-gray-500 uppercase tracking-wide">IP Address</p>
+                  <p className="text-sm font-medium text-gray-900">{selectedPass.ip}</p>
                 </div>
               </div>
-              
-              <div className="mb-4">
-                <p className="text-gray-500 text-xs uppercase tracking-wide mb-1">User Agent</p>
-                <p className="text-gray-600 text-xs font-mono break-all">{viewingPass.userAgent}</p>
+
+              <div>
+                <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">User Agent</p>
+                <p className="text-xs font-mono text-gray-600 bg-white p-2 rounded-lg break-all">
+                  {selectedPass.userAgent}
+                </p>
               </div>
-              
+
               <button
-                onClick={() => downloadPass(viewingPass)}
-                className="w-full py-3 bg-black text-yellow-400 font-bold rounded-xl hover:bg-gray-900 transition"
+                onClick={() => downloadPass(selectedPass)}
+                className="w-full py-4 bg-black text-yellow-400 font-bold rounded-xl hover:bg-gray-900 transition"
               >
-                Download PNG
+                Download Pass Image
               </button>
             </div>
           </div>
