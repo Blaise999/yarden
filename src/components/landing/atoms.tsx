@@ -30,11 +30,13 @@ export function Stat({ label, value }: { label: string; value: string }) {
     >
       <div className="absolute inset-0 micro-grid opacity-[0.06]" />
       <div className="absolute inset-0 grain opacity-[0.04]" />
-      
+
       <div className="relative">
         <p className="label text-[9px] sm:text-[10px] md:text-[11px]">{label}</p>
-        <p className="mt-1 text-lg sm:text-xl md:text-2xl font-black text-black">{value}</p>
-        
+        <p className="mt-1 text-lg sm:text-xl md:text-2xl font-black text-black">
+          {value}
+        </p>
+
         <div className="relative mt-2 sm:mt-3 h-1 w-full overflow-hidden rounded-full bg-black/8">
           <motion.div
             className="h-full w-3/5 rounded-full bg-black/12"
@@ -59,7 +61,7 @@ export function MagneticLink({
   const prefersReduced = useReducedMotion();
   const x = useMotionValue(0);
   const y = useMotionValue(0);
-  
+
   const sx = useSpring(x, { stiffness: 180, damping: 22, mass: 0.4 });
   const sy = useSpring(y, { stiffness: 180, damping: 22, mass: 0.4 });
 
@@ -106,7 +108,7 @@ export function TiltCard({
   const prefersReduced = useReducedMotion();
   const rx = useMotionValue(0);
   const ry = useMotionValue(0);
-  
+
   const srx = useSpring(rx, { stiffness: 150, damping: 25, mass: 0.4 });
   const sry = useSpring(ry, { stiffness: 150, damping: 25, mass: 0.4 });
 
@@ -147,44 +149,68 @@ export function TiltCard({
 }
 
 /**
- * Poster component with FIXED mobile heights
- * - Uses aspect-ratio to ensure images never collapse
- * - Mobile: aspect-[4/5] for portrait tiles, aspect-[16/9] for wide
- * - Desktop: fixed pixel heights for consistency
+ * Poster component (FIXED):
+ * ✅ Always reserves height via aspect-ratio on ALL breakpoints
+ * ✅ Foreground uses object-contain so the whole image always shows
+ * ✅ Adds a blurred "cover" backdrop so no ugly empty bars on weird phone ratios
  */
 export function Poster({
   src,
   label,
   wide,
   priority,
+  aspectClassName,
 }: {
   src: string;
   label: string;
   wide?: boolean;
   priority?: boolean;
+  aspectClassName?: string;
 }) {
+  const aspect =
+    aspectClassName ??
+    (wide
+      ? "aspect-[16/9] sm:aspect-[21/9] md:aspect-[24/9]"
+      : "aspect-[3/4] sm:aspect-[4/5] md:aspect-[3/4]");
+
   return (
     <TiltCard
       className={[
         "group card-frame overflow-hidden relative",
-        // Mobile: use aspect-ratio to guarantee height
-        wide 
-          ? "aspect-[16/9] sm:aspect-auto sm:h-44 md:h-52 lg:h-60" 
-          : "aspect-[4/5] sm:aspect-auto sm:h-32 md:h-40 lg:h-44",
+        "bg-white/40",
+        aspect,
       ].join(" ")}
     >
+      {/* Backdrop fill (blurred cover) */}
+      <div aria-hidden className="absolute inset-0">
+        <Image
+          src={src}
+          alt=""
+          fill
+          priority={false}
+          sizes={wide ? "100vw" : "50vw"}
+          className="object-cover scale-110 blur-2xl opacity-25"
+        />
+      </div>
+
+      {/* Foreground (show full image always) */}
       <div className="absolute inset-0">
         <Image
           src={src}
           alt={label}
           fill
           priority={priority}
-          sizes={wide ? "(min-width: 768px) 520px, 100vw" : "(min-width: 768px) 260px, 50vw"}
-          className="object-cover transition-transform duration-500 ease-out group-hover:scale-105"
+          sizes={
+            wide
+              ? "(max-width: 640px) 100vw, (max-width: 1024px) 60vw, 520px"
+              : "(max-width: 640px) 50vw, (max-width: 1024px) 30vw, 260px"
+          }
+          className="object-contain p-1.5 sm:p-2 md:p-2.5 transition-transform duration-500 ease-out group-hover:scale-[1.03]"
         />
       </div>
 
-      <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-black/25" />
+      {/* Overlays */}
+      <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-black/15" />
       <div className="absolute inset-0 bg-[radial-gradient(ellipse_60%_40%_at_30%_20%,rgba(255,255,255,0.15),transparent)] mix-blend-overlay" />
       <div className="absolute inset-0 grain opacity-[0.1]" />
 
@@ -218,7 +244,9 @@ export function HouseCard({
       <div className="relative flex flex-col sm:flex-row sm:items-start justify-between gap-3 sm:gap-4">
         <div>
           <p className="text-lg sm:text-xl font-black">{title}</p>
-          <p className="mt-2 sm:mt-3 text-xs sm:text-sm font-medium text-white/60">{desc}</p>
+          <p className="mt-2 sm:mt-3 text-xs sm:text-sm font-medium text-white/60">
+            {desc}
+          </p>
         </div>
 
         <span className="status-badge whitespace-nowrap text-[10px] sm:text-xs self-start">
@@ -285,7 +313,9 @@ export function SectionHeader({
   return (
     <div className="space-y-2 sm:space-y-3">
       <p className="label text-[10px] sm:text-xs">{label}</p>
-      <h2 className="title-section text-2xl sm:text-3xl md:text-4xl text-black">{title}</h2>
+      <h2 className="title-section text-2xl sm:text-3xl md:text-4xl text-black">
+        {title}
+      </h2>
       {description && (
         <p className="body-text text-sm sm:text-base max-w-xl">{description}</p>
       )}
@@ -295,9 +325,21 @@ export function SectionHeader({
 
 export function AnkhPattern() {
   return (
-    <svg width="100%" height="100%" xmlns="http://www.w3.org/2000/svg" className="opacity-[0.02]">
+    <svg
+      width="100%"
+      height="100%"
+      xmlns="http://www.w3.org/2000/svg"
+      className="opacity-[0.02]"
+    >
       <defs>
-        <pattern id="ankh-pattern" x="0" y="0" width="100" height="100" patternUnits="userSpaceOnUse">
+        <pattern
+          id="ankh-pattern"
+          x="0"
+          y="0"
+          width="100"
+          height="100"
+          patternUnits="userSpaceOnUse"
+        >
           <text x="10" y="65" fontSize="48" fontWeight="900" fill="currentColor">
             ☥
           </text>
