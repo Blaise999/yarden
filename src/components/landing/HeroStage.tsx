@@ -79,7 +79,9 @@ export default function HeroStage() {
 
   return (
     <section
-      ref={(n) => { sectionRef.current = n; }}
+      ref={(n) => {
+        sectionRef.current = n;
+      }}
       onPointerMove={(e) => {
         if (prefersReduced) return;
         if (window.innerWidth < 768) return;
@@ -89,7 +91,8 @@ export default function HeroStage() {
       }}
       className="heroStage relative min-h-[100svh] overflow-hidden"
       style={{
-        background: "linear-gradient(165deg, rgba(255, 225, 60, 0.15) 0%, rgba(255, 210, 0, 0.1) 100%)",
+        background:
+          "linear-gradient(165deg, rgba(255, 225, 60, 0.15) 0%, rgba(255, 210, 0, 0.1) 100%)",
       }}
     >
       {/* Background patterns */}
@@ -120,12 +123,20 @@ export default function HeroStage() {
         <div className="flex items-center justify-between mb-8 sm:mb-10">
           <div className="flex items-center gap-2 sm:gap-3">
             <span className="text-xl sm:text-2xl font-black text-black">☥</span>
-            <span className="text-xs sm:text-sm font-bold tracking-[0.15em] text-black/60">THE YARD</span>
+            <span className="text-xs sm:text-sm font-bold tracking-[0.15em] text-black/60">
+              THE YARD
+            </span>
           </div>
           <div className="hidden md:flex items-center gap-6">
-            <a href="#houses" className="nav-link">Houses</a>
-            <a href="#feed" className="nav-link">Feed</a>
-            <a href="#pass" className="nav-link">Yard Pass</a>
+            <a href="#houses" className="nav-link">
+              Houses
+            </a>
+            <a href="#feed" className="nav-link">
+              Feed
+            </a>
+            <a href="#pass" className="nav-link">
+              Yard Pass
+            </a>
           </div>
         </div>
 
@@ -142,7 +153,9 @@ export default function HeroStage() {
             {/* Headline */}
             <h1 className="title-hero text-3xl sm:text-4xl md:text-5xl lg:text-6xl text-black">
               The Yard is a doorway.
-              <span className="block text-black/65 mt-1 sm:mt-2">Not a feed. Not noise.</span>
+              <span className="block text-black/65 mt-1 sm:mt-2">
+                Not a feed. Not noise.
+              </span>
               <span className="block mt-1 sm:mt-2 relative inline-block">
                 First access.
                 <span className="absolute -bottom-1 sm:-bottom-2 left-0 w-full h-[2px] sm:h-[3px] bg-black/10 rounded-full" />
@@ -157,17 +170,26 @@ export default function HeroStage() {
 
             {/* CTA Buttons */}
             <div className="flex flex-col sm:flex-row gap-3">
-              <MagneticLink href="#pass" className="btn-primary text-sm sm:text-base justify-center">
+              <MagneticLink
+                href="#pass"
+                className="btn-primary text-sm sm:text-base justify-center"
+              >
                 <span>Generate Yard Pass</span>
                 <span className="text-base sm:text-lg">☥</span>
               </MagneticLink>
-              <MagneticLink href="#houses" className="btn-secondary text-sm sm:text-base justify-center">
+              <MagneticLink
+                href="#houses"
+                className="btn-secondary text-sm sm:text-base justify-center"
+              >
                 <span>Explore Houses</span>
               </MagneticLink>
             </div>
 
             {/* Stats */}
-            <div ref={statsRef} className="grid grid-cols-3 gap-2 sm:gap-3 md:gap-4 pt-2 sm:pt-4">
+            <div
+              ref={statsRef}
+              className="grid grid-cols-3 gap-2 sm:gap-3 md:gap-4 pt-2 sm:pt-4"
+            >
               <div className="stat-item">
                 <Stat label="ACCESS" value="PRIVATE" />
               </div>
@@ -182,13 +204,41 @@ export default function HeroStage() {
 
           {/* Right: Visuals */}
           <div ref={visualsRef} className="space-y-4 sm:space-y-5 md:space-y-6">
-            {/* Poster Grid */}
-            <div className="grid grid-cols-2 gap-2 sm:gap-3 md:gap-4">
-              <Poster src={posters[0].src} label={posters[0].label} priority />
-              <Poster src={posters[1].src} label={posters[1].label} />
-              <Poster src={posters[2].src} label={posters[2].label} />
-              <div className="col-span-2">
-                <Poster src={posters[3].src} label={posters[3].label} wide />
+            {/* Posters */}
+            <div className="-mx-4 sm:mx-0">
+              {/* ✅ Mobile: swipe carousel (fixes “padding shrink” on small phones) */}
+              <div className="sm:hidden">
+                <div className="flex gap-2 overflow-x-auto px-4 pb-1 snap-x snap-mandatory [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                  {posters.map((p, idx) => (
+                    <div
+                      key={p.src}
+                      className={`snap-center shrink-0 ${
+                        p.wide ? "w-[88vw]" : "w-[74vw]"
+                      }`}
+                    >
+                      <Poster
+                        src={p.src}
+                        label={p.label}
+                        priority={idx === 0}
+                        wide={p.wide}
+                      />
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Desktop/Tablet: original 2x2 + wide grid */}
+              <div className="hidden sm:grid grid-cols-2 gap-3 md:gap-4">
+                <Poster src={posters[0].src} label={posters[0].label} priority />
+                <Poster src={posters[1].src} label={posters[1].label} />
+                <Poster src={posters[2].src} label={posters[2].label} />
+                <div className="col-span-2">
+                  <Poster
+                    src={posters[3].src}
+                    label={posters[3].label}
+                    wide
+                  />
+                </div>
               </div>
             </div>
 
@@ -211,8 +261,12 @@ export default function HeroStage() {
 
               <div className="relative flex flex-wrap items-start justify-between gap-3 sm:gap-4">
                 <div>
-                  <p className="label-light text-[10px] sm:text-xs">Yard Pass (Preview)</p>
-                  <h3 className="mt-1.5 sm:mt-2 text-base sm:text-lg md:text-xl font-bold">Members-only access.</h3>
+                  <p className="label-light text-[10px] sm:text-xs">
+                    Yard Pass (Preview)
+                  </p>
+                  <h3 className="mt-1.5 sm:mt-2 text-base sm:text-lg md:text-xl font-bold">
+                    Members-only access.
+                  </h3>
                   <p className="mt-1 text-xs sm:text-sm font-medium text-white/55">
                     Generate your ID below.
                   </p>
@@ -227,7 +281,9 @@ export default function HeroStage() {
               {/* ID Preview Bar */}
               <div className="relative mt-4 sm:mt-5 rounded-xl sm:rounded-2xl border border-[rgb(var(--yard-gold))]/20 bg-black/30 px-3 sm:px-4 py-2.5 sm:py-3">
                 <div className="flex items-center justify-between">
-                  <span className="text-[10px] sm:text-xs font-bold text-white/55">ID</span>
+                  <span className="text-[10px] sm:text-xs font-bold text-white/55">
+                    ID
+                  </span>
                   <span className="font-mono text-[10px] sm:text-xs font-bold tracking-wider text-white/75">
                     YARD-25-XXXXXXXX
                   </span>
@@ -237,9 +293,15 @@ export default function HeroStage() {
                 <div className="relative mt-2.5 sm:mt-3 h-1 sm:h-1.5 w-full overflow-hidden rounded-full bg-[rgb(var(--yard-gold))]/10">
                   <motion.div
                     className="h-full rounded-full bg-[rgb(var(--yard-gold))]/50"
-                    initial={prefersReduced ? { width: "60%" } : { width: "15%" }}
+                    initial={
+                      prefersReduced ? { width: "60%" } : { width: "15%" }
+                    }
                     animate={{ width: "60%" }}
-                    transition={{ duration: 1.5, ease: [0.4, 0, 0.2, 1], delay: 0.5 }}
+                    transition={{
+                      duration: 1.5,
+                      ease: [0.4, 0, 0.2, 1],
+                      delay: 0.5,
+                    }}
                   />
                 </div>
               </div>
