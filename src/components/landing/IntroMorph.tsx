@@ -160,7 +160,7 @@ export default function IntroMorph() {
           style={{ willChange: "transform" }}
         >
           <Image
-            src="/Pictures/yarden3.jpg"
+            src="/Pictures/yarden3.png"
             alt="The Yard"
             fill
             priority
