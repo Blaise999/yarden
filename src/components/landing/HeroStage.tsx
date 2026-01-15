@@ -5,9 +5,7 @@ import {
   motion,
   useMotionValue,
   useReducedMotion,
-  useScroll,
   useSpring,
-  useTransform,
 } from "framer-motion";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
@@ -29,17 +27,7 @@ export default function HeroStage() {
   const visualsRef = useRef<HTMLDivElement | null>(null);
   const statsRef = useRef<HTMLDivElement | null>(null);
 
-  const { scrollYProgress } = useScroll({
-    target: sectionRef,
-    offset: ["start end", "end start"],
-  });
-
-  const visualsY = useTransform(
-    scrollYProgress,
-    [0, 1],
-    prefersReduced ? [0, 0] : [30, -30]
-  );
-
+  // Smooth cursor glow for desktop
   const mx = useMotionValue(0);
   const my = useMotionValue(0);
   const gx = useSpring(mx, { stiffness: 120, damping: 25, mass: 0.4 });
@@ -49,42 +37,30 @@ export default function HeroStage() {
     if (prefersReduced) return;
 
     const ctx = gsap.context(() => {
+      // Subtle fade-in for content when it becomes visible
       gsap.from(copyRef.current, {
-        scrollTrigger: {
-          trigger: copyRef.current,
-          start: "top 90%",
-          toggleActions: "play none none reverse",
-        },
-        y: 40,
         opacity: 0,
+        y: 20,
         duration: 0.6,
         ease: "power2.out",
+        delay: 0.2,
       });
 
       gsap.from(visualsRef.current, {
-        scrollTrigger: {
-          trigger: visualsRef.current,
-          start: "top 85%",
-          toggleActions: "play none none reverse",
-        },
-        y: 50,
         opacity: 0,
+        y: 30,
         duration: 0.7,
         ease: "power2.out",
-        delay: 0.1,
+        delay: 0.3,
       });
 
       gsap.from(".stat-item", {
-        scrollTrigger: {
-          trigger: statsRef.current,
-          start: "top 95%",
-          toggleActions: "play none none reverse",
-        },
-        y: 20,
         opacity: 0,
+        y: 15,
         duration: 0.5,
         stagger: 0.08,
         ease: "power2.out",
+        delay: 0.4,
       });
     }, sectionRef);
 
@@ -111,15 +87,17 @@ export default function HeroStage() {
         mx.set(e.clientX - r.left);
         my.set(e.clientY - r.top);
       }}
-      className="heroStage relative overflow-hidden"
+      className="heroStage relative min-h-[100svh] overflow-hidden"
       style={{
-        background: "linear-gradient(165deg, rgba(255, 225, 60, 0.12) 0%, rgba(255, 210, 0, 0.08) 100%)",
+        background: "linear-gradient(165deg, rgba(255, 225, 60, 0.15) 0%, rgba(255, 210, 0, 0.1) 100%)",
       }}
     >
+      {/* Background patterns */}
       <div className="absolute inset-0 micro-grid opacity-[0.12]" />
       <div className="absolute inset-0 vignette" />
-      <div className="absolute inset-0 grain opacity-[0.1]" />
+      <div className="absolute inset-0 grain opacity-[0.08]" />
 
+      {/* Cursor spotlight - desktop only */}
       <motion.div
         aria-hidden
         className="pointer-events-none absolute -translate-x-1/2 -translate-y-1/2 opacity-50 hidden md:block"
@@ -128,6 +106,7 @@ export default function HeroStage() {
         <div className="h-[350px] w-[350px] rounded-full bg-[radial-gradient(circle,rgba(255,210,0,0.18),rgba(255,210,0,0.04)_40%,transparent_70%)] blur-xl" />
       </motion.div>
 
+      {/* Watermark ankh */}
       <div
         aria-hidden
         className="pointer-events-none absolute -left-8 sm:-left-12 md:-left-16 top-0 select-none text-[180px] sm:text-[240px] md:text-[300px] font-black text-black/[0.02] leading-none"
@@ -135,14 +114,32 @@ export default function HeroStage() {
         ☥
       </div>
 
-      <div className="relative mx-auto max-w-6xl px-4 py-10 sm:px-6 sm:py-14 md:px-10 md:py-20">
+      {/* Main Content */}
+      <div className="relative mx-auto max-w-6xl px-4 py-8 sm:px-6 sm:py-12 md:px-10 md:py-16">
+        {/* Top header bar */}
+        <div className="flex items-center justify-between mb-8 sm:mb-10">
+          <div className="flex items-center gap-2 sm:gap-3">
+            <span className="text-xl sm:text-2xl font-black text-black">☥</span>
+            <span className="text-xs sm:text-sm font-bold tracking-[0.15em] text-black/60">THE YARD</span>
+          </div>
+          <div className="hidden md:flex items-center gap-6">
+            <a href="#houses" className="nav-link">Houses</a>
+            <a href="#feed" className="nav-link">Feed</a>
+            <a href="#pass" className="nav-link">Yard Pass</a>
+          </div>
+        </div>
+
+        {/* Main grid layout */}
         <div className="grid gap-8 md:gap-10 lg:grid-cols-[1.1fr_0.9fr] lg:gap-14">
+          {/* Left: Copy */}
           <div ref={copyRef} className="space-y-5 sm:space-y-6 md:space-y-7">
+            {/* Tags */}
             <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
               <span className="chip text-[10px] sm:text-xs">THE YARD</span>
               <span className="chip text-[10px] sm:text-xs">Members-only</span>
             </div>
 
+            {/* Headline */}
             <h1 className="title-hero text-3xl sm:text-4xl md:text-5xl lg:text-6xl text-black">
               The Yard is a doorway.
               <span className="block text-black/65 mt-1 sm:mt-2">Not a feed. Not noise.</span>
@@ -152,18 +149,24 @@ export default function HeroStage() {
               </span>
             </h1>
 
+            {/* Description */}
             <p className="body-text text-sm sm:text-base md:text-lg max-w-lg">
               Pick a house. Generate your Yard Pass. Unlock private updates.
               <span className="font-bold text-black"> Your ID is your entry.</span>
             </p>
 
+            {/* CTA Buttons */}
             <div className="flex flex-col sm:flex-row gap-3">
               <MagneticLink href="#pass" className="btn-primary text-sm sm:text-base justify-center">
                 <span>Generate Yard Pass</span>
                 <span className="text-base sm:text-lg">☥</span>
               </MagneticLink>
+              <MagneticLink href="#houses" className="btn-secondary text-sm sm:text-base justify-center">
+                <span>Explore Houses</span>
+              </MagneticLink>
             </div>
 
+            {/* Stats */}
             <div ref={statsRef} className="grid grid-cols-3 gap-2 sm:gap-3 md:gap-4 pt-2 sm:pt-4">
               <div className="stat-item">
                 <Stat label="ACCESS" value="PRIVATE" />
@@ -177,11 +180,9 @@ export default function HeroStage() {
             </div>
           </div>
 
-          <motion.div
-            ref={visualsRef}
-            style={prefersReduced ? undefined : { y: visualsY }}
-            className="space-y-4 sm:space-y-5 md:space-y-6"
-          >
+          {/* Right: Visuals */}
+          <div ref={visualsRef} className="space-y-4 sm:space-y-5 md:space-y-6">
+            {/* Poster Grid */}
             <div className="grid grid-cols-2 gap-2 sm:gap-3 md:gap-4">
               <Poster src={posters[0].src} label={posters[0].label} priority />
               <Poster src={posters[1].src} label={posters[1].label} />
@@ -191,6 +192,7 @@ export default function HeroStage() {
               </div>
             </div>
 
+            {/* Captions - desktop only */}
             <div className="hidden sm:grid grid-cols-2 gap-3 md:gap-4">
               <Caption>{posters[0].label}</Caption>
               <Caption>{posters[1].label}</Caption>
@@ -200,7 +202,9 @@ export default function HeroStage() {
               </div>
             </div>
 
+            {/* Preview Card */}
             <div className="card-ink relative overflow-hidden p-4 sm:p-5 md:p-6 border-glow">
+              {/* Decorative ankh */}
               <div className="absolute -right-6 sm:-right-8 -top-6 sm:-top-8 text-[100px] sm:text-[120px] md:text-[140px] font-black text-[rgb(var(--yard-gold))]/[0.06] leading-none pointer-events-none">
                 ☥
               </div>
@@ -220,6 +224,7 @@ export default function HeroStage() {
                 </div>
               </div>
 
+              {/* ID Preview Bar */}
               <div className="relative mt-4 sm:mt-5 rounded-xl sm:rounded-2xl border border-[rgb(var(--yard-gold))]/20 bg-black/30 px-3 sm:px-4 py-2.5 sm:py-3">
                 <div className="flex items-center justify-between">
                   <span className="text-[10px] sm:text-xs font-bold text-white/55">ID</span>
@@ -228,17 +233,18 @@ export default function HeroStage() {
                   </span>
                 </div>
 
+                {/* Progress bar */}
                 <div className="relative mt-2.5 sm:mt-3 h-1 sm:h-1.5 w-full overflow-hidden rounded-full bg-[rgb(var(--yard-gold))]/10">
                   <motion.div
                     className="h-full rounded-full bg-[rgb(var(--yard-gold))]/50"
-                    initial={prefersReduced ? undefined : { width: "15%" }}
-                    animate={prefersReduced ? undefined : { width: "60%" }}
-                    transition={{ duration: 1, ease: [0.4, 0, 0.2, 1] }}
+                    initial={prefersReduced ? { width: "60%" } : { width: "15%" }}
+                    animate={{ width: "60%" }}
+                    transition={{ duration: 1.5, ease: [0.4, 0, 0.2, 1], delay: 0.5 }}
                   />
                 </div>
               </div>
             </div>
-          </motion.div>
+          </div>
         </div>
       </div>
     </section>
