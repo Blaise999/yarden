@@ -149,77 +149,77 @@ export function TiltCard({
 }
 
 /**
- * Poster component (FIXED):
- * ✅ Always reserves height via aspect-ratio on ALL breakpoints
+ * Poster component (NUCLEAR):
+ * ✅ No tailwind aspect-ratio classes (so Tailwind config/purge cannot break it)
+ * ✅ Uses native CSS aspectRatio (always works)
  * ✅ Foreground uses object-contain so the whole image always shows
- * ✅ Adds a blurred "cover" backdrop so no ugly empty bars on weird phone ratios
+ * ✅ Blurred cover backdrop to avoid ugly bars
  */
 export function Poster({
   src,
   label,
   wide,
   priority,
-  aspectClassName,
 }: {
   src: string;
   label: string;
   wide?: boolean;
   priority?: boolean;
-  aspectClassName?: string;
 }) {
-  const aspect =
-    aspectClassName ??
-    (wide
-      ? "aspect-[16/9] sm:aspect-[21/9] md:aspect-[24/9]"
-      : "aspect-[3/4] sm:aspect-[4/5] md:aspect-[3/4]");
+  // Portrait tiles should be taller; wide should not eat the whole hero height.
+  const ratio = wide ? "16 / 9" : "3 / 4";
 
   return (
-    <TiltCard
-      className={[
-        "group card-frame overflow-hidden relative",
-        "bg-white/40",
-        aspect,
-      ].join(" ")}
-    >
-      {/* Backdrop fill (blurred cover) */}
-      <div aria-hidden className="absolute inset-0">
-        <Image
-          src={src}
-          alt=""
-          fill
-          priority={false}
-          sizes={wide ? "100vw" : "50vw"}
-          className="object-cover scale-110 blur-2xl opacity-25"
-        />
-      </div>
+    <TiltCard className="group card-frame overflow-hidden relative bg-white/40 w-full">
+      {/* ✅ Hard guarantee height on every device */}
+      <div
+        className="relative w-full"
+        style={{
+          aspectRatio: ratio,
+          // extra guardrails for tiny phones (prevents “looks collapsed”)
+          minHeight: wide ? 140 : 180,
+        }}
+      >
+        {/* Backdrop fill (blurred cover) */}
+        <div aria-hidden className="absolute inset-0">
+          <Image
+            src={src}
+            alt=""
+            fill
+            priority={false}
+            sizes={wide ? "100vw" : "50vw"}
+            className="object-cover scale-110 blur-2xl opacity-25"
+          />
+        </div>
 
-      {/* Foreground (show full image always) */}
-      <div className="absolute inset-0">
-        <Image
-          src={src}
-          alt={label}
-          fill
-          priority={priority}
-          sizes={
-            wide
-              ? "(max-width: 640px) 100vw, (max-width: 1024px) 60vw, 520px"
-              : "(max-width: 640px) 50vw, (max-width: 1024px) 30vw, 260px"
-          }
-          className="object-contain p-1.5 sm:p-2 md:p-2.5 transition-transform duration-500 ease-out group-hover:scale-[1.03]"
-        />
-      </div>
+        {/* Foreground (show full image always) */}
+        <div className="absolute inset-0">
+          <Image
+            src={src}
+            alt={label}
+            fill
+            priority={priority}
+            sizes={
+              wide
+                ? "(max-width: 640px) 100vw, (max-width: 1024px) 60vw, 520px"
+                : "(max-width: 640px) 50vw, (max-width: 1024px) 30vw, 260px"
+            }
+            className="object-contain p-1.5 sm:p-2 md:p-2.5 transition-transform duration-500 ease-out group-hover:scale-[1.03]"
+          />
+        </div>
 
-      {/* Overlays */}
-      <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-black/15" />
-      <div className="absolute inset-0 bg-[radial-gradient(ellipse_60%_40%_at_30%_20%,rgba(255,255,255,0.15),transparent)] mix-blend-overlay" />
-      <div className="absolute inset-0 grain opacity-[0.1]" />
+        {/* Overlays */}
+        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-black/15" />
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_60%_40%_at_30%_20%,rgba(255,255,255,0.15),transparent)] mix-blend-overlay" />
+        <div className="absolute inset-0 grain opacity-[0.1]" />
 
-      <div className="pointer-events-none absolute right-2 sm:right-3 top-2 sm:top-3 text-lg sm:text-xl md:text-2xl font-black text-white/12 drop-shadow-lg">
-        ☥
-      </div>
+        <div className="pointer-events-none absolute right-2 sm:right-3 top-2 sm:top-3 text-lg sm:text-xl md:text-2xl font-black text-white/12 drop-shadow-lg">
+          ☥
+        </div>
 
-      <div className="pointer-events-none absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-400 hidden md:block">
-        <div className="absolute inset-0 bg-gradient-to-br from-white/12 via-transparent to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700 ease-out" />
+        <div className="pointer-events-none absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-400 hidden md:block">
+          <div className="absolute inset-0 bg-gradient-to-br from-white/12 via-transparent to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700 ease-out" />
+        </div>
       </div>
     </TiltCard>
   );
@@ -340,7 +340,13 @@ export function AnkhPattern() {
           height="100"
           patternUnits="userSpaceOnUse"
         >
-          <text x="10" y="65" fontSize="48" fontWeight="900" fill="currentColor">
+          <text
+            x="10"
+            y="65"
+            fontSize="48"
+            fontWeight="900"
+            fill="currentColor"
+          >
             ☥
           </text>
         </pattern>
