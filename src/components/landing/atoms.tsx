@@ -146,6 +146,12 @@ export function TiltCard({
   );
 }
 
+/**
+ * Poster component with FIXED mobile heights
+ * - Uses aspect-ratio to ensure images never collapse
+ * - Mobile: aspect-[4/5] for portrait tiles, aspect-[16/9] for wide
+ * - Desktop: fixed pixel heights for consistency
+ */
 export function Poster({
   src,
   label,
@@ -160,8 +166,11 @@ export function Poster({
   return (
     <TiltCard
       className={[
-        "group card-frame overflow-hidden",
-        wide ? "h-36 sm:h-44 md:h-52 lg:h-60" : "h-28 sm:h-32 md:h-40 lg:h-44",
+        "group card-frame overflow-hidden relative",
+        // Mobile: use aspect-ratio to guarantee height
+        wide 
+          ? "aspect-[16/9] sm:aspect-auto sm:h-44 md:h-52 lg:h-60" 
+          : "aspect-[4/5] sm:aspect-auto sm:h-32 md:h-40 lg:h-44",
       ].join(" ")}
     >
       <div className="absolute inset-0">

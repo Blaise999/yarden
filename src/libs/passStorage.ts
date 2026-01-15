@@ -1,123 +1,205 @@
 // libs/passStorage.ts
-import fs from "fs";
-import path from "path";
-import { kv } from "@vercel/kv";
+// Production-ready storage using Vercel KV (Redis)
+// Works on Vercel serverless - no filesystem dependency
+
 import type { YardPass } from "./passTypes";
 
 /* ---------------------------------- */
-/* KV keys                             */
+/* Vercel KV Configuration            */
 /* ---------------------------------- */
-const PASS_BY_ANON = (anonId: string) => `pass:anon:${anonId}`;
-const PASS_ANONS = "passes:anons"; // index of anonIds
-const PASS_IDS = "passes:ids"; // optional index of ids
+const KV_REST_API_URL = process.env.KV_REST_API_URL;
+const KV_REST_API_TOKEN = process.env.KV_REST_API_TOKEN;
 
-const HAS_KV = Boolean(process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN);
+const HAS_KV = Boolean(KV_REST_API_URL && KV_REST_API_TOKEN);
+
+// KV Key patterns
+const PASS_KEY = (anonId: string) => `pass:${anonId}`;
+const ALL_PASSES_KEY = "passes:all";
 
 /* ---------------------------------- */
-/* FS fallback                          */
+/* KV Helper Functions                */
 /* ---------------------------------- */
-const DATA_DIR = path.join(process.cwd(), "data");
-const PASSES_FILE = path.join(DATA_DIR, "passes.json");
 
-function ensureDataDir() {
-  if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
-}
-
-function readPassesFS(): YardPass[] {
-  ensureDataDir();
-  if (!fs.existsSync(PASSES_FILE)) return [];
+async function kvGet(key: string): Promise<string | null> {
+  if (!HAS_KV) return null;
+  
   try {
-    const raw = fs.readFileSync(PASSES_FILE, "utf-8");
-    return JSON.parse(raw) as YardPass[];
-  } catch {
-    return [];
-  }
-}
-
-function writePassesFS(passes: YardPass[]) {
-  ensureDataDir();
-  fs.writeFileSync(PASSES_FILE, JSON.stringify(passes, null, 2), "utf-8");
-}
-
-/* ---------------------------------- */
-/* Helpers (narrow unknown -> string[]) */
-/* ---------------------------------- */
-function asStringArray(v: unknown): string[] {
-  if (!Array.isArray(v)) return [];
-  return v.filter((x): x is string => typeof x === "string" && x.length > 0);
-}
-
-function parsePass(raw: string): YardPass | null {
-  try {
-    return JSON.parse(raw) as YardPass;
-  } catch {
+    const res = await fetch(`${KV_REST_API_URL}/get/${key}`, {
+      headers: {
+        Authorization: `Bearer ${KV_REST_API_TOKEN}`,
+      },
+      cache: "no-store",
+    });
+    
+    if (!res.ok) return null;
+    
+    const data = await res.json();
+    return data.result || null;
+  } catch (err) {
+    console.error("KV GET error:", err);
     return null;
   }
 }
 
+async function kvSet(key: string, value: string): Promise<boolean> {
+  if (!HAS_KV) return false;
+  
+  try {
+    const res = await fetch(`${KV_REST_API_URL}/set/${key}`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${KV_REST_API_TOKEN}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ value }),
+      cache: "no-store",
+    });
+    
+    return res.ok;
+  } catch (err) {
+    console.error("KV SET error:", err);
+    return false;
+  }
+}
+
+async function kvSadd(key: string, member: string): Promise<boolean> {
+  if (!HAS_KV) return false;
+  
+  try {
+    const res = await fetch(`${KV_REST_API_URL}/sadd/${key}/${encodeURIComponent(member)}`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${KV_REST_API_TOKEN}`,
+      },
+      cache: "no-store",
+    });
+    
+    return res.ok;
+  } catch (err) {
+    console.error("KV SADD error:", err);
+    return false;
+  }
+}
+
+async function kvSmembers(key: string): Promise<string[]> {
+  if (!HAS_KV) return [];
+  
+  try {
+    const res = await fetch(`${KV_REST_API_URL}/smembers/${key}`, {
+      headers: {
+        Authorization: `Bearer ${KV_REST_API_TOKEN}`,
+      },
+      cache: "no-store",
+    });
+    
+    if (!res.ok) return [];
+    
+    const data = await res.json();
+    return Array.isArray(data.result) ? data.result : [];
+  } catch (err) {
+    console.error("KV SMEMBERS error:", err);
+    return [];
+  }
+}
+
 /* ---------------------------------- */
-/* Public API (always async)           */
+/* Public API                         */
 /* ---------------------------------- */
 
 export async function getPassByAnonId(anonId: string): Promise<YardPass | null> {
-  if (HAS_KV) {
-    const raw = (await kv.get(PASS_BY_ANON(anonId))) as unknown;
-    if (typeof raw !== "string" || raw.length === 0) return null;
-    return parsePass(raw);
+  if (!anonId) return null;
+  
+  if (!HAS_KV) {
+    console.warn("⚠️ KV not configured - storage disabled");
+    return null;
   }
-
-  const passes = readPassesFS();
-  return passes.find((p) => p.anonId === anonId) || null;
+  
+  try {
+    const raw = await kvGet(PASS_KEY(anonId));
+    if (!raw) return null;
+    
+    return JSON.parse(raw) as YardPass;
+  } catch (err) {
+    console.error("Error in getPassByAnonId:", err);
+    return null;
+  }
 }
 
 export async function savePass(pass: YardPass): Promise<YardPass> {
-  if (HAS_KV) {
-    await kv.set(PASS_BY_ANON(pass.anonId), JSON.stringify(pass));
-    await kv.sadd(PASS_ANONS, pass.anonId);
-    await kv.sadd(PASS_IDS, pass.id);
+  if (!HAS_KV) {
+    console.warn("⚠️ KV not configured - pass not saved to persistent storage");
+    // Still return the pass so the UI works, just won't persist
     return pass;
   }
-
-  const passes = readPassesFS();
-  const existingIndex = passes.findIndex((p) => p.anonId === pass.anonId);
-
-  if (existingIndex >= 0) passes[existingIndex] = pass;
-  else passes.push(pass);
-
-  writePassesFS(passes);
-  return pass;
+  
+  try {
+    const passJson = JSON.stringify(pass);
+    
+    // Save individual pass
+    const saved = await kvSet(PASS_KEY(pass.anonId), passJson);
+    if (!saved) {
+      throw new Error("Failed to save pass to KV");
+    }
+    
+    // Add to set of all passes (for admin listing)
+    await kvSadd(ALL_PASSES_KEY, pass.anonId);
+    
+    return pass;
+  } catch (err) {
+    console.error("Error in savePass:", err);
+    throw err;
+  }
 }
 
 export async function getAllPasses(): Promise<YardPass[]> {
-  if (HAS_KV) {
-    // ✅ don't use kv.smembers<string>() — typings vary; narrow manually
-    const anonIdsRaw = (await kv.smembers(PASS_ANONS)) as unknown;
-    const anonIds = asStringArray(anonIdsRaw);
-    if (anonIds.length === 0) return [];
-
-    const raws = await Promise.all(anonIds.map((a) => kv.get(PASS_BY_ANON(a))));
-
-    return raws
-      .filter((x): x is string => typeof x === "string" && x.length > 0)
-      .map((s) => parsePass(s))
-      .filter((p): p is YardPass => Boolean(p));
+  if (!HAS_KV) {
+    console.warn("⚠️ KV not configured - returning empty passes list");
+    return [];
   }
-
-  return readPassesFS();
+  
+  try {
+    // Get all anon IDs from the set
+    const anonIds = await kvSmembers(ALL_PASSES_KEY);
+    
+    if (anonIds.length === 0) return [];
+    
+    // Fetch all passes in parallel
+    const passPromises = anonIds.map(async (anonId) => {
+      const raw = await kvGet(PASS_KEY(anonId));
+      if (!raw) return null;
+      try {
+        return JSON.parse(raw) as YardPass;
+      } catch {
+        return null;
+      }
+    });
+    
+    const passes = await Promise.all(passPromises);
+    
+    // Filter out nulls and sort by creation date (newest first)
+    return passes
+      .filter((p): p is YardPass => p !== null)
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  } catch (err) {
+    console.error("Error in getAllPasses:", err);
+    return [];
+  }
 }
 
 export function generatePassId(): string {
   const year = String(new Date().getFullYear()).slice(-2);
-  const bytes = new Uint8Array(6);
-
-  const c = globalThis.crypto as Crypto | undefined;
-  if (c?.getRandomValues) c.getRandomValues(bytes);
-  else for (let i = 0; i < bytes.length; i++) bytes[i] = Math.floor(Math.random() * 256);
-
-  const hex = Array.from(bytes)
-    .map((b) => b.toString(16).padStart(2, "0"))
-    .join("")
-    .toUpperCase();
-
+  
+  // Generate random hex string
+  const chars = "0123456789ABCDEF";
+  let hex = "";
+  for (let i = 0; i < 12; i++) {
+    hex += chars[Math.floor(Math.random() * 16)];
+  }
+  
   return `YARD-${year}-${hex}`;
+}
+
+// Check if storage is properly configured
+export function isStorageConfigured(): boolean {
+  return HAS_KV;
 }
