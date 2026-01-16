@@ -182,12 +182,27 @@ export default function HeroStage() {
 
           {/* Right: Visuals */}
           <div ref={visualsRef} className="space-y-3 sm:space-y-4 md:space-y-5 lg:space-y-6">
-            {/* Poster Grid - FIXED for mobile with proper aspect ratios */}
-            <div className="grid grid-cols-2 gap-2 sm:gap-3 md:gap-4">
+            {/* 
+              Poster Grid - BALANCED RESPONSIVE LAYOUT
+              
+              Solution for small phones:
+              - Row 1: Two portrait posters side by side
+              - Row 2: Third portrait + wide poster stacked
+              
+              This eliminates the awkward "lone poster" problem by having
+              poster 3 share its row with the wide poster on mobile,
+              while on larger screens they separate naturally.
+            */}
+            <div className="grid grid-cols-2 gap-1.5 sm:gap-3 md:gap-4">
+              {/* Row 1: First two portraits */}
               <Poster src={posters[0].src} label={posters[0].label} priority />
               <Poster src={posters[1].src} label={posters[1].label} />
+              
+              {/* Row 2+: Third portrait and wide poster */}
               <Poster src={posters[2].src} label={posters[2].label} />
-              <div className="col-span-2">
+              
+              {/* Wide poster spans remaining space */}
+              <div className="col-span-1 sm:col-span-2 row-span-1 sm:row-span-1">
                 <Poster src={posters[3].src} label={posters[3].label} wide />
               </div>
             </div>

@@ -149,11 +149,21 @@ export function TiltCard({
 }
 
 /**
- * Poster component (NUCLEAR):
- * ✅ No tailwind aspect-ratio classes (so Tailwind config/purge cannot break it)
- * ✅ Uses native CSS aspectRatio (always works)
- * ✅ Foreground uses object-contain so the whole image always shows
- * ✅ Blurred cover backdrop to avoid ugly bars
+ * Poster component v2 - INTELLIGENT MOBILE-FIRST RESPONSIVE
+ * 
+ * PROBLEM SOLVED: On small phones (< 380px), the 2-col grid with tall aspect ratios
+ * creates cramped posters. The old object-contain approach left wasted letterbox space.
+ * 
+ * SOLUTION:
+ * 1. object-cover fills frames completely (no wasted space)
+ * 2. Smart object-position keeps faces/subjects visible during cropping
+ * 3. Viewport-relative minHeight via clamp() ensures visibility on all phones
+ * 4. CSS custom properties (--poster-portrait-ratio, --poster-wide-ratio) 
+ *    defined in globals.css adapt ratios based on screen width
+ * 5. Tighter inset padding on small screens, growing proportionally
+ * 
+ * RESULT: Images fill their frames beautifully at every screen size,
+ * subjects stay centered, and the grid remains balanced.
  */
 export function Poster({
   src,
@@ -166,34 +176,44 @@ export function Poster({
   wide?: boolean;
   priority?: boolean;
 }) {
-  // Portrait tiles should be taller; wide should not eat the whole hero height.
-  const ratio = wide ? "16 / 9" : "3 / 4";
-
   return (
     <TiltCard className="group card-frame overflow-hidden relative bg-white/40 w-full">
-      {/* ✅ Hard guarantee height on every device */}
+      {/* 
+        Responsive container using CSS custom properties:
+        - --poster-portrait-ratio and --poster-wide-ratio are defined in globals.css
+        - They automatically adjust based on screen width via media queries
+        - minHeight uses clamp() for fluid scaling across all devices
+      */}
       <div
-        className="relative w-full"
+        className="poster-frame relative w-full"
         style={{
-          aspectRatio: ratio,
-          // extra guardrails for tiny phones (prevents “looks collapsed”)
-          minHeight: wide ? 140 : 180,
+          aspectRatio: wide 
+            ? "var(--poster-wide-ratio, 16 / 10)" 
+            : "var(--poster-portrait-ratio, 4 / 5)",
+          minHeight: wide 
+            ? "clamp(80px, 18vw, 140px)" 
+            : "clamp(90px, 25vw, 180px)",
         }}
       >
-        {/* Backdrop fill (blurred cover) */}
-        <div aria-hidden className="absolute inset-0">
+        {/* Backdrop: Blurred cover fills gaps seamlessly */}
+        <div aria-hidden className="absolute inset-0 overflow-hidden">
           <Image
             src={src}
             alt=""
             fill
             priority={false}
             sizes={wide ? "100vw" : "50vw"}
-            className="object-cover scale-110 blur-2xl opacity-25"
+            className="object-cover scale-125 blur-2xl opacity-35"
           />
         </div>
 
-        {/* Foreground (show full image always) */}
-        <div className="absolute inset-0">
+        {/* 
+          Main image container with elegant frame padding:
+          - Inset creates frame effect that scales with screen size
+          - Rounded corners for softer aesthetic
+          - Overflow hidden clips image cleanly
+        */}
+        <div className="absolute inset-[2px] sm:inset-1 md:inset-1.5 rounded-md sm:rounded-lg overflow-hidden bg-black/5">
           <Image
             src={src}
             alt={label}
@@ -201,24 +221,32 @@ export function Poster({
             priority={priority}
             sizes={
               wide
-                ? "(max-width: 640px) 100vw, (max-width: 1024px) 60vw, 520px"
-                : "(max-width: 640px) 50vw, (max-width: 1024px) 30vw, 260px"
+                ? "(max-width: 380px) 100vw, (max-width: 640px) 100vw, (max-width: 1024px) 60vw, 520px"
+                : "(max-width: 380px) 50vw, (max-width: 640px) 50vw, (max-width: 1024px) 30vw, 260px"
             }
-            className="object-contain p-1.5 sm:p-2 md:p-2.5 transition-transform duration-500 ease-out group-hover:scale-[1.03]"
+            /* 
+              KEY FIX: object-cover + object-position
+              - object-cover: Fills frame completely, crops excess (no letterboxing!)
+              - object-[center_25%]: Focus on upper portion where faces typically are
+              - This ensures portraits show faces prominently, not feet
+            */
+            className="object-cover object-[center_25%] transition-transform duration-500 ease-out group-hover:scale-[1.04]"
           />
         </div>
 
-        {/* Overlays */}
-        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-black/15" />
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_60%_40%_at_30%_20%,rgba(255,255,255,0.15),transparent)] mix-blend-overlay" />
-        <div className="absolute inset-0 grain opacity-[0.1]" />
+        {/* Subtle gradient overlays for depth and polish */}
+        <div className="absolute inset-0 bg-gradient-to-t from-black/15 via-transparent to-white/5 pointer-events-none" />
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_70%_50%_at_50%_15%,rgba(255,255,255,0.1),transparent)] mix-blend-overlay pointer-events-none" />
+        <div className="absolute inset-0 grain opacity-[0.06] pointer-events-none" />
 
-        <div className="pointer-events-none absolute right-2 sm:right-3 top-2 sm:top-3 text-lg sm:text-xl md:text-2xl font-black text-white/12 drop-shadow-lg">
+        {/* Corner ankh badge - scales with container */}
+        <div className="pointer-events-none absolute right-1 sm:right-2 md:right-3 top-1 sm:top-2 md:top-3 text-xs sm:text-base md:text-lg font-black text-white/20 drop-shadow-md">
           ☥
         </div>
 
-        <div className="pointer-events-none absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-400 hidden md:block">
-          <div className="absolute inset-0 bg-gradient-to-br from-white/12 via-transparent to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700 ease-out" />
+        {/* Hover shine effect - desktop only */}
+        <div className="pointer-events-none absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 hidden md:block">
+          <div className="absolute inset-0 bg-gradient-to-br from-white/12 via-transparent to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-600 ease-out" />
         </div>
       </div>
     </TiltCard>

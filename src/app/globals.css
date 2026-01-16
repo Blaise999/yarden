@@ -33,6 +33,40 @@
 
   --container: 1200px;
   --content: 960px;
+  
+  /* 
+    Poster aspect ratio tokens - responsive by default
+    These create squarer posters on small screens to prevent cramping
+  */
+  --poster-portrait-ratio: 4 / 5;
+  --poster-wide-ratio: 16 / 10;
+}
+
+/* 
+  Small phones (< 380px): Use even squarer ratios for better fit
+  This helps yarden1-4 images display properly on tiny screens
+*/
+@media (max-width: 379px) {
+  :root {
+    --poster-portrait-ratio: 1 / 1;
+    --poster-wide-ratio: 4 / 3;
+  }
+}
+
+/* Medium phones (380-479px): Slightly squarer than default */
+@media (min-width: 380px) and (max-width: 479px) {
+  :root {
+    --poster-portrait-ratio: 5 / 6;
+    --poster-wide-ratio: 3 / 2;
+  }
+}
+
+/* Larger phones and up (480px+): Use traditional ratios */
+@media (min-width: 480px) {
+  :root {
+    --poster-portrait-ratio: 3 / 4;
+    --poster-wide-ratio: 16 / 9;
+  }
 }
 
 html {
