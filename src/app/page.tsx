@@ -62,6 +62,8 @@ export default function Page() {
   const LINKS = useMemo(
     () => ({
       youtubeChannel: "https://www.youtube.com/@thisisyarden",
+      youtubeVideosPage: "https://www.youtube.com/@thisisyarden/videos",
+
       youtubeVideos: {
         meAndU: "https://youtu.be/jtwvI2wm7Kg?si=HKUa2gVrfVRmIIWL",
         time: "https://youtu.be/t09I8srzieU",
@@ -70,6 +72,7 @@ export default function Page() {
         busyBody: "https://youtu.be/E0h6P_blGig?si=GgtQAyOvaZ11BdIp",
         ifeoma: "https://youtu.be/NWQGjtyS6Vk?si=HV0d292X2gxvvVLh",
       },
+
       releases: {
         towd: {
           spotify: "https://open.spotify.com/album/6y3G0lel5n8pd29aTR41d9",
@@ -81,7 +84,6 @@ export default function Page() {
         muse: {
           spotify: "https://open.spotify.com/album/63Fi9c3GqnaR2aTbm4lR5D",
           apple: "https://music.apple.com/us/album/muse-ep/1837991942",
-          // ✅ official audio tracks playlist (YouTube Music)
           youtube: "https://music.youtube.com/playlist?list=OLAK5uy_ncEjd3gh9V6wfc5OxDBPQZ6r7b5fAkx7k",
           audiomack: "https://audiomack.com/thisisyarden/album/muse",
         },
@@ -167,42 +169,48 @@ export default function Page() {
     [LINKS]
   );
 
-  // ✅ your real visuals (no placeholders)
+  // ✅ FIX: match VisualItem type (kind/year), not meta
   const visuals: VisualItem[] = useMemo(
     () => [
       {
-        title: "ME & U (Official Music Video)",
-        meta: "Official • YouTube",
+        title: "ME & U",
+        kind: "Official Music Video",
+        year: "2025",
         href: LINKS.youtubeVideos.meAndU,
         tag: "Official",
       },
       {
-        title: "Time (Official Video)",
-        meta: "Official • YouTube",
+        title: "Time",
+        kind: "Official Video",
+        year: "2024",
         href: LINKS.youtubeVideos.time,
         tag: "Official",
       },
       {
-        title: "Wait (Official Video)",
-        meta: "Official • YouTube",
+        title: "Wait",
+        kind: "Official Video",
+        year: "2024",
         href: LINKS.youtubeVideos.wait,
         tag: "Official",
       },
       {
-        title: "Soul (Official Visualizer)",
-        meta: "Visualizer • YouTube",
+        title: "Soul",
+        kind: "Official Visualizer",
+        year: "2024",
         href: LINKS.youtubeVideos.soul,
         tag: "Visualizer",
       },
       {
-        title: "Ifeoma (Visualizer)",
-        meta: "Visualizer • YouTube",
+        title: "Ifeoma",
+        kind: "Visualizer",
+        year: "2023",
         href: LINKS.youtubeVideos.ifeoma,
         tag: "Visualizer",
       },
       {
-        title: "Busy Body (Visualizer)",
-        meta: "Visualizer • YouTube",
+        title: "Busy Body",
+        kind: "Visualizer",
+        year: "2023",
         href: LINKS.youtubeVideos.busyBody,
         tag: "Visualizer",
       },
@@ -279,9 +287,7 @@ export default function Page() {
         (entries) => {
           for (const e of entries) if (e.isIntersecting) setActive(id);
         },
-        {
-          threshold: 0.22,
-        }
+        { threshold: 0.22 }
       );
 
       io.observe(el);
@@ -315,9 +321,7 @@ export default function Page() {
           <Hero
             heroA={heroA}
             heroB={heroB}
-            // ✅ push people to the latest EP directly (Muse)
             listenHref={LINKS.releases.muse.spotify}
-            // ✅ follow goes to the real YouTube channel
             followHref={LINKS.youtubeChannel}
             onOpenPass={onOpenPass}
             nowPlaying={{
@@ -333,19 +337,18 @@ export default function Page() {
           <section id="releases" className="scroll-mt-24">
             <ReleasesSection releases={releases} onOpenPass={onOpenPass} initialCount={2} />
           </section>
-          
-<section id="watch" className="scroll-mt-24">
-  <VisualsSection
-    items={visuals}
-    channelHref={LINKS.youtubeChannel}
-    videosHref={LINKS.youtubeChannel}
-    maxItems={8}
-  />
-</section>
 
+          <section id="watch" className="scroll-mt-24">
+            <VisualsSection
+              items={visuals}
+              channelHref={LINKS.youtubeChannel}
+              videosHref={LINKS.youtubeVideosPage}
+              maxItems={8}
+            />
+          </section>
 
           <section id="tour" className="scroll-mt-24">
-            <TourSection id="tour" shows={shows} config={tourConfig} onOpenPass={onOpenPass} editable={isAdmin} />
+            <TourSection shows={shows} config={tourConfig} onOpenPass={onOpenPass} editable={isAdmin} />
           </section>
 
           <section id="pass" className="scroll-mt-24">
