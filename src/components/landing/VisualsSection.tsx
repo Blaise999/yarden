@@ -75,7 +75,7 @@ const DEFAULT_ITEMS: VisualItem[] = [
 
 type YTTarget = { kind: "video"; id: string } | { kind: "playlist"; id: string };
 
-// ⚠️ removed “live/<id>” handling like you asked earlier
+// ⚠️ removed “live/<id>” handling (as requested)
 function getYTTarget(url: string): YTTarget | null {
   try {
     const u = new URL(url);
@@ -220,6 +220,8 @@ function buildEmbedSrc(t: YTTarget, autoplay: 0 | 1) {
   return `https://www.youtube-nocookie.com/embed/videoseries?list=${t.id}&autoplay=${autoplay}&rel=0&modestbranding=1&playsinline=1`;
 }
 
+gsap.registerPlugin(ScrollTrigger);
+
 export function VisualsSection(props?: {
   id?: string;
   items?: VisualItem[];
@@ -234,11 +236,17 @@ export function VisualsSection(props?: {
 
   // how often spotlight auto-switches (ms)
   cycleMs?: number;
+
+  // ✅ add back: limit how many items to show total
+  maxItems?: number;
 }) {
   const reducedMotion = usePrefersReducedMotion();
 
   const id = props?.id ?? "watch";
-  const raw = props?.items?.length ? props.items : DEFAULT_ITEMS;
+
+  const base = props?.items?.length ? props.items : DEFAULT_ITEMS;
+  const maxItems = props?.maxItems ? Math.max(1, props.maxItems) : undefined;
+  const raw = maxItems ? base.slice(0, maxItems) : base;
 
   const channelHref = props?.channelHref ?? YARDEN_CHANNEL;
   const videosHref = props?.videosHref ?? YARDEN_VIDEOS;
@@ -248,7 +256,6 @@ export function VisualsSection(props?: {
 
   const rootRef = useRef<HTMLDivElement | null>(null);
   const stageRef = useRef<HTMLDivElement | null>(null);
-  const railRef = useRef<HTMLDivElement | null>(null);
 
   const heroMediaRef = useRef<HTMLDivElement | null>(null);
   const heroScanRef = useRef<HTMLDivElement | null>(null);
@@ -259,7 +266,6 @@ export function VisualsSection(props?: {
   const [iframeReady, setIframeReady] = useState(false);
 
   const [spotIdx, setSpotIdx] = useState(0);
-  const [userPicked, setUserPicked] = useState(false);
 
   const items = useMemo<ResolvedItem[]>(() => {
     return raw.map((v) => {
@@ -317,12 +323,9 @@ export function VisualsSection(props?: {
   useLayoutEffect(() => {
     if (reducedMotion) return;
 
-    gsap.registerPlugin(ScrollTrigger);
-
     const stage = stageRef.current;
-    const rail = railRef.current;
     const root = rootRef.current;
-    if (!stage || !rail || !root) return;
+    if (!stage || !root) return;
 
     const ctx = gsap.context(() => {
       const hero = stage.querySelector<HTMLElement>("[data-hero='1']");
@@ -359,7 +362,6 @@ export function VisualsSection(props?: {
 
       const start = () => {
         if (timer) return;
-        // don’t fight the user if they clicked something recently
         timer = window.setInterval(() => {
           setSpotIdx((i) => (i + 1) % Math.max(1, items.length));
         }, cycleMs);
@@ -381,7 +383,7 @@ export function VisualsSection(props?: {
         onLeaveBack: stop,
       });
 
-      // if user picked, pause auto for a bit
+      // pause auto briefly after user actions
       let userPause: number | null = null;
       const pauseAutoBriefly = () => {
         stop();
@@ -391,7 +393,6 @@ export function VisualsSection(props?: {
         }, Math.max(2500, Math.floor(cycleMs * 0.65)));
       };
 
-      // expose helper on root for click handler
       (root as any).__pauseAuto = pauseAutoBriefly;
 
       return () => {
@@ -438,13 +439,12 @@ export function VisualsSection(props?: {
               "shadow-[0_24px_70px_rgba(0,0,0,0.55)]"
             )}
           >
-            {/* subtle border glow */}
             <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_30%_10%,rgba(255,255,255,0.10),rgba(0,0,0,0)_60%)]" />
             <div className="pointer-events-none absolute inset-0 bg-gradient-to-r from-black/45 via-transparent to-black/45" />
 
             <div className="relative z-[2] p-5 md:p-7">
               <div className="grid gap-6 lg:grid-cols-12">
-                {/* HERO (huge spotlight) */}
+                {/* HERO */}
                 <button
                   type="button"
                   onClick={() => openPlayer(spotlight)}
@@ -466,7 +466,6 @@ export function VisualsSection(props?: {
                         onSettled={() => (ScrollTrigger as any)?.refresh?.()}
                       />
 
-                      {/* scan sweep (spotlight switch) */}
                       <div
                         ref={heroScanRef}
                         className="pointer-events-none absolute inset-0 opacity-0"
@@ -477,7 +476,6 @@ export function VisualsSection(props?: {
                         }}
                       />
 
-                      {/* glow pulse */}
                       <div
                         ref={heroGlowRef}
                         className="pointer-events-none absolute inset-0 opacity-0"
@@ -500,9 +498,7 @@ export function VisualsSection(props?: {
 
                       <div className="absolute bottom-5 left-5 right-5 rounded-2xl bg-black/45 p-5 ring-1 ring-white/12 backdrop-blur-xl">
                         <div className="text-xs uppercase tracking-widest text-white/60">@thisisyarden</div>
-                        <div className="mt-2 text-[20px] md:text-[22px] font-semibold text-white">
-                          {spotlight.title}
-                        </div>
+                        <div className="mt-2 text-[20px] md:text-[22px] font-semibold text-white">{spotlight.title}</div>
                         <div className="mt-3 flex items-center gap-2 text-sm text-white/60">
                           <span>Play here</span>
                           <IconArrowUpRight className="h-4 w-4 transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
@@ -512,8 +508,8 @@ export function VisualsSection(props?: {
                   </div>
                 </button>
 
-                {/* UP NEXT rail */}
-                <div ref={railRef} className="lg:col-span-4">
+                {/* UP NEXT */}
+                <div className="lg:col-span-4">
                   <div className="flex items-center justify-between">
                     <div className="text-sm font-semibold text-white">Up next</div>
                     <div className="text-xs text-white/50">Auto-cycles</div>
@@ -529,7 +525,6 @@ export function VisualsSection(props?: {
                           const idx = items.findIndex((x) => x._key === v._key);
                           if (idx !== -1) {
                             setSpotIdx(idx);
-                            setUserPicked(true);
                             (rootRef.current as any)?.__pauseAuto?.();
                           }
                         }}
@@ -539,11 +534,7 @@ export function VisualsSection(props?: {
                         )}
                       >
                         <div className="relative h-16 w-24 overflow-hidden rounded-xl ring-1 ring-white/10">
-                          <SmartThumb
-                            candidates={v.thumbs}
-                            fallback={v.fallback}
-                            alt={`Yarden — ${v.title}`}
-                          />
+                          <SmartThumb candidates={v.thumbs} fallback={v.fallback} alt={`Yarden — ${v.title}`} />
                           <div className="absolute inset-0 bg-gradient-to-t from-black/55 via-transparent to-transparent" />
                         </div>
 
@@ -572,7 +563,7 @@ export function VisualsSection(props?: {
                     ))}
                   </div>
 
-                  {/* mini grid (clean, not noisy) */}
+                  {/* mini grid */}
                   <div className="mt-5 grid grid-cols-2 gap-3">
                     {items.slice(0, 4).map((v) => (
                       <button
@@ -613,7 +604,7 @@ export function VisualsSection(props?: {
                 </div>
               </div>
 
-              {/* tidy info cards */}
+              {/* info cards */}
               <div className="mt-8 grid gap-6 lg:grid-cols-3">
                 <Card className="p-6">
                   <div className="flex flex-wrap items-center gap-2">
@@ -666,7 +657,6 @@ export function VisualsSection(props?: {
         <div className="grid gap-4">
           <div className="relative overflow-hidden rounded-2xl bg-black ring-1 ring-white/10">
             <div className="aspect-video">
-              {/* poster first (no flash) */}
               <div className={cx("absolute inset-0 transition-opacity", iframeReady ? "opacity-0" : "opacity-100")}>
                 {active ? (
                   <SmartThumb candidates={active.thumbs} fallback={active.fallback} alt={active.title} className="opacity-90" priority />

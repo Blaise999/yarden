@@ -11,7 +11,7 @@ import { VisualsSection, type VisualItem } from "@/components/landing/VisualsSec
 import { TourSection, type ShowItem, type TourConfig } from "@/components/landing/TourSection";
 
 import PassSection from "@/components/landing/pass/PassGenerator";
-import StoreSection, { type MerchItem } from "@/components/landing/StoreSection";
+import StoreSection, { type MerchItem, type StoreConfig } from "@/components/landing/StoreSection";
 import { NewsletterSection } from "@/components/landing/NewsletterSection";
 
 import Footer from "@/components/landing/Footer";
@@ -169,51 +169,14 @@ export default function Page() {
     [LINKS]
   );
 
-  // ✅ FIX: match VisualItem type (kind/year), not meta
   const visuals: VisualItem[] = useMemo(
     () => [
-      {
-        title: "ME & U",
-        kind: "Official Music Video",
-        year: "2025",
-        href: LINKS.youtubeVideos.meAndU,
-        tag: "Official",
-      },
-      {
-        title: "Time",
-        kind: "Official Video",
-        year: "2024",
-        href: LINKS.youtubeVideos.time,
-        tag: "Official",
-      },
-      {
-        title: "Wait",
-        kind: "Official Video",
-        year: "2024",
-        href: LINKS.youtubeVideos.wait,
-        tag: "Official",
-      },
-      {
-        title: "Soul",
-        kind: "Official Visualizer",
-        year: "2024",
-        href: LINKS.youtubeVideos.soul,
-        tag: "Visualizer",
-      },
-      {
-        title: "Ifeoma",
-        kind: "Visualizer",
-        year: "2023",
-        href: LINKS.youtubeVideos.ifeoma,
-        tag: "Visualizer",
-      },
-      {
-        title: "Busy Body",
-        kind: "Visualizer",
-        year: "2023",
-        href: LINKS.youtubeVideos.busyBody,
-        tag: "Visualizer",
-      },
+      { title: "ME & U", kind: "Official Music Video", year: "2025", href: LINKS.youtubeVideos.meAndU, tag: "Official" },
+      { title: "Time", kind: "Official Video", year: "2024", href: LINKS.youtubeVideos.time, tag: "Official" },
+      { title: "Wait", kind: "Official Video", year: "2024", href: LINKS.youtubeVideos.wait, tag: "Official" },
+      { title: "Soul", kind: "Official Visualizer", year: "2024", href: LINKS.youtubeVideos.soul, tag: "Visualizer" },
+      { title: "Ifeoma", kind: "Visualizer", year: "2023", href: LINKS.youtubeVideos.ifeoma, tag: "Visualizer" },
+      { title: "Busy Body", kind: "Visualizer", year: "2023", href: LINKS.youtubeVideos.busyBody, tag: "Visualizer" },
     ],
     [LINKS]
   );
@@ -241,12 +204,55 @@ export default function Page() {
     []
   );
 
+  // ✅ FIXED: StoreSection expects { id, images[] } (not image)
+  const storeConfig: StoreConfig = useMemo(
+    () => ({
+      eyebrow: "Store",
+      title: "Merch that matches the era.",
+      desc: "Official drops and limited pieces.",
+      storeHref: "#",
+    }),
+    []
+  );
+
   const merch: MerchItem[] = useMemo(
     () => [
-      { name: "Ankh Tee (Black)", price: "₦ —", image: "/media/yarden/merch-tee.jpg", tag: "Drop soon", available: false },
-      { name: "Era Poster (A2)", price: "₦ —", image: "/media/yarden/merch-poster.jpg", tag: "Limited", available: false },
-      { name: "Ankh Cap", price: "₦ —", image: "/media/yarden/merch-cap.jpg", tag: "New", available: false },
-      { name: "Pass Holder Lanyard", price: "₦ —", image: "/media/yarden/merch-lanyard.jpg", tag: "Exclusive", available: false },
+      {
+        id: "tee_black",
+        name: "Ankh Tee (Black)",
+        price: "₦ —",
+        images: ["/media/yarden/merch-tee.jpg"],
+        tag: "Drop soon",
+        available: false,
+        links: [{ label: "Notify me", href: "#" }],
+      },
+      {
+        id: "poster_a2",
+        name: "Era Poster (A2)",
+        price: "₦ —",
+        images: ["/media/yarden/merch-poster.jpg"],
+        tag: "Limited",
+        available: false,
+        links: [{ label: "Notify me", href: "#" }],
+      },
+      {
+        id: "ankh_cap",
+        name: "Ankh Cap",
+        price: "₦ —",
+        images: ["/media/yarden/merch-cap.jpg"],
+        tag: "New",
+        available: false,
+        links: [{ label: "Notify me", href: "#" }],
+      },
+      {
+        id: "lanyard",
+        name: "Pass Holder Lanyard",
+        price: "₦ —",
+        images: ["/media/yarden/merch-lanyard.jpg"],
+        tag: "Exclusive",
+        available: false,
+        links: [{ label: "Notify me", href: "#" }],
+      },
     ],
     []
   );
@@ -262,7 +268,7 @@ export default function Page() {
       watch: heroB.src,
       tour: tourConfig.posterSrc ?? heroB.src,
       pass: heroA.src,
-      store: merch[0]?.image ?? heroB.src,
+      store: merch[0]?.images?.[0] ?? heroB.src,
       newsletter: heroB.src,
     }),
     [heroA.src, heroB.src, releases, tourConfig.posterSrc, merch]
@@ -356,7 +362,7 @@ export default function Page() {
           </section>
 
           <section id="store" className="scroll-mt-24">
-            <StoreSection merch={merch} />
+            <StoreSection merch={merch} config={storeConfig} editable={isAdmin} />
           </section>
 
           <section id="newsletter" className="scroll-mt-24">

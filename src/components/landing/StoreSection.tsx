@@ -1,3 +1,4 @@
+// src/components/landing/StoreSection.tsx
 "use client";
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
@@ -23,9 +24,9 @@ export type MerchItem = {
   price?: string;
   images: string[];
   tag?: string;
-  href?: string;
-  links?: MerchLink[];
-  available?: boolean;
+  href?: string; // primary link
+  links?: MerchLink[]; // extra links (max 3 shown on card)
+  available?: boolean; // false => "coming soon"
 };
 
 export type StoreConfig = {
@@ -47,7 +48,21 @@ function uid(prefix: string) {
   }
 }
 
-function ImgCover({ src, alt }: { src: string; alt: string }) {
+/** tiny helper for safe external target/rel */
+function linkProps(href: string) {
+  const isExternal = /^https?:\/\//i.test(href);
+  return isExternal ? { target: "_blank", rel: "noreferrer" as const } : {};
+}
+
+function ImgCover({
+  src,
+  alt,
+  onError,
+}: {
+  src: string;
+  alt: string;
+  onError?: () => void;
+}) {
   return (
     <img
       src={src}
@@ -56,22 +71,35 @@ function ImgCover({ src, alt }: { src: string; alt: string }) {
       decoding="async"
       referrerPolicy="no-referrer"
       className="absolute inset-0 h-full w-full object-cover"
+      onError={onError}
+      draggable={false}
     />
   );
 }
 
 function MerchCard({ item }: { item: MerchItem }) {
-  const imgs = item.images?.length ? item.images : ["/media/yarden/merch-tee.jpg"];
+  const fallback = "/media/yarden/merch-tee.jpg";
+  const safeImgs = useMemo(() => {
+    const list = (item.images ?? []).map((s) => s.trim()).filter(Boolean);
+    return list.length ? list : [fallback];
+  }, [item.images]);
+
   const [i, setI] = useState(0);
 
+  // keep index valid if array changes
+  useEffect(() => {
+    setI((prev) => Math.min(prev, Math.max(0, safeImgs.length - 1)));
+  }, [safeImgs.length]);
+
+  // swipe
   const startX = useRef<number | null>(null);
   const lastX = useRef<number | null>(null);
 
-  const next = () => setI((v) => (v + 1) % imgs.length);
-  const prev = () => setI((v) => (v - 1 + imgs.length) % imgs.length);
+  const next = () => setI((v) => (v + 1) % safeImgs.length);
+  const prev = () => setI((v) => (v - 1 + safeImgs.length) % safeImgs.length);
 
-  const primaryHref = item.href || item.links?.[0]?.href || "#";
-  const canOpen = primaryHref && primaryHref !== "#";
+  const primaryHref = (item.href || item.links?.[0]?.href || "").trim();
+  const canOpen = primaryHref.length > 0 && primaryHref !== "#";
   const primaryLabel = item.available === false ? "Notify me" : "View";
 
   return (
@@ -100,7 +128,14 @@ function MerchCard({ item }: { item: MerchItem }) {
           lastX.current = null;
         }}
       >
-        <ImgCover src={imgs[i]} alt={item.name} />
+        <ImgCover
+          src={safeImgs[i]}
+          alt={item.name}
+          onError={() => {
+            // if an image is bad, move forward (but don’t loop forever)
+            if (safeImgs.length > 1) next();
+          }}
+        />
         <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent" />
 
         <div className="absolute left-4 top-4 flex items-center gap-2">
@@ -108,11 +143,12 @@ function MerchCard({ item }: { item: MerchItem }) {
           {item.available === false ? <Pill tone="muted">Coming soon</Pill> : null}
         </div>
 
-        {imgs.length > 1 ? (
+        {safeImgs.length > 1 ? (
           <div className="absolute right-4 top-4 flex items-center gap-1">
-            {imgs.map((_, idx) => (
+            {safeImgs.map((_, idx) => (
               <button
                 key={idx}
+                type="button"
                 onClick={() => setI(idx)}
                 className={cx(
                   "h-2 w-2 rounded-full ring-1 ring-white/20",
@@ -133,8 +169,7 @@ function MerchCard({ item }: { item: MerchItem }) {
               {canOpen ? (
                 <Link
                   href={primaryHref}
-                  target={primaryHref.startsWith("http") ? "_blank" : undefined}
-                  rel={primaryHref.startsWith("http") ? "noreferrer" : undefined}
+                  {...linkProps(primaryHref)}
                   className="inline-flex items-center gap-2 text-sm font-medium text-white/80 hover:text-white"
                 >
                   <span>{primaryLabel}</span>
@@ -151,21 +186,24 @@ function MerchCard({ item }: { item: MerchItem }) {
       {item.links?.length ? (
         <div className="p-5">
           <div className="flex flex-wrap gap-2">
-            {item.links.slice(0, 3).map((l) => (
-              <Link
-                key={l.label}
-                href={l.href}
-                target={l.href.startsWith("http") ? "_blank" : undefined}
-                rel={l.href.startsWith("http") ? "noreferrer" : undefined}
-                className={cx(
-                  "inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-medium",
-                  "bg-white/5 text-white/75 ring-1 ring-white/10 hover:bg-white/8 hover:text-white"
-                )}
-              >
-                <span>{l.label}</span>
-                <IconArrowUpRight className="h-3.5 w-3.5" />
-              </Link>
-            ))}
+            {item.links
+              .map((l) => ({ ...l, href: (l.href || "").trim() }))
+              .filter((l) => l.label && l.href && l.href !== "#")
+              .slice(0, 3)
+              .map((l) => (
+                <Link
+                  key={`${item.id}:${l.label}:${l.href}`}
+                  href={l.href}
+                  {...linkProps(l.href)}
+                  className={cx(
+                    "inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-medium",
+                    "bg-white/5 text-white/75 ring-1 ring-white/10 hover:bg-white/8 hover:text-white"
+                  )}
+                >
+                  <span>{l.label}</span>
+                  <IconArrowUpRight className="h-3.5 w-3.5" />
+                </Link>
+              ))}
             {item.links.length > 3 ? <Badge>+{item.links.length - 3} more</Badge> : null}
           </div>
         </div>
@@ -190,6 +228,7 @@ export default function StoreSection(props: {
   const [draftMerch, setDraftMerch] = useState<MerchItem[]>(props.merch);
   const [draftConfig, setDraftConfig] = useState<StoreConfig>(props.config);
 
+  // load draft when editable
   useEffect(() => {
     if (!props.editable) return;
     try {
@@ -204,6 +243,7 @@ export default function StoreSection(props: {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [props.editable]);
 
+  // when closing editor, reset drafts to props
   useEffect(() => {
     if (editOpen) return;
     setDraftMerch(props.merch);
@@ -225,6 +265,7 @@ export default function StoreSection(props: {
       images: ["/media/yarden/merch-tee.jpg"],
       tag: "Drop soon",
       available: false,
+      href: "",
       links: [{ label: "Notify me", href: "#" }],
     };
     const updated = [next, ...draftMerch];
@@ -232,14 +273,14 @@ export default function StoreSection(props: {
     persistDraft(updated, draftConfig);
   };
 
-  const removeItem = (id: string) => {
-    const updated = draftMerch.filter((m) => m.id !== id);
+  const removeItem = (itemId: string) => {
+    const updated = draftMerch.filter((m) => m.id !== itemId);
     setDraftMerch(updated);
     persistDraft(updated, draftConfig);
   };
 
-  const updateItem = (id: string, patch: Partial<MerchItem>) => {
-    const updated = draftMerch.map((m) => (m.id === id ? { ...m, ...patch } : m));
+  const updateItem = (itemId: string, patch: Partial<MerchItem>) => {
+    const updated = draftMerch.map((m) => (m.id === itemId ? { ...m, ...patch } : m));
     setDraftMerch(updated);
     persistDraft(updated, draftConfig);
   };
@@ -255,15 +296,17 @@ export default function StoreSection(props: {
     }
   };
 
-  const cfg = props.config;
+  // IMPORTANT: render from draft when editable, else props
+  const merchToRender = props.editable ? draftMerch : props.merch;
+  const cfgToRender = props.editable ? draftConfig : props.config;
 
   return (
     <section id={id} className="relative py-20 md:py-24">
       <div className="mx-auto max-w-7xl px-5 md:px-8">
         <SectionHeader
-          eyebrow={cfg.eyebrow ?? "Store"}
-          title={cfg.title ?? "Merch that matches the era."}
-          desc={cfg.desc ?? "Official drops and limited pieces."}
+          eyebrow={cfgToRender.eyebrow ?? "Store"}
+          title={cfgToRender.title ?? "Merch that matches the era."}
+          desc={cfgToRender.desc ?? "Official drops and limited pieces."}
           right={
             <div className="flex flex-wrap gap-2">
               {props.editable ? (
@@ -271,10 +314,12 @@ export default function StoreSection(props: {
                   Edit
                 </Button>
               ) : null}
+
               <Button
                 variant="secondary"
-                href={cfg.storeHref ?? "#"}
+                href={(cfgToRender.storeHref ?? "").trim() || "#"}
                 iconRight={<IconArrowUpRight className="h-4 w-4" />}
+                target={cfgToRender.storeHref?.startsWith("http") ? "_blank" : undefined}
               >
                 Open store
               </Button>
@@ -283,7 +328,7 @@ export default function StoreSection(props: {
         />
 
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-          {props.merch.map((m) => (
+          {merchToRender.map((m) => (
             <MerchCard key={m.id} item={m} />
           ))}
         </div>
@@ -373,7 +418,9 @@ export default function StoreSection(props: {
                       {m.tag ? <Pill tone="brand">{m.tag}</Pill> : <Pill tone="muted">Item</Pill>}
                       {m.available === false ? <Pill tone="muted">Coming soon</Pill> : <Pill tone="brand">Live</Pill>}
                     </div>
+
                     <button
+                      type="button"
                       onClick={() => removeItem(m.id)}
                       className="rounded-full p-2 text-white/60 hover:bg-white/10 hover:text-white"
                       aria-label="Remove"
