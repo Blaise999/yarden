@@ -15,26 +15,6 @@ function clamp(n: number, a: number, b: number) {
   return Math.max(a, Math.min(b, n));
 }
 
-/** Prevent layout jump when opening menu (scrollbar compensation) */
-function useLockBody(locked: boolean) {
-  useEffect(() => {
-    if (!locked) return;
-
-    const prevOverflow = document.body.style.overflow;
-    const prevPaddingRight = document.body.style.paddingRight;
-
-    const scrollbarW = window.innerWidth - document.documentElement.clientWidth;
-
-    document.body.style.overflow = "hidden";
-    if (scrollbarW > 0) document.body.style.paddingRight = `${scrollbarW}px`;
-
-    return () => {
-      document.body.style.overflow = prevOverflow;
-      document.body.style.paddingRight = prevPaddingRight;
-    };
-  }, [locked]);
-}
-
 // ---- Tint sampling (same as yours) ----
 function mixToReadable(r: number, g: number, b: number) {
   const lift = 0.22;
@@ -254,17 +234,6 @@ export default function LandingHeader(props: LandingHeaderProps) {
   const onNav = props.onNav ?? (() => {});
   const onLogo = props.onLogo ?? (() => onNav("top"));
 
-  useLockBody(menuOpen);
-
-  // anchor padding
-  useEffect(() => {
-    const prev = document.documentElement.style.scrollPaddingTop;
-    document.documentElement.style.scrollPaddingTop = "88px";
-    return () => {
-      document.documentElement.style.scrollPaddingTop = prev;
-    };
-  }, []);
-
   // scroll progress
   const [scrollY, setScrollY] = useState(0);
   useEffect(() => {
@@ -284,8 +253,8 @@ export default function LandingHeader(props: LandingHeaderProps) {
     };
   }, []);
 
-  // hold chameleon longer (don’t fade glass immediately)
-  const t = clamp((scrollY - 70) / 220, 0, 1);
+  // ✅ slower ramp for pinned hero (feels “premium”)
+  const t = clamp((scrollY - 40) / 640, 0, 1);
 
   // tint
   const [tint, setTint] = useState<{ r: number; g: number; b: number }>({ r: 180, g: 180, b: 200 });
@@ -324,15 +293,13 @@ export default function LandingHeader(props: LandingHeaderProps) {
     return { ["--tint" as any]: `${r} ${g} ${b}` } as React.CSSProperties;
   }, [tint]);
 
-  // pick top image (this should be the SAME as heroA.src)
-  const topImg = props.heroBgSrc ?? props.tintSources?.top;
-
-  // show chrome only after some scroll (kills the “divide” line)
+  // chrome
   const chromeOn = t > 0.02;
   const borderA = chromeOn ? 0.12 * t : 0;
   const shadowA = chromeOn ? 0.35 * t : 0;
 
-  // chameleon ink while the image layer is dominant
+  // chameleon ink while hero is dominant (optional but looks sick)
+  const topImg = props.heroBgSrc ?? props.tintSources?.top;
   const useBlendInk = t < 0.18 && !!topImg;
   const inkWrap = cx(
     "text-white",
@@ -343,39 +310,34 @@ export default function LandingHeader(props: LandingHeaderProps) {
   return (
     <>
       <header
-        data-header-build="v10"
-        className={cx("fixed top-0 left-0 right-0 z-[120]")}
+        data-header-build="chameleon-v1"
+        className={cx("fixed top-0 left-0 right-0 z-[5000]")}
         style={{
           ...cssVars,
           borderBottom: borderA > 0 ? `1px solid rgba(255,255,255,${borderA})` : "1px solid transparent",
           boxShadow: shadowA > 0 ? `0 10px 30px rgba(0,0,0,${shadowA})` : "none",
         }}
       >
-        {/* Background layers INSIDE header (safe from external overrides) */}
+        {/* ✅ REAL CHAMELEON: header is transparent at top, hero behind it does the blending */}
         <div className="pointer-events-none absolute inset-0 z-0 overflow-hidden">
-          {/* image continuation */}
-          <div
-            className="absolute inset-0"
-            style={{
-              opacity: 1 - t,
-              backgroundImage: topImg
-                ? `linear-gradient(to bottom, rgba(0,0,0,.28), rgba(0,0,0,0)), url(${topImg})`
-                : "none",
-              backgroundSize: "cover",
-              backgroundPosition: "center top",
-              backgroundRepeat: "no-repeat",
-              transform: "translateZ(0)",
-            }}
-          />
-          {/* glass layer (only “matters” after t grows) */}
+          {/* glass fades in */}
           <div
             className="absolute inset-0"
             style={{
               opacity: t,
-              backgroundColor: `rgba(0,0,0,${0.66 * t})`,
-              backdropFilter: chromeOn ? `blur(${14 * t}px)` : "none",
-              WebkitBackdropFilter: chromeOn ? `blur(${14 * t}px)` : "none",
+              backgroundColor: `rgba(7,7,10,${0.10 + 0.62 * t})`,
+              backdropFilter: chromeOn ? `blur(${12 * t}px) saturate(${1 + 0.15 * t})` : "none",
+              WebkitBackdropFilter: chromeOn ? `blur(${12 * t}px) saturate(${1 + 0.15 * t})` : "none",
               transform: "translateZ(0)",
+            }}
+          />
+
+          {/* subtle bottom fade so you never see an “edge” */}
+          <div
+            className="absolute inset-x-0 bottom-0 h-10"
+            style={{
+              background: "linear-gradient(to bottom, rgba(0,0,0,0), rgba(0,0,0,0.28))",
+              opacity: chromeOn ? clamp(t * 1.2, 0, 1) : 0,
             }}
           />
         </div>
@@ -455,7 +417,7 @@ export default function LandingHeader(props: LandingHeaderProps) {
       <AnimatePresence>
         {menuOpen ? (
           <motion.div
-            className="fixed inset-0 z-[180]"
+            className="fixed inset-0 z-[6000]"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}

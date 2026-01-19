@@ -19,17 +19,16 @@ import { PassModal } from "../components/landing/PassModal";
 
 type NavItem = { id: string; label: string };
 
-const HEADER_OFFSET = 84; // keep in sync with header height
+const HEADER_OFFSET = 84; // still used for Hero foreground padding
 
-function scrollToId(id: string, offset = HEADER_OFFSET) {
+function scrollToId(id: string) {
+  if (id === "top") {
+    window.scrollTo({ top: 0, behavior: "smooth" });
+    return;
+  }
   const el = document.getElementById(id);
   if (!el) return;
-
-  const y = el.getBoundingClientRect().top + window.scrollY;
-  window.scrollTo({
-    top: Math.max(0, y - offset),
-    behavior: "smooth",
-  });
+  el.scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
 function useBodyLock(locked: boolean) {
@@ -107,7 +106,7 @@ export default function Page() {
 
   const onNav = useCallback((id: string) => {
     setMenuOpen(false);
-    requestAnimationFrame(() => scrollToId(id, HEADER_OFFSET));
+    requestAnimationFrame(() => scrollToId(id));
   }, []);
 
   const onOpenPass = useCallback(() => {
@@ -204,7 +203,6 @@ export default function Page() {
     []
   );
 
-  // ✅ FIXED: StoreSection expects { id, images[] } (not image)
   const storeConfig: StoreConfig = useMemo(
     () => ({
       eyebrow: "Store",
@@ -257,10 +255,6 @@ export default function Page() {
     []
   );
 
-  /**
-   * Map sections -> an image path so the Header can sample a tint per section.
-   * Use ONLY public paths (no next/image optimized URLs).
-   */
   const tintSources = useMemo<Record<string, string>>(
     () => ({
       top: heroA.src,
@@ -321,6 +315,7 @@ export default function Page() {
           onOpenPass={onOpenPass}
           onLogo={() => onNav("top")}
           tintSources={tintSources}
+          heroBgSrc={heroA.src}
         />
 
         <main id="top">

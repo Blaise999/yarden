@@ -220,7 +220,9 @@ export function NewsletterSection(props: {
     backgroundImage: string;
   }) => Promise<void> | void;
 }) {
-  const reduced = useReducedMotion();
+  // ✅ FIX: normalize boolean|null -> boolean
+  const reduced = useReducedMotion() ?? false;
+
   const rootRef = useRef<HTMLElement | null>(null);
 
   const basePress = useMemo(
