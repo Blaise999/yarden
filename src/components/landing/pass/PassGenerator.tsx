@@ -48,10 +48,34 @@ function getOrCreateAnonId(): string {
   return id;
 }
 
-const Field = memo(function Field({ label, children }: { label: string; children: React.ReactNode }) {
+function firstNameOf(full: string) {
+  const t = full.trim();
+  if (!t) return "";
+  return t.split(/\s+/)[0] || "";
+}
+
+function maskEmail(email: string) {
+  const e = email.trim();
+  const at = e.indexOf("@");
+  if (at <= 1) return e;
+  const name = e.slice(0, at);
+  const domain = e.slice(at);
+  const head = name.slice(0, 2);
+  const tail = name.slice(-1);
+  return `${head}***${tail}${domain}`;
+}
+
+function maskPhone(phone: string) {
+  const p = phone.trim().replace(/\s+/g, "");
+  if (p.length < 7) return p;
+  return `${p.slice(0, 4)}***${p.slice(-3)}`;
+}
+
+const Field = memo(function Field({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
   return (
     <div>
       <label className="block text-xs sm:text-sm font-bold text-black/70 mb-1.5">{label}</label>
+      {hint ? <div className="text-[11px] sm:text-xs text-black/45 -mt-0.5 mb-2">{hint}</div> : null}
       {children}
     </div>
   );
@@ -59,20 +83,26 @@ const Field = memo(function Field({ label, children }: { label: string; children
 
 export default function PassGenerator() {
   const prefersReduced = useReducedMotion();
+
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [gender, setGender] = useState<Gender>("");
+
   const [photoDataUrl, setPhotoDataUrl] = useState<string | undefined>(undefined);
   const [photoPreview, setPhotoPreview] = useState<string | undefined>(undefined);
+
   const [savedPass, setSavedPass] = useState<PassData | null>(null);
   const [isLocked, setIsLocked] = useState(true);
+
   const [saving, setSaving] = useState(false);
   const [loadingExisting, setLoadingExisting] = useState(true);
   const [err, setErr] = useState("");
+
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
+  // Load existing pass (device-based)
   useEffect(() => {
     const checkExistingPass = async () => {
       try {
@@ -94,16 +124,31 @@ export default function PassGenerator() {
     checkExistingPass();
   }, []);
 
+  const greeting = useMemo(() => {
+    if (savedPass?.name) return `Welcome back, ${firstNameOf(savedPass.name) || "you"}.`;
+    if (name.trim()) return `Alright ${firstNameOf(name) || name.trim()}, let’s do it.`;
+    return "Make your pass. Keep it. Use it.";
+  }, [savedPass?.name, name]);
+
+  const subGreeting = useMemo(() => {
+    if (!savedPass) {
+      return "This pass is tied to this device. Once you generate it, download the PNG so you always have it.";
+    }
+    return "Your pass is already generated on this device. You can download it anytime.";
+  }, [savedPass]);
+
   const renderCard = useMemo<PassData>(() => {
     if (savedPass) return savedPass;
+
     const title: PassData["title"] = gender === "female" ? "YARDEN'S ANGEL" : "YARDEN'S DESCENDANT";
     const status: PassData["status"] = gender === "female" ? "Angel Certified" : "Descendant Certified";
+
     return {
       id: "YARD-XX-XXXXXXXX",
       name: name.trim() || "Your Name",
       email: email.trim() || "you@email.com",
       phone: phone.trim() || "+234...",
-      gender: gender || "male",
+      gender: (gender || "male") as PassData["gender"],
       title,
       status,
       yearJoined: new Date().getFullYear(),
@@ -138,43 +183,56 @@ export default function PassGenerator() {
     const n = name.trim();
     const em = email.trim();
     const ph = phone.trim();
+
     if (!n || !em || !ph || !gender) {
-      setErr("Please fill all fields and select gender.");
+      setErr("Fill your details and pick a path (Angel/Descendant).");
       return;
     }
+    if (!em.includes("@")) {
+      setErr("That email doesn’t look right. Check it and try again.");
+      return;
+    }
+
     setSaving(true);
     try {
       const year = String(new Date().getFullYear()).slice(-2);
       const hex = Array.from({ length: 12 }, () => Math.floor(Math.random() * 16).toString(16)).join("").toUpperCase();
       const cardId = `YARD-${year}-${hex}`;
+
       const title: PassData["title"] = gender === "female" ? "YARDEN'S ANGEL" : "YARDEN'S DESCENDANT";
       const status: PassData["status"] = gender === "female" ? "Angel Certified" : "Descendant Certified";
+
       const newPass: PassData = {
         id: cardId,
         name: n,
         email: em,
         phone: ph,
-        gender,
+        gender: gender as PassData["gender"],
         title,
         status,
         yearJoined: new Date().getFullYear(),
         createdAt: new Date().toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }),
         photoDataUrl,
       };
+
+      // Export PNG from canvas
       const exportCanvas = document.createElement("canvas");
       await drawPass(exportCanvas, newPass, false);
       const pngDataUrl = exportCanvas.toDataURL("image/png", 1.0);
+
       const res = await fetch("/api/passes", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name: n, email: em, phone: ph, gender, pngDataUrl }),
       });
+
       if (!res.ok) throw new Error("Failed to save pass");
+
       setSavedPass({ ...newPass, pngDataUrl });
       setIsLocked(false);
     } catch (error) {
       console.error("Error generating pass:", error);
-      setErr("Failed to generate card. Please try again.");
+      setErr("Couldn’t generate right now. Try again in a minute.");
     } finally {
       setSaving(false);
     }
@@ -192,6 +250,7 @@ export default function PassGenerator() {
         await drawPass(exportCanvas, renderCard, false);
         dataUrl = exportCanvas.toDataURL("image/png", 1.0);
       }
+
       const link = document.createElement("a");
       link.href = dataUrl;
       link.download = `${savedPass?.id || "yard-pass"}.png`;
@@ -204,7 +263,7 @@ export default function PassGenerator() {
   }, [savedPass, renderCard]);
 
   const regenerateCard = useCallback(() => {
-    if (!confirm("This will overwrite your existing card. Continue?")) return;
+    if (!confirm("This will overwrite your existing pass on this device. Continue?")) return;
     setSavedPass(null);
     setIsLocked(true);
     setName("");
@@ -225,6 +284,34 @@ export default function PassGenerator() {
 
   return (
     <div className="space-y-6 sm:space-y-8">
+      {/* Top copy */}
+      <div className="rounded-2xl sm:rounded-3xl border border-black/10 bg-[#FFFEF5]/85 backdrop-blur-sm p-5 sm:p-6 md:p-7 shadow-[0_18px_55px_rgba(0,0,0,0.08)]">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <h2 className="text-xl sm:text-2xl font-black text-black">{greeting}</h2>
+            <p className="mt-1.5 text-xs sm:text-sm text-black/60 max-w-2xl">{subGreeting}</p>
+          </div>
+
+          {!isLocked ? (
+            <span className="px-3 py-1.5 rounded-full bg-green-500/15 text-green-700 text-xs font-extrabold flex items-center gap-2">
+              <span className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse" />
+              Pass active
+            </span>
+          ) : (
+            <span className="px-3 py-1.5 rounded-full bg-black/6 text-black/70 text-xs font-extrabold">
+              Preview locked
+            </span>
+          )}
+        </div>
+
+        <div className="mt-4 flex flex-wrap items-center gap-2 text-[11px] sm:text-xs text-black/55">
+          <span className="px-2.5 py-1 rounded-full bg-black/5 border border-black/10">Unique ID</span>
+          <span className="px-2.5 py-1 rounded-full bg-black/5 border border-black/10">Personal stamp</span>
+          <span className="px-2.5 py-1 rounded-full bg-black/5 border border-black/10">Downloadable PNG</span>
+          <span className="px-2.5 py-1 rounded-full bg-black/5 border border-black/10">No noise</span>
+        </div>
+      </div>
+
       {/* Form and Preview Grid */}
       <div className="grid gap-6 lg:gap-8 lg:grid-cols-[1fr_1.2fr]">
         {/* Form Section */}
@@ -236,22 +323,31 @@ export default function PassGenerator() {
         >
           <div className="space-y-5">
             <div>
-              <h3 className="text-lg sm:text-xl font-black text-black">Fill Your Details</h3>
-              <p className="text-xs sm:text-sm text-black/60 mt-1">Complete the form to generate your Yard Pass</p>
+              <h3 className="text-lg sm:text-xl font-black text-black">Your Details</h3>
+              <p className="text-xs sm:text-sm text-black/60 mt-1">
+                Keep it simple — name, contact, and your path. That’s it.
+              </p>
             </div>
 
-            <form onSubmit={(e) => { e.preventDefault(); generateCard(); }} className="space-y-4">
-              <Field label="Full Name">
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                generateCard();
+              }}
+              className="space-y-4"
+            >
+              <Field label="Full Name" hint="This is what shows on your pass.">
                 <input
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   className="form-input"
                   placeholder="Enter your full name"
                   disabled={!isLocked}
+                  autoComplete="name"
                 />
               </Field>
 
-              <Field label="Email Address">
+              <Field label="Email Address" hint="Used to save your pass + updates later.">
                 <input
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
@@ -259,20 +355,22 @@ export default function PassGenerator() {
                   placeholder="you@email.com"
                   type="email"
                   disabled={!isLocked}
+                  autoComplete="email"
                 />
               </Field>
 
-              <Field label="Phone Number">
+              <Field label="Phone Number" hint="Optional for future show alerts.">
                 <input
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
                   className="form-input"
                   placeholder="+234 800 000 0000"
                   disabled={!isLocked}
+                  autoComplete="tel"
                 />
               </Field>
 
-              <Field label="Select Gender">
+              <Field label="Choose your path" hint="This decides your pass title.">
                 <div className="grid grid-cols-2 gap-3">
                   <button
                     type="button"
@@ -281,9 +379,10 @@ export default function PassGenerator() {
                     className={`gender-btn ${gender === "male" ? "gender-btn-active" : ""}`}
                   >
                     <span className="text-lg">♂</span>
-                    <span>Male</span>
-                    <span className="text-[10px] opacity-70">Descendant</span>
+                    <span>Descendant</span>
+                    <span className="text-[10px] opacity-70">Legacy mode</span>
                   </button>
+
                   <button
                     type="button"
                     onClick={() => setGender("female")}
@@ -291,15 +390,15 @@ export default function PassGenerator() {
                     className={`gender-btn ${gender === "female" ? "gender-btn-active" : ""}`}
                   >
                     <span className="text-lg">♀</span>
-                    <span>Female</span>
-                    <span className="text-[10px] opacity-70">Angel</span>
+                    <span>Angel</span>
+                    <span className="text-[10px] opacity-70">Wings mode</span>
                   </button>
                 </div>
               </Field>
 
-              <Field label="Upload Your Photo">
-                <div 
-                  className={`photo-upload-area ${!isLocked ? 'opacity-60 pointer-events-none' : ''}`}
+              <Field label="Upload Your Photo" hint="Use a clear portrait. It looks better on the card.">
+                <div
+                  className={`photo-upload-area ${!isLocked ? "opacity-60 pointer-events-none" : ""}`}
                   onClick={() => isLocked && fileInputRef.current?.click()}
                 >
                   {photoPreview ? (
@@ -314,6 +413,7 @@ export default function PassGenerator() {
                           if (fileInputRef.current) fileInputRef.current.value = "";
                         }}
                         className="absolute top-2 right-2 w-7 h-7 bg-black/70 text-white rounded-full flex items-center justify-center text-sm hover:bg-black"
+                        aria-label="Remove photo"
                       >
                         ×
                       </button>
@@ -326,9 +426,10 @@ export default function PassGenerator() {
                         </svg>
                       </div>
                       <span className="text-sm font-semibold">Click to upload photo</span>
-                      <span className="text-xs">Portrait recommended</span>
+                      <span className="text-xs">JPG/PNG • Portrait recommended</span>
                     </div>
                   )}
+
                   <input
                     ref={fileInputRef}
                     type="file"
@@ -346,7 +447,7 @@ export default function PassGenerator() {
                 <button
                   type="submit"
                   disabled={saving}
-                  className="w-full py-3.5 px-6 bg-black text-[rgb(var(--yard-gold))] font-bold rounded-xl hover:bg-black/90 transition disabled:opacity-50 flex items-center justify-center gap-2"
+                  className="w-full py-3.5 px-6 bg-black text-[rgb(var(--yard-gold))] font-black rounded-xl hover:bg-black/90 transition disabled:opacity-50 flex items-center justify-center gap-2"
                 >
                   {saving ? (
                     <>
@@ -354,18 +455,22 @@ export default function PassGenerator() {
                       Generating...
                     </>
                   ) : (
-                    <>Generate My Card ☥</>
+                    <>Generate My Pass ☥</>
                   )}
                 </button>
               ) : (
                 <button
                   type="button"
                   onClick={regenerateCard}
-                  className="w-full py-3.5 px-6 bg-black/10 text-black font-bold rounded-xl hover:bg-black/15 transition"
+                  className="w-full py-3.5 px-6 bg-black/10 text-black font-black rounded-xl hover:bg-black/15 transition"
                 >
-                  Regenerate Card
+                  Regenerate Pass
                 </button>
               )}
+
+              <div className="text-[11px] sm:text-xs text-black/45 leading-relaxed">
+                Tip: after generating, download the PNG. If you clear cookies or switch devices, you might not see the saved pass.
+              </div>
             </form>
           </div>
         </motion.div>
@@ -379,28 +484,32 @@ export default function PassGenerator() {
         >
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-xs sm:text-sm font-bold text-black/60 uppercase tracking-wider">
-                {isLocked ? "Card Preview" : "Your Yard Pass"}
+              <p className="text-xs sm:text-sm font-black text-black/60 uppercase tracking-wider">
+                {isLocked ? "Pass Preview" : "Your Yard Pass"}
               </p>
+              {!isLocked && savedPass?.id ? (
+                <p className="text-[11px] sm:text-xs text-black/45 mt-1">ID: <span className="font-semibold">{savedPass.id}</span></p>
+              ) : null}
             </div>
+
             {!isLocked && (
-              <span className="px-3 py-1 rounded-full bg-green-500/20 text-green-700 text-xs font-bold flex items-center gap-1.5">
+              <span className="px-3 py-1 rounded-full bg-green-500/20 text-green-700 text-xs font-black flex items-center gap-1.5">
                 <span className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse" />
-                Generated
+                Ready
               </span>
             )}
           </div>
 
           <div className="relative rounded-2xl sm:rounded-3xl overflow-hidden shadow-xl border border-black/10">
             <canvas ref={canvasRef} className="block w-full h-auto" />
-            
+
             {/* Locked Overlay */}
             {isLocked && (
               <div className="absolute inset-0 bg-black/30 backdrop-blur-sm flex flex-col items-center justify-center">
-                <div className="bg-white/95 rounded-2xl p-6 text-center shadow-xl max-w-[200px]">
+                <div className="bg-white/95 rounded-2xl p-6 text-center shadow-xl max-w-[240px]">
                   <div className="text-4xl mb-2">🔒</div>
-                  <p className="font-bold text-black text-sm">Generate to Reveal</p>
-                  <p className="text-xs text-black/60 mt-1">Fill the form and click generate</p>
+                  <p className="font-black text-black text-sm">Generate to Reveal</p>
+                  <p className="text-xs text-black/60 mt-1">Fill the form and hit generate.</p>
                 </div>
               </div>
             )}
@@ -411,7 +520,7 @@ export default function PassGenerator() {
             <button
               onClick={downloadPNG}
               disabled={saving}
-              className="w-full py-3.5 px-6 bg-[rgb(var(--yard-gold))] text-black font-bold rounded-xl hover:brightness-105 transition disabled:opacity-50 flex items-center justify-center gap-2 shadow-lg"
+              className="w-full py-3.5 px-6 bg-[rgb(var(--yard-gold))] text-black font-black rounded-xl hover:brightness-105 transition disabled:opacity-50 flex items-center justify-center gap-2 shadow-lg"
             >
               {saving ? "Preparing..." : "Download PNG ↓"}
             </button>
@@ -424,7 +533,7 @@ export default function PassGenerator() {
           width: 100%;
           padding: 12px 16px;
           font-size: 14px;
-          font-weight: 500;
+          font-weight: 600;
           border-radius: 12px;
           background: white;
           border: 2px solid rgba(0, 0, 0, 0.08);
@@ -442,6 +551,7 @@ export default function PassGenerator() {
         }
         .form-input::placeholder {
           color: rgba(0, 0, 0, 0.35);
+          font-weight: 600;
         }
         .gender-btn {
           display: flex;
@@ -450,7 +560,7 @@ export default function PassGenerator() {
           justify-content: center;
           gap: 2px;
           padding: 14px 12px;
-          font-weight: 700;
+          font-weight: 900;
           font-size: 13px;
           border-radius: 12px;
           background: white;
@@ -461,15 +571,15 @@ export default function PassGenerator() {
         }
         .gender-btn:hover:not(:disabled) {
           border-color: rgba(0, 0, 0, 0.2);
-          background: rgba(255, 210, 0, 0.05);
+          background: rgba(255, 210, 0, 0.06);
         }
         .gender-btn:disabled {
           opacity: 0.6;
           cursor: not-allowed;
         }
         .gender-btn-active {
-          background: rgba(255, 210, 0, 0.15);
-          border-color: rgba(255, 210, 0, 0.5);
+          background: rgba(255, 210, 0, 0.16);
+          border-color: rgba(255, 210, 0, 0.55);
           color: #111;
         }
         .photo-upload-area {
@@ -491,10 +601,11 @@ export default function PassGenerator() {
   );
 }
 
+/** Canvas renderer */
 async function drawPass(canvas: HTMLCanvasElement, card: PassData, isLocked: boolean) {
-  try { 
-    const fonts = (document as any).fonts; 
-    if (fonts?.ready) await fonts.ready; 
+  try {
+    const fonts = (document as any).fonts;
+    if (fonts?.ready) await fonts.ready;
   } catch {}
 
   // Card dimensions (postcard style - landscape)
@@ -519,7 +630,7 @@ async function drawPass(canvas: HTMLCanvasElement, card: PassData, isLocked: boo
   ctx.fillRect(0, 0, W, H);
 
   // Draw star border
-  drawStarBorder(ctx, W, H, card.gender === "female");
+  drawStarBorder(ctx, W, H);
 
   // Photo frame area (left side)
   const photoX = 80;
@@ -536,7 +647,7 @@ async function drawPass(canvas: HTMLCanvasElement, card: PassData, isLocked: boo
   // Photo frame background
   ctx.fillStyle = "#FFFFFF";
   ctx.fillRect(photoX, photoY, photoW, photoH);
-  
+
   // Reset shadow
   ctx.shadowColor = "transparent";
   ctx.shadowBlur = 0;
@@ -590,18 +701,24 @@ async function drawPass(canvas: HTMLCanvasElement, card: PassData, isLocked: boo
   ctx.fillStyle = "#8B7355";
   ctx.font = "italic 900 52px Georgia, serif";
   ctx.textAlign = "left";
-  
+
   const titleLine1 = "YARDEN'S";
   const titleLine2 = card.gender === "female" ? "ANGEL" : "DESCENDANT";
-  
+
   ctx.fillText(titleLine1, contentX, contentY + 50);
   ctx.fillText(titleLine2, contentX + 40, contentY + 110);
+
+  // Small personal line under title
+  ctx.font = "600 16px Georgia, serif";
+  ctx.fillStyle = "#6B5A44";
+  const fn = firstNameOf(card.name) || "Member";
+  ctx.fillText(`Made for ${fn} • ID ${card.id}`, contentX, contentY + 142);
 
   // Form fields with dotted lines
   ctx.font = "500 24px Georgia, serif";
   ctx.fillStyle = "#4A4A4A";
-  
-  const fieldY = contentY + 180;
+
+  const fieldY = contentY + 200;
   const lineSpacing = 70;
   const dotStartX = contentX + 180;
   const lineEndX = W - 100;
@@ -610,7 +727,7 @@ async function drawPass(canvas: HTMLCanvasElement, card: PassData, isLocked: boo
   ctx.fillText("Name", contentX, fieldY);
   drawDottedLine(ctx, dotStartX, fieldY, lineEndX);
   if (!isLocked && card.name !== "Your Name") {
-    ctx.font = "600 22px Georgia, serif";
+    ctx.font = "700 22px Georgia, serif";
     ctx.fillStyle = "#2A2A2A";
     ctx.fillText(card.name, dotStartX + 10, fieldY);
     ctx.font = "500 24px Georgia, serif";
@@ -621,7 +738,7 @@ async function drawPass(canvas: HTMLCanvasElement, card: PassData, isLocked: boo
   ctx.fillText("Year joined", contentX, fieldY + lineSpacing);
   drawDottedLine(ctx, dotStartX, fieldY + lineSpacing, lineEndX);
   if (!isLocked) {
-    ctx.font = "600 22px Georgia, serif";
+    ctx.font = "700 22px Georgia, serif";
     ctx.fillStyle = "#2A2A2A";
     ctx.fillText(String(card.yearJoined), dotStartX + 10, fieldY + lineSpacing);
     ctx.font = "500 24px Georgia, serif";
@@ -632,26 +749,45 @@ async function drawPass(canvas: HTMLCanvasElement, card: PassData, isLocked: boo
   ctx.fillText("Status", contentX, fieldY + lineSpacing * 2);
   drawDottedLine(ctx, dotStartX, fieldY + lineSpacing * 2, lineEndX);
   if (!isLocked) {
-    ctx.font = "600 22px Georgia, serif";
+    ctx.font = "700 22px Georgia, serif";
     ctx.fillStyle = "#2A2A2A";
     ctx.fillText(card.status, dotStartX + 10, fieldY + lineSpacing * 2);
   }
 
-  // Bottom message
-  const msgY = H - 140;
-  ctx.font = "italic 400 18px Georgia, serif";
+  // Contact line (masked) + join date
+  if (!isLocked) {
+    ctx.font = "600 14px Georgia, serif";
+    ctx.fillStyle = "#6E6E6E";
+    const emailMasked = maskEmail(card.email);
+    const phoneMasked = maskPhone(card.phone);
+    ctx.fillText(`Contact: ${emailMasked} • ${phoneMasked}`, contentX, fieldY + lineSpacing * 2 + 36);
+    ctx.fillText(`Created: ${card.createdAt}`, contentX, fieldY + lineSpacing * 2 + 58);
+  }
+
+  // Bottom message (more personal, not corny)
+  const msgY = H - 150;
+  ctx.font = "italic 500 18px Georgia, serif";
   ctx.fillStyle = "#7A7A7A";
-  
-  const message = card.gender === "female" 
-    ? "Losing this card won't revoke your wings but it"
-    : "Losing this card won't revoke your legacy but it";
-  const message2 = "might revoke your bragging rights.";
-  
+
+  const message =
+    card.gender === "female"
+      ? "If you lose this pass, you’re still certified — this just proves it."
+      : "If you lose this pass, you’re still official — this just proves it.";
+  const message2 = "Keep the PNG. Keep the flex.";
+
   ctx.fillText(message, contentX, msgY);
   ctx.fillText(message2, contentX, msgY + 28);
 
-  // Stamp effect (bottom right)
-  drawStamp(ctx, W - 180, H - 120, card.gender === "female");
+  // Signature line
+  ctx.font = "italic 700 22px Georgia, serif";
+  ctx.fillStyle = "#6B5A44";
+  ctx.fillText("— Yarden ☥", contentX, H - 92);
+
+  // Unique "member mark" (QR-ish) near bottom-right
+  drawMemberMark(ctx, W - 205, H - 170, card.id);
+
+  // Stamp effect (still keeps your old vibe)
+  drawStamp(ctx, W - 180, H - 120);
 
   // Bottom dotted line
   ctx.setLineDash([3, 5]);
@@ -664,7 +800,7 @@ async function drawPass(canvas: HTMLCanvasElement, card: PassData, isLocked: boo
   ctx.setLineDash([]);
 }
 
-function drawStarBorder(ctx: CanvasRenderingContext2D, W: number, H: number, isFemale: boolean) {
+function drawStarBorder(ctx: CanvasRenderingContext2D, W: number, H: number) {
   const starSize = 18;
   const spacing = 70;
   const margin = 35;
@@ -679,8 +815,7 @@ function drawStarBorder(ctx: CanvasRenderingContext2D, W: number, H: number, isF
 
   // Bottom row
   for (let x = margin; x < W - margin; x += spacing) {
-    // Add red star in the middle for variety
-    if (Math.abs(x - W/2) < spacing/2) {
+    if (Math.abs(x - W / 2) < spacing / 2) {
       ctx.fillStyle = "#D64545";
       ctx.fillText("★", x, H - margin + 5);
       ctx.fillStyle = "#2A2A2A";
@@ -708,14 +843,12 @@ function drawDottedLine(ctx: CanvasRenderingContext2D, startX: number, y: number
 }
 
 function drawPlaceholderImage(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number) {
-  // Sky gradient
   const skyGrad = ctx.createLinearGradient(x, y, x, y + h * 0.6);
   skyGrad.addColorStop(0, "#87CEEB");
   skyGrad.addColorStop(1, "#B0E0E6");
   ctx.fillStyle = skyGrad;
   ctx.fillRect(x, y, w, h * 0.6);
 
-  // Cloud
   ctx.fillStyle = "#FFFFFF";
   ctx.beginPath();
   ctx.ellipse(x + w * 0.5, y + h * 0.3, 50, 25, 0, 0, Math.PI * 2);
@@ -727,12 +860,11 @@ function drawPlaceholderImage(ctx: CanvasRenderingContext2D, x: number, y: numbe
   ctx.ellipse(x + w * 0.6, y + h * 0.32, 40, 22, 0, 0, Math.PI * 2);
   ctx.fill();
 
-  // Hills
   const hillGrad = ctx.createLinearGradient(x, y + h * 0.5, x, y + h);
   hillGrad.addColorStop(0, "#7CB342");
   hillGrad.addColorStop(1, "#558B2F");
   ctx.fillStyle = hillGrad;
-  
+
   ctx.beginPath();
   ctx.moveTo(x, y + h);
   ctx.quadraticCurveTo(x + w * 0.3, y + h * 0.4, x + w * 0.6, y + h * 0.65);
@@ -741,12 +873,11 @@ function drawPlaceholderImage(ctx: CanvasRenderingContext2D, x: number, y: numbe
   ctx.closePath();
   ctx.fill();
 
-  // Front hill
   const frontHillGrad = ctx.createLinearGradient(x, y + h * 0.7, x, y + h);
   frontHillGrad.addColorStop(0, "#8BC34A");
   frontHillGrad.addColorStop(1, "#689F38");
   ctx.fillStyle = frontHillGrad;
-  
+
   ctx.beginPath();
   ctx.moveTo(x, y + h * 0.75);
   ctx.quadraticCurveTo(x + w * 0.4, y + h * 0.6, x + w, y + h * 0.85);
@@ -756,29 +887,25 @@ function drawPlaceholderImage(ctx: CanvasRenderingContext2D, x: number, y: numbe
   ctx.fill();
 }
 
-function drawStamp(ctx: CanvasRenderingContext2D, x: number, y: number, isFemale: boolean) {
+function drawStamp(ctx: CanvasRenderingContext2D, x: number, y: number) {
   ctx.save();
   ctx.globalAlpha = 0.35;
-  
-  // Outer circle
+
   ctx.strokeStyle = "#C88";
   ctx.lineWidth = 2;
   ctx.beginPath();
   ctx.arc(x, y, 55, 0, Math.PI * 2);
   ctx.stroke();
 
-  // Inner circle
   ctx.beginPath();
   ctx.arc(x, y, 45, 0, Math.PI * 2);
   ctx.stroke();
 
-  // Heart/Love symbol in center
   ctx.fillStyle = "#C88";
   ctx.font = "400 32px Arial";
   ctx.textAlign = "center";
   ctx.fillText("🤍", x, y + 5);
 
-  // Small decorative lines
   ctx.lineWidth = 1;
   for (let i = 0; i < 12; i++) {
     const angle = (i * 30) * Math.PI / 180;
@@ -791,6 +918,80 @@ function drawStamp(ctx: CanvasRenderingContext2D, x: number, y: number, isFemale
   }
 
   ctx.restore();
+}
+
+/** A tiny deterministic "member mark" from the pass ID (feels official, no libs) */
+function drawMemberMark(ctx: CanvasRenderingContext2D, x: number, y: number, seed: string) {
+  const size = 110;
+  const cells = 11;
+  const cell = Math.floor(size / cells);
+
+  // Frame
+  ctx.save();
+  ctx.globalAlpha = 0.9;
+  ctx.fillStyle = "rgba(255,255,255,0.75)";
+  ctx.fillRect(x, y, cell * cells, cell * cells);
+  ctx.strokeStyle = "rgba(0,0,0,0.12)";
+  ctx.lineWidth = 2;
+  ctx.strokeRect(x, y, cell * cells, cell * cells);
+
+  // Finder corners (like QR)
+  const drawFinder = (fx: number, fy: number) => {
+    ctx.fillStyle = "rgba(0,0,0,0.85)";
+    ctx.fillRect(fx, fy, cell * 3, cell * 3);
+    ctx.fillStyle = "rgba(255,255,255,0.85)";
+    ctx.fillRect(fx + cell, fy + cell, cell, cell);
+  };
+  drawFinder(x + cell, y + cell);
+  drawFinder(x + cell * 7, y + cell);
+  drawFinder(x + cell, y + cell * 7);
+
+  // Data bits
+  const bits = hashBits(seed, cells * cells);
+  let i = 0;
+  for (let r = 0; r < cells; r++) {
+    for (let c = 0; c < cells; c++) {
+      const inFinder =
+        (r >= 1 && r <= 3 && c >= 1 && c <= 3) ||
+        (r >= 1 && r <= 3 && c >= 7 && c <= 9) ||
+        (r >= 7 && r <= 9 && c >= 1 && c <= 3);
+      if (inFinder) continue;
+
+      const on = bits[i++ % bits.length];
+      if (on) {
+        ctx.fillStyle = "rgba(0,0,0,0.80)";
+        ctx.fillRect(x + c * cell, y + r * cell, cell, cell);
+      }
+    }
+  }
+
+  // Label
+  ctx.globalAlpha = 1;
+  ctx.fillStyle = "rgba(0,0,0,0.65)";
+  ctx.font = "700 10px Georgia, serif";
+  ctx.textAlign = "left";
+  ctx.fillText("MEMBER MARK", x + 8, y + cell * cells + 14);
+
+  ctx.restore();
+}
+
+function hashBits(seed: string, n: number): boolean[] {
+  // simple string hash -> bits
+  let h1 = 2166136261;
+  for (let i = 0; i < seed.length; i++) {
+    h1 ^= seed.charCodeAt(i);
+    h1 = Math.imul(h1, 16777619);
+  }
+  const out: boolean[] = [];
+  let x = h1 >>> 0;
+  for (let i = 0; i < n; i++) {
+    // xorshift
+    x ^= x << 13;
+    x ^= x >>> 17;
+    x ^= x << 5;
+    out.push((x >>> 0) % 3 === 0);
+  }
+  return out;
 }
 
 function loadImage(src: string): Promise<HTMLImageElement> {

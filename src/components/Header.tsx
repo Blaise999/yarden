@@ -1,35 +1,568 @@
+"use client";
+
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { BrandLogo } from "@/components/BrandLogo";
+import { AnimatePresence, motion } from "framer-motion";
 
-export function Header() {
+type NavItem = { id: string; label: string };
+type SocialItem = { label: string; href: string };
+
+function cx(...classes: Array<string | false | null | undefined>) {
+  return classes.filter(Boolean).join(" ");
+}
+
+function clamp(n: number, a: number, b: number) {
+  return Math.max(a, Math.min(b, n));
+}
+
+/** Prevent layout jump when opening menu (scrollbar compensation) */
+function useLockBody(locked: boolean) {
+  useEffect(() => {
+    if (!locked) return;
+
+    const prevOverflow = document.body.style.overflow;
+    const prevPaddingRight = document.body.style.paddingRight;
+
+    const scrollbarW = window.innerWidth - document.documentElement.clientWidth;
+
+    document.body.style.overflow = "hidden";
+    if (scrollbarW > 0) document.body.style.paddingRight = `${scrollbarW}px`;
+
+    return () => {
+      document.body.style.overflow = prevOverflow;
+      document.body.style.paddingRight = prevPaddingRight;
+    };
+  }, [locked]);
+}
+
+// ---- Tint sampling (same as yours) ----
+function mixToReadable(r: number, g: number, b: number) {
+  const lift = 0.22;
+  const nr = Math.round(r + (255 - r) * lift);
+  const ng = Math.round(g + (255 - g) * lift);
+  const nb = Math.round(b + (255 - b) * lift);
+  return { r: clamp(nr, 70, 235), g: clamp(ng, 70, 235), b: clamp(nb, 70, 235) };
+}
+
+function sampleAverageRGB(img: HTMLImageElement) {
+  const canvas = document.createElement("canvas");
+  const ctx = canvas.getContext("2d", { willReadFrequently: true });
+  if (!ctx) return { r: 180, g: 180, b: 200 };
+
+  const w = 32;
+  const h = 32;
+  canvas.width = w;
+  canvas.height = h;
+
+  ctx.drawImage(img, 0, 0, w, h);
+  const data = ctx.getImageData(0, 0, w, h).data;
+
+  let r = 0,
+    g = 0,
+    b = 0,
+    count = 0;
+
+  for (let i = 0; i < data.length; i += 4) {
+    const a = data[i + 3];
+    if (a < 16) continue;
+    r += data[i];
+    g += data[i + 1];
+    b += data[i + 2];
+    count++;
+  }
+
+  if (!count) return { r: 180, g: 180, b: 200 };
+  r = Math.round(r / count);
+  g = Math.round(g / count);
+  b = Math.round(b / count);
+
+  return mixToReadable(r, g, b);
+}
+
+async function getTintFromSrc(src: string): Promise<{ r: number; g: number; b: number }> {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.decoding = "async";
+    img.crossOrigin = "anonymous";
+    img.src = src;
+
+    const done = () => {
+      try {
+        resolve(sampleAverageRGB(img));
+      } catch {
+        resolve({ r: 180, g: 180, b: 200 });
+      }
+    };
+
+    img.onload = done;
+    img.onerror = () => resolve({ r: 180, g: 180, b: 200 });
+  });
+}
+
+// --- Icons ---
+function IconClose(props: { className?: string }) {
   return (
-    <header className="sticky top-0 z-50 border-b border-black/15 bg-[rgb(var(--yard-yellow))]/85 backdrop-blur">
-      <div className="mx-auto flex h-[76px] w-full max-w-screen-2xl items-center justify-between px-10">
-        <Link href="/" className="flex items-center gap-6">
-          <BrandLogo
-            size={104}
-            className={[
-              "shrink-0",
-              "!h-[70px] !w-[260px]",
-              "origin-left scale-x-[1.18]",
-              "border-0 bg-transparent p-0 shadow-none drop-shadow-[0_16px_30px_rgba(0,0,0,0.28)]",
-            ].join(" ")}
-          />
+    <svg viewBox="0 0 24 24" className={props.className} fill="none" aria-hidden="true">
+      <path d="M6 6l12 12M18 6 6 18" className="stroke-current" strokeWidth="1.8" strokeLinecap="round" />
+    </svg>
+  );
+}
 
-          <div className="leading-tight">
-            <div className="text-sm font-semibold text-black/70">
-              by Yarden • Fan Updates
+function IconArrowUpRight(props: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" className={props.className} fill="none" aria-hidden="true">
+      <path
+        d="M7 17 17 7M10 7h7v7"
+        className="stroke-current"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+// Mobile hamburger
+function MenuButton(props: { open: boolean; onClick: () => void }) {
+  return (
+    <button
+      onClick={props.onClick}
+      aria-label={props.open ? "Close menu" : "Open menu"}
+      aria-expanded={props.open}
+      className={cx(
+        "inline-flex h-11 items-center gap-3 rounded-full px-4",
+        "bg-transparent text-white",
+        "hover:bg-white/10",
+        "focus:outline-none focus-visible:ring-2 focus-visible:ring-white/40"
+      )}
+    >
+      <span className="text-sm font-semibold tracking-tight">Menu</span>
+
+      <span className="relative inline-flex h-7 w-7 items-center justify-center">
+        <motion.span
+          className="absolute block h-[2px] w-5 rounded-full bg-white"
+          animate={props.open ? { rotate: 45, y: 0 } : { rotate: 0, y: -5 }}
+          transition={{ type: "spring", stiffness: 380, damping: 26 }}
+        />
+        <motion.span
+          className="absolute block h-[2px] w-5 rounded-full bg-white/80"
+          animate={props.open ? { opacity: 0 } : { opacity: 1 }}
+          transition={{ duration: 0.12 }}
+        />
+        <motion.span
+          className="absolute block h-[2px] w-5 rounded-full bg-white/70"
+          animate={props.open ? { rotate: -45, y: 0 } : { rotate: 0, y: 5 }}
+          transition={{ type: "spring", stiffness: 380, damping: 26 }}
+        />
+      </span>
+    </button>
+  );
+}
+
+function SmallPill(props: { children: React.ReactNode; className?: string }) {
+  return (
+    <span
+      className={cx(
+        "inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs tracking-wide",
+        "bg-white/5 text-white/80 ring-1 ring-white/10",
+        props.className
+      )}
+    >
+      {props.children}
+    </span>
+  );
+}
+
+function ActionButton(props: {
+  children: React.ReactNode;
+  href?: string;
+  target?: "_blank";
+  onClick?: () => void;
+  variant?: "primary" | "secondary";
+  className?: string;
+  iconRight?: React.ReactNode;
+}) {
+  const v = props.variant ?? "secondary";
+  const cls = cx(
+    "group inline-flex items-center justify-center gap-2 rounded-full px-5 py-3 text-sm font-medium transition",
+    "focus:outline-none focus-visible:ring-2 focus-visible:ring-white/40",
+    v === "primary" && "bg-white text-black hover:bg-white/90",
+    v === "secondary" && "bg-white/10 text-white hover:bg-white/14 ring-1 ring-white/15",
+    props.className
+  );
+
+  const content = (
+    <>
+      <span>{props.children}</span>
+      {props.iconRight ? (
+        <span className="ml-1 inline-flex items-center transition-transform group-hover:translate-x-0.5">
+          {props.iconRight}
+        </span>
+      ) : null}
+    </>
+  );
+
+  if (props.href) {
+    const rel = props.target === "_blank" ? "noreferrer" : undefined;
+    return (
+      <Link href={props.href} target={props.target} rel={rel} className={cls}>
+        {content}
+      </Link>
+    );
+  }
+
+  return (
+    <button type="button" onClick={props.onClick} className={cls}>
+      {content}
+    </button>
+  );
+}
+
+type LandingHeaderProps = {
+  nav: NavItem[];
+  activeId: string;
+
+  menuOpen?: boolean;
+  onOpenMenu?: () => void;
+  onCloseMenu?: () => void;
+  onNav?: (id: string) => void;
+  onLogo?: () => void;
+
+  tintSources?: Record<string, string>;
+  heroBgSrc?: string;
+
+  socials?: SocialItem[];
+  brandName?: string;
+  brandTagline?: string;
+
+  onOpenPass: () => void;
+  listenHref?: string;
+};
+
+export default function LandingHeader(props: LandingHeaderProps) {
+  const brandName = props.brandName ?? "Yarden";
+  const brandTagline = props.brandTagline ?? "new nostalgia";
+
+  const [internalMenuOpen, setInternalMenuOpen] = useState(false);
+  const isControlled = typeof props.menuOpen === "boolean";
+  const menuOpen = isControlled ? (props.menuOpen as boolean) : internalMenuOpen;
+
+  const openMenu = props.onOpenMenu ?? (() => setInternalMenuOpen(true));
+  const closeMenu = props.onCloseMenu ?? (() => setInternalMenuOpen(false));
+  const toggleMenu = () => (menuOpen ? closeMenu() : openMenu());
+
+  const onNav = props.onNav ?? (() => {});
+  const onLogo = props.onLogo ?? (() => onNav("top"));
+
+  useLockBody(menuOpen);
+
+  // anchor padding
+  useEffect(() => {
+    const prev = document.documentElement.style.scrollPaddingTop;
+    document.documentElement.style.scrollPaddingTop = "88px";
+    return () => {
+      document.documentElement.style.scrollPaddingTop = prev;
+    };
+  }, []);
+
+  // scroll progress
+  const [scrollY, setScrollY] = useState(0);
+  useEffect(() => {
+    let raf = 0;
+    const onScroll = () => {
+      if (raf) return;
+      raf = window.requestAnimationFrame(() => {
+        setScrollY(window.scrollY || 0);
+        raf = 0;
+      });
+    };
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => {
+      if (raf) window.cancelAnimationFrame(raf);
+      window.removeEventListener("scroll", onScroll);
+    };
+  }, []);
+
+  // hold chameleon longer (don’t fade glass immediately)
+  const t = clamp((scrollY - 70) / 220, 0, 1);
+
+  // tint
+  const [tint, setTint] = useState<{ r: number; g: number; b: number }>({ r: 180, g: 180, b: 200 });
+  const cacheRef = useRef<Map<string, { r: number; g: number; b: number }>>(new Map());
+
+  useEffect(() => {
+    if (!props.tintSources) return;
+
+    const src =
+      props.tintSources[props.activeId] ??
+      props.tintSources["top"] ??
+      props.tintSources[props.nav?.[0]?.id ?? "top"];
+
+    if (!src) return;
+
+    const cached = cacheRef.current.get(src);
+    if (cached) {
+      setTint(cached);
+      return;
+    }
+
+    let alive = true;
+    getTintFromSrc(src).then((rgb) => {
+      if (!alive) return;
+      cacheRef.current.set(src, rgb);
+      setTint(rgb);
+    });
+
+    return () => {
+      alive = false;
+    };
+  }, [props.activeId, props.tintSources, props.nav]);
+
+  const cssVars = useMemo(() => {
+    const { r, g, b } = tint;
+    return { ["--tint" as any]: `${r} ${g} ${b}` } as React.CSSProperties;
+  }, [tint]);
+
+  // pick top image (this should be the SAME as heroA.src)
+  const topImg = props.heroBgSrc ?? props.tintSources?.top;
+
+  // show chrome only after some scroll (kills the “divide” line)
+  const chromeOn = t > 0.02;
+  const borderA = chromeOn ? 0.12 * t : 0;
+  const shadowA = chromeOn ? 0.35 * t : 0;
+
+  // chameleon ink while the image layer is dominant
+  const useBlendInk = t < 0.18 && !!topImg;
+  const inkWrap = cx(
+    "text-white",
+    useBlendInk && "mix-blend-difference",
+    "[text-shadow:0_1px_12px_rgba(0,0,0,.35)]"
+  );
+
+  return (
+    <>
+      <header
+        data-header-build="v10"
+        className={cx("fixed top-0 left-0 right-0 z-[120]")}
+        style={{
+          ...cssVars,
+          borderBottom: borderA > 0 ? `1px solid rgba(255,255,255,${borderA})` : "1px solid transparent",
+          boxShadow: shadowA > 0 ? `0 10px 30px rgba(0,0,0,${shadowA})` : "none",
+        }}
+      >
+        {/* Background layers INSIDE header (safe from external overrides) */}
+        <div className="pointer-events-none absolute inset-0 z-0 overflow-hidden">
+          {/* image continuation */}
+          <div
+            className="absolute inset-0"
+            style={{
+              opacity: 1 - t,
+              backgroundImage: topImg
+                ? `linear-gradient(to bottom, rgba(0,0,0,.28), rgba(0,0,0,0)), url(${topImg})`
+                : "none",
+              backgroundSize: "cover",
+              backgroundPosition: "center top",
+              backgroundRepeat: "no-repeat",
+              transform: "translateZ(0)",
+            }}
+          />
+          {/* glass layer (only “matters” after t grows) */}
+          <div
+            className="absolute inset-0"
+            style={{
+              opacity: t,
+              backgroundColor: `rgba(0,0,0,${0.66 * t})`,
+              backdropFilter: chromeOn ? `blur(${14 * t}px)` : "none",
+              WebkitBackdropFilter: chromeOn ? `blur(${14 * t}px)` : "none",
+              transform: "translateZ(0)",
+            }}
+          />
+        </div>
+
+        {/* Content */}
+        <div className="relative z-10 pt-[env(safe-area-inset-top)]">
+          <div className="mx-auto flex h-20 max-w-7xl items-center justify-between px-5 md:px-8">
+            {/* Brand */}
+            <button onClick={onLogo} className="flex items-center gap-3" aria-label="Go to top">
+              <span className="grid h-10 w-10 place-items-center">
+                <img src="/logo.png" alt={`${brandName} logo`} className="h-10 w-10 object-contain" draggable={false} />
+              </span>
+
+              <div className={cx("leading-tight", inkWrap)}>
+                <div className="text-sm font-semibold tracking-tight">{brandName}</div>
+                <div className="text-xs uppercase tracking-[0.24em] opacity-70">{brandTagline}</div>
+              </div>
+            </button>
+
+            {/* Desktop nav */}
+            <nav className={cx("hidden items-center gap-6 md:flex", inkWrap)}>
+              {props.nav.slice(1).map((n) => {
+                const active = props.activeId === n.id;
+                return (
+                  <button
+                    key={n.id}
+                    onClick={() => onNav(n.id)}
+                    className={cx(
+                      "relative text-sm font-medium transition-opacity",
+                      active ? "opacity-100" : "opacity-70 hover:opacity-100"
+                    )}
+                  >
+                    {n.label}
+                    {active ? (
+                      <span
+                        className="absolute left-0 right-0 -bottom-2 h-[2px] rounded-full"
+                        style={{ background: "rgba(var(--tint) / 0.85)" } as any}
+                      />
+                    ) : null}
+                  </button>
+                );
+              })}
+            </nav>
+
+            {/* Actions */}
+            <div className="flex items-center gap-2">
+              {props.listenHref ? (
+                <div className={cx("hidden md:block", inkWrap)}>
+                  <Link
+                    href={props.listenHref}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center gap-2 text-sm font-medium opacity-80 hover:opacity-100"
+                  >
+                    Listen <IconArrowUpRight className="h-4 w-4" />
+                  </Link>
+                </div>
+              ) : null}
+
+              {/* Desktop */}
+              <div className="hidden md:block">
+                <ActionButton variant="primary" onClick={props.onOpenPass}>
+                  Generate Pass
+                </ActionButton>
+              </div>
+
+              {/* Mobile */}
+              <div className={cx("md:hidden", inkWrap)}>
+                <MenuButton open={menuOpen} onClick={toggleMenu} />
+              </div>
             </div>
           </div>
-        </Link>
+        </div>
+      </header>
 
-        {/* Navigation - no auth buttons */}
-        <nav className="hidden md:flex items-center gap-6">
-          <a href="#houses" className="nav-link">Houses</a>
-          <a href="#feed" className="nav-link">Feed</a>
-          <a href="#pass" className="nav-link">Yard Pass</a>
-        </nav>
-      </div>
-    </header>
+      {/* Mobile Menu */}
+      <AnimatePresence>
+        {menuOpen ? (
+          <motion.div
+            className="fixed inset-0 z-[180]"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+          >
+            <div className="absolute inset-0 bg-black/70" onClick={closeMenu} />
+
+            <motion.div
+              initial={{ y: 14, opacity: 0, scale: 0.98 }}
+              animate={{ y: 0, opacity: 1, scale: 1 }}
+              exit={{ y: 14, opacity: 0, scale: 0.98 }}
+              transition={{ type: "spring", stiffness: 260, damping: 22 }}
+              className="absolute left-4 right-4 top-4 overflow-hidden rounded-3xl bg-[#07070A] ring-1 ring-white/12"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between border-b border-white/10 px-5 py-4">
+                <div className="flex items-center gap-3">
+                  <span className="grid h-10 w-10 place-items-center">
+                    <img src="/logo.png" alt={`${brandName} logo`} className="h-10 w-10 object-contain" draggable={false} />
+                  </span>
+                  <div>
+                    <div className="text-sm font-semibold text-white">{brandName}</div>
+                    <div className="text-xs uppercase tracking-[0.24em] text-white/60">{brandTagline}</div>
+                  </div>
+                </div>
+
+                <button
+                  onClick={closeMenu}
+                  className="rounded-full p-2 text-white/70 hover:bg-white/10 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-white/40"
+                  aria-label="Close menu"
+                >
+                  <IconClose className="h-5 w-5" />
+                </button>
+              </div>
+
+              <div className="p-5">
+                <div className="flex flex-wrap gap-2">
+                  <SmallPill>Chameleon</SmallPill>
+                  <SmallPill>Ink UI</SmallPill>
+                  <SmallPill>Fast</SmallPill>
+                </div>
+
+                <div className="mt-5 grid gap-2">
+                  {props.nav.slice(1).map((n) => (
+                    <button
+                      key={n.id}
+                      onClick={() => {
+                        closeMenu();
+                        setTimeout(() => onNav(n.id), 40);
+                      }}
+                      className={cx(
+                        "flex items-center justify-between rounded-2xl px-4 py-3 text-left transition",
+                        "bg-white/[0.03] ring-1 ring-white/10 hover:bg-white/[0.05]"
+                      )}
+                    >
+                      <span className="text-sm font-medium text-white">{n.label}</span>
+                      <IconArrowUpRight className="h-5 w-5 text-white/60" />
+                    </button>
+                  ))}
+                </div>
+
+                <div className="my-7 h-px bg-white/10" />
+
+                <div className="grid gap-2">
+                  <ActionButton
+                    variant="primary"
+                    className="w-full"
+                    onClick={() => {
+                      closeMenu();
+                      props.onOpenPass();
+                    }}
+                  >
+                    Generate Pass
+                  </ActionButton>
+
+                  {props.listenHref ? (
+                    <ActionButton variant="secondary" className="w-full" href={props.listenHref} target="_blank">
+                      Listen
+                    </ActionButton>
+                  ) : null}
+                </div>
+
+                {props.socials?.length ? (
+                  <>
+                    <div className="my-7 h-px bg-white/10" />
+                    <div className="grid gap-2">
+                      <div className="text-xs uppercase tracking-widest text-white/60">Social</div>
+                      <div className="flex flex-wrap gap-2">
+                        {props.socials.map((s) => (
+                          <Link
+                            key={s.label}
+                            href={s.href}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="rounded-full bg-white/5 px-4 py-2 text-sm text-white/75 ring-1 ring-white/10 hover:bg-white/10 hover:text-white"
+                          >
+                            {s.label}
+                          </Link>
+                        ))}
+                      </div>
+                    </div>
+                  </>
+                ) : null}
+              </div>
+            </motion.div>
+          </motion.div>
+        ) : null}
+      </AnimatePresence>
+    </>
   );
 }

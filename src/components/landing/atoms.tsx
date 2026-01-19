@@ -3,46 +3,166 @@
 import React from "react";
 import Link from "next/link";
 import Image from "next/image";
-import {
-  motion,
-  useMotionValue,
-  useReducedMotion,
-  useSpring,
-} from "framer-motion";
+import { motion, useMotionValue, useReducedMotion, useSpring } from "framer-motion";
+
+/* -------------------------------------------------------
+   Premium dark theme atoms for Yarden Experience
+   - Dark-first styling (no reliance on globals)
+   - Cleaner motion curves + accessibility
+   - Adds reusable artist info components & metadata
+-------------------------------------------------------- */
+
+const EASE_OUT = [0.16, 1, 0.3, 1] as const;
+
+export const YARDEN_META = {
+  stageName: "Yarden",
+  birthName: "Okereke Blessed Jordan",
+  origin: "Nigeria (raised in Lagos)",
+  breakout: { title: "Wetin", year: "2022" },
+  debutEP: {
+    title: "The One Who Descends",
+    releaseDate: "Dec 1, 2023",
+    note: "Etins Records / 0207 Def Jam (0207 Records release; licensed to Universal Music Operations)",
+  },
+  spotify: {
+    monthlyListenersText: "≈ 775K+",
+    topTrack: { title: "Wetin", streamsText: "81M+ (Spotify)" },
+  },
+} as const;
+
+/* -------------------------------------------------------
+   Small utilities
+-------------------------------------------------------- */
+
+function isExternalHref(href: string) {
+  return /^https?:\/\//i.test(href);
+}
+
+/* -------------------------------------------------------
+   Core UI atoms
+-------------------------------------------------------- */
 
 export function Caption({ children }: { children: React.ReactNode }) {
   return (
-    <div className="caption text-[10px] sm:text-xs">
-      <span className="caption-dot" />
+    <div className="inline-flex items-center gap-2 text-[10px] sm:text-xs text-white/60">
+      <span className="h-1.5 w-1.5 rounded-full bg-[#FFD200]/80 shadow-[0_0_16px_rgba(255,210,0,0.45)]" />
       <span className="truncate">{children}</span>
     </div>
   );
 }
 
-export function Stat({ label, value }: { label: string; value: string }) {
+export function SectionHeader({
+  label,
+  title,
+  description,
+  rightSlot,
+}: {
+  label: string;
+  title: string;
+  description?: string;
+  rightSlot?: React.ReactNode;
+}) {
+  return (
+    <div className="flex items-end justify-between gap-6">
+      <div className="space-y-2 sm:space-y-3">
+        <p className="text-[10px] sm:text-xs font-extrabold tracking-[0.28em] uppercase text-[#FFD200]/85">
+          {label}
+        </p>
+        <h2 className="text-2xl sm:text-3xl md:text-4xl font-black tracking-[-0.02em] text-white">
+          {title}
+        </h2>
+        {description && (
+          <p className="text-sm sm:text-base text-white/65 max-w-xl leading-relaxed">
+            {description}
+          </p>
+        )}
+      </div>
+      {rightSlot ? <div className="hidden sm:block">{rightSlot}</div> : null}
+    </div>
+  );
+}
+
+export function Pill({
+  children,
+  tone = "gold",
+}: {
+  children: React.ReactNode;
+  tone?: "gold" | "neutral" | "danger";
+}) {
+  const styles =
+    tone === "gold"
+      ? "border-[#FFD200]/20 bg-[#FFD200]/10 text-[#FFD200]"
+      : tone === "danger"
+        ? "border-red-400/20 bg-red-400/10 text-red-200"
+        : "border-white/10 bg-white/[0.04] text-white/70";
+
+  return (
+    <span
+      className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 text-[10px] sm:text-xs font-bold ${styles}`}
+    >
+      {children}
+    </span>
+  );
+}
+
+export function Stat({
+  label,
+  value,
+  hint,
+  progress = 0.62,
+  icon,
+}: {
+  label: string;
+  value: string;
+  hint?: string;
+  progress?: number; // 0..1
+  icon?: React.ReactNode;
+}) {
   const prefersReduced = useReducedMotion();
+  const clamped = Math.max(0, Math.min(1, progress));
 
   return (
     <motion.div
-      whileHover={prefersReduced ? undefined : { y: -2 }}
-      transition={{ duration: 0.2, ease: [0.4, 0, 0.2, 1] }}
-      className="card-frame p-3 sm:p-4 md:p-5 hover-lift"
+      whileHover={prefersReduced ? undefined : { y: -3 }}
+      transition={{ duration: 0.25, ease: EASE_OUT }}
+      className="relative overflow-hidden rounded-2xl border border-white/10 bg-white/[0.03] p-4 sm:p-5 shadow-[0_24px_90px_rgba(0,0,0,0.55)]"
     >
-      <div className="absolute inset-0 micro-grid opacity-[0.06]" />
-      <div className="absolute inset-0 grain opacity-[0.04]" />
+      {/* Ambient */}
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_65%_55%_at_50%_0%,rgba(255,210,0,0.14),transparent_60%)]" />
+      <div className="pointer-events-none absolute inset-0 opacity-[0.08] [background-image:linear-gradient(rgba(255,255,255,0.18)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.10)_1px,transparent_1px)] [background-size:24px_24px]" />
 
       <div className="relative">
-        <p className="label text-[9px] sm:text-[10px] md:text-[11px]">{label}</p>
-        <p className="mt-1 text-lg sm:text-xl md:text-2xl font-black text-black">
+        <div className="flex items-start justify-between gap-3">
+          <p className="text-[10px] sm:text-[11px] font-extrabold tracking-[0.22em] uppercase text-white/55">
+            {label}
+          </p>
+
+          {icon ? (
+            <span className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-white/10 bg-black/30 text-white/80">
+              {icon}
+            </span>
+          ) : null}
+        </div>
+
+        <p className="mt-2 text-xl sm:text-2xl md:text-3xl font-black text-white tracking-[-0.02em]">
           {value}
         </p>
 
-        <div className="relative mt-2 sm:mt-3 h-1 w-full overflow-hidden rounded-full bg-black/8">
+        {hint ? (
+          <p className="mt-1 text-xs sm:text-sm font-semibold text-white/55">
+            {hint}
+          </p>
+        ) : null}
+
+        <div className="relative mt-3 h-2 w-full overflow-hidden rounded-full bg-white/[0.06] border border-white/10">
           <motion.div
-            className="h-full w-3/5 rounded-full bg-black/12"
-            whileHover={prefersReduced ? undefined : { width: "70%" }}
-            transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1] }}
+            className="h-full rounded-full bg-[#FFD200]/25"
+            initial={false}
+            animate={prefersReduced ? undefined : { width: `${clamped * 100}%` }}
+            style={{ width: `${clamped * 100}%` }}
+            transition={{ duration: 0.55, ease: EASE_OUT }}
           />
+          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_70%_140%_at_0%_50%,rgba(255,210,0,0.22),transparent_55%)]" />
         </div>
       </div>
     </motion.div>
@@ -53,19 +173,30 @@ export function MagneticLink({
   href,
   className,
   children,
+  target,
+  rel,
+  ariaLabel,
 }: {
   href: string;
   className: string;
   children: React.ReactNode;
+  target?: string;
+  rel?: string;
+  ariaLabel?: string;
 }) {
   const prefersReduced = useReducedMotion();
   const x = useMotionValue(0);
   const y = useMotionValue(0);
-
   const sx = useSpring(x, { stiffness: 180, damping: 22, mass: 0.4 });
   const sy = useSpring(y, { stiffness: 180, damping: 22, mass: 0.4 });
 
   const isAnchor = href.startsWith("#");
+  const external = isExternalHref(href);
+
+  const shared = {
+    className: `${className} w-full sm:w-auto focus:outline-none focus-visible:ring-2 focus-visible:ring-[#FFD200]/60 focus-visible:ring-offset-2 focus-visible:ring-offset-black`,
+    "aria-label": ariaLabel,
+  } as const;
 
   return (
     <motion.div
@@ -86,11 +217,20 @@ export function MagneticLink({
       className="inline-flex w-full sm:w-auto"
     >
       {isAnchor ? (
-        <a href={href} className={`${className} w-full sm:w-auto`}>
+        <a href={href} {...shared}>
+          {children}
+        </a>
+      ) : external ? (
+        <a
+          href={href}
+          target={target ?? "_blank"}
+          rel={rel ?? "noopener noreferrer"}
+          {...shared}
+        >
           {children}
         </a>
       ) : (
-        <Link href={href} className={`${className} w-full sm:w-auto`}>
+        <Link href={href} {...shared}>
           {children}
         </Link>
       )}
@@ -122,6 +262,7 @@ export function TiltCard({
               transformStyle: "preserve-3d",
               rotateX: srx,
               rotateY: sry,
+              willChange: "transform",
             }
       }
       onMouseMove={(e) => {
@@ -130,8 +271,8 @@ export function TiltCard({
         const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
         const px = (e.clientX - r.left) / r.width;
         const py = (e.clientY - r.top) / r.height;
-        ry.set((px - 0.5) * 5);
-        rx.set(-(py - 0.5) * 4);
+        ry.set((px - 0.5) * 6);
+        rx.set(-(py - 0.5) * 5);
       }}
       onMouseLeave={() => {
         rx.set(0);
@@ -140,7 +281,7 @@ export function TiltCard({
     >
       <div
         className="relative h-full w-full"
-        style={prefersReduced ? undefined : { transform: "translateZ(8px)" }}
+        style={prefersReduced ? undefined : { transform: "translateZ(10px)" }}
       >
         {children}
       </div>
@@ -149,53 +290,38 @@ export function TiltCard({
 }
 
 /**
- * Poster component v2 - INTELLIGENT MOBILE-FIRST RESPONSIVE
- * 
- * PROBLEM SOLVED: On small phones (< 380px), the 2-col grid with tall aspect ratios
- * creates cramped posters. The old object-contain approach left wasted letterbox space.
- * 
- * SOLUTION:
- * 1. object-cover fills frames completely (no wasted space)
- * 2. Smart object-position keeps faces/subjects visible during cropping
- * 3. Viewport-relative minHeight via clamp() ensures visibility on all phones
- * 4. CSS custom properties (--poster-portrait-ratio, --poster-wide-ratio) 
- *    defined in globals.css adapt ratios based on screen width
- * 5. Tighter inset padding on small screens, growing proportionally
- * 
- * RESULT: Images fill their frames beautifully at every screen size,
- * subjects stay centered, and the grid remains balanced.
+ * Poster v3 — Dark, premium, mobile-safe
+ * - Always fills frame (object-cover)
+ * - Better overlays + label chip + focus ring
+ * - No dependency on globals; ratios use inline style + safe defaults
  */
 export function Poster({
   src,
   label,
   wide,
   priority,
+  href,
+  meta,
 }: {
   src: string;
   label: string;
   wide?: boolean;
   priority?: boolean;
+  href?: string; // optional click-through
+  meta?: string; // small secondary text (e.g. year / "Official Video")
 }) {
-  return (
-    <TiltCard className="group card-frame overflow-hidden relative bg-white/40 w-full">
-      {/* 
-        Responsive container using CSS custom properties:
-        - --poster-portrait-ratio and --poster-wide-ratio are defined in globals.css
-        - They automatically adjust based on screen width via media queries
-        - minHeight uses clamp() for fluid scaling across all devices
-      */}
+  const prefersReduced = useReducedMotion();
+
+  const frame = (
+    <TiltCard className="group relative w-full overflow-hidden rounded-2xl border border-white/10 bg-white/[0.03] shadow-[0_30px_110px_rgba(0,0,0,0.6)]">
       <div
-        className="poster-frame relative w-full"
+        className="relative w-full"
         style={{
-          aspectRatio: wide 
-            ? "var(--poster-wide-ratio, 16 / 10)" 
-            : "var(--poster-portrait-ratio, 4 / 5)",
-          minHeight: wide 
-            ? "clamp(80px, 18vw, 140px)" 
-            : "clamp(90px, 25vw, 180px)",
+          aspectRatio: wide ? "16 / 10" : "4 / 5",
+          minHeight: wide ? "clamp(88px, 18vw, 160px)" : "clamp(110px, 25vw, 220px)",
         }}
       >
-        {/* Backdrop: Blurred cover fills gaps seamlessly */}
+        {/* Backdrop blur layer */}
         <div aria-hidden className="absolute inset-0 overflow-hidden">
           <Image
             src={src}
@@ -203,17 +329,12 @@ export function Poster({
             fill
             priority={false}
             sizes={wide ? "100vw" : "50vw"}
-            className="object-cover scale-125 blur-2xl opacity-35"
+            className="object-cover scale-125 blur-2xl opacity-30"
           />
         </div>
 
-        {/* 
-          Main image container with elegant frame padding:
-          - Inset creates frame effect that scales with screen size
-          - Rounded corners for softer aesthetic
-          - Overflow hidden clips image cleanly
-        */}
-        <div className="absolute inset-[2px] sm:inset-1 md:inset-1.5 rounded-md sm:rounded-lg overflow-hidden bg-black/5">
+        {/* Main image */}
+        <div className="absolute inset-[2px] sm:inset-1 rounded-xl overflow-hidden bg-black/40">
           <Image
             src={src}
             alt={label}
@@ -221,35 +342,65 @@ export function Poster({
             priority={priority}
             sizes={
               wide
-                ? "(max-width: 380px) 100vw, (max-width: 640px) 100vw, (max-width: 1024px) 60vw, 520px"
-                : "(max-width: 380px) 50vw, (max-width: 640px) 50vw, (max-width: 1024px) 30vw, 260px"
+                ? "(max-width: 640px) 100vw, (max-width: 1024px) 70vw, 560px"
+                : "(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 280px"
             }
-            /* 
-              KEY FIX: object-cover + object-position
-              - object-cover: Fills frame completely, crops excess (no letterboxing!)
-              - object-[center_25%]: Focus on upper portion where faces typically are
-              - This ensures portraits show faces prominently, not feet
-            */
-            className="object-cover object-[center_25%] transition-transform duration-500 ease-out group-hover:scale-[1.04]"
+            className="object-cover object-[center_20%] transition-transform duration-500 ease-out group-hover:scale-[1.05]"
           />
         </div>
 
-        {/* Subtle gradient overlays for depth and polish */}
-        <div className="absolute inset-0 bg-gradient-to-t from-black/15 via-transparent to-white/5 pointer-events-none" />
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_70%_50%_at_50%_15%,rgba(255,255,255,0.1),transparent)] mix-blend-overlay pointer-events-none" />
-        <div className="absolute inset-0 grain opacity-[0.06] pointer-events-none" />
+        {/* Depth overlays */}
+        <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/55 via-black/10 to-transparent" />
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_70%_55%_at_50%_0%,rgba(255,210,0,0.18),transparent_60%)]" />
 
-        {/* Corner ankh badge - scales with container */}
-        <div className="pointer-events-none absolute right-1 sm:right-2 md:right-3 top-1 sm:top-2 md:top-3 text-xs sm:text-base md:text-lg font-black text-white/20 drop-shadow-md">
+        {/* Label chip */}
+        <div className="absolute left-3 bottom-3 flex items-center gap-2">
+          <span className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-black/55 px-3 py-1 text-[10px] sm:text-xs font-extrabold text-white">
+            <span className="h-1.5 w-1.5 rounded-full bg-[#FFD200] shadow-[0_0_14px_rgba(255,210,0,0.5)]" />
+            {label}
+          </span>
+          {meta ? (
+            <span className="hidden sm:inline-flex rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-[10px] sm:text-xs font-bold text-white/70">
+              {meta}
+            </span>
+          ) : null}
+        </div>
+
+        {/* Corner ankh */}
+        <div className="pointer-events-none absolute right-3 top-3 text-base sm:text-lg font-black text-white/18 drop-shadow">
           ☥
         </div>
 
-        {/* Hover shine effect - desktop only */}
+        {/* Shine (desktop) */}
         <div className="pointer-events-none absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 hidden md:block">
-          <div className="absolute inset-0 bg-gradient-to-br from-white/12 via-transparent to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-600 ease-out" />
+          <div className="absolute inset-0 bg-gradient-to-br from-white/10 via-transparent to-transparent translate-x-[-110%] group-hover:translate-x-[110%] transition-transform duration-700 ease-out" />
         </div>
+
+        {/* Focus ring helper */}
+        <div className="pointer-events-none absolute inset-0 rounded-2xl ring-0 group-focus-within:ring-2 group-focus-within:ring-[#FFD200]/60" />
+      </div>
+
+      {/* Tiny footer line (optional) */}
+      <div className="px-4 pb-4 pt-3">
+        <p className="text-[10px] sm:text-xs text-white/55 font-semibold">
+          Tap to explore —{" "}
+          <span className="text-white/75">photos, videos, shows, merch</span>
+        </p>
       </div>
     </TiltCard>
+  );
+
+  if (!href) return frame;
+
+  return (
+    <a
+      href={href}
+      className="block focus:outline-none focus-visible:ring-2 focus-visible:ring-[#FFD200]/60 focus-visible:ring-offset-2 focus-visible:ring-offset-black rounded-2xl"
+      target={isExternalHref(href) ? "_blank" : undefined}
+      rel={isExternalHref(href) ? "noopener noreferrer" : undefined}
+    >
+      {frame}
+    </a>
   );
 }
 
@@ -263,90 +414,191 @@ export function HouseCard({
   desc: string;
 }) {
   return (
-    <TiltCard className="card-ink relative overflow-hidden p-5 sm:p-6 md:p-8 hover-lift border-glow">
-      <div className="absolute -right-6 sm:-right-8 -top-6 sm:-top-8 text-[120px] sm:text-[150px] md:text-[180px] font-black text-[rgb(var(--yard-gold))]/[0.05] leading-none pointer-events-none">
+    <TiltCard className="relative overflow-hidden rounded-2xl border border-white/10 bg-white/[0.03] p-5 sm:p-6 md:p-8 shadow-[0_24px_90px_rgba(0,0,0,0.55)]">
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_70%_60%_at_0%_0%,rgba(255,210,0,0.16),transparent_60%)]" />
+      <div className="pointer-events-none absolute -right-8 -top-10 text-[150px] sm:text-[190px] font-black text-[#FFD200]/[0.05] leading-none">
         ☥
       </div>
-      <div className="absolute inset-0 grain opacity-[0.06]" />
 
       <div className="relative flex flex-col sm:flex-row sm:items-start justify-between gap-3 sm:gap-4">
         <div>
-          <p className="text-lg sm:text-xl font-black">{title}</p>
-          <p className="mt-2 sm:mt-3 text-xs sm:text-sm font-medium text-white/60">
+          <p className="text-lg sm:text-xl font-black text-white tracking-[-0.02em]">
+            {title}
+          </p>
+          <p className="mt-2 sm:mt-3 text-xs sm:text-sm font-semibold text-white/60 leading-relaxed">
             {desc}
           </p>
         </div>
 
-        <span className="status-badge whitespace-nowrap text-[10px] sm:text-xs self-start">
+        <span className="inline-flex items-center gap-2 rounded-full border border-[#FFD200]/18 bg-[#FFD200]/10 px-3 py-1 text-[10px] sm:text-xs font-extrabold text-[#FFD200] whitespace-nowrap self-start">
+          <span className="h-1.5 w-1.5 rounded-full bg-[#FFD200]" />
           {badge}
         </span>
       </div>
 
-      <div className="relative mt-4 sm:mt-6 rounded-lg sm:rounded-xl border border-[rgb(var(--yard-gold))]/12 bg-black/25 px-3 sm:px-4 py-2.5 sm:py-3">
-        <div className="flex items-center justify-between text-[10px] sm:text-xs font-bold">
-          <span className="text-white/55">Access</span>
-          <span className="text-white/75">Members-only</span>
+      <div className="relative mt-4 sm:mt-6 rounded-xl border border-white/10 bg-black/30 px-4 py-3">
+        <div className="flex items-center justify-between text-[10px] sm:text-xs font-extrabold tracking-[0.18em] uppercase">
+          <span className="text-white/45">Access</span>
+          <span className="text-white/70">Members-only</span>
         </div>
       </div>
     </TiltCard>
   );
 }
 
-export function FeedCard({ title }: { title: string }) {
+export function FeedCard({
+  title,
+  subtitle = "Generate a pass to view this update.",
+}: {
+  title: string;
+  subtitle?: string;
+}) {
   const prefersReduced = useReducedMotion();
 
   return (
     <motion.div
-      whileHover={prefersReduced ? undefined : { y: -2 }}
-      transition={{ duration: 0.2, ease: [0.4, 0, 0.2, 1] }}
-      className="card-frame p-4 sm:p-5 md:p-6 hover-lift"
+      whileHover={prefersReduced ? undefined : { y: -3 }}
+      transition={{ duration: 0.25, ease: EASE_OUT }}
+      className="relative overflow-hidden rounded-2xl border border-white/10 bg-white/[0.03] p-4 sm:p-5 md:p-6 shadow-[0_24px_90px_rgba(0,0,0,0.55)]"
     >
-      <div className="absolute inset-0 backdrop-blur-sm" />
-      <div className="absolute inset-0 micro-grid opacity-[0.05]" />
-      <div className="absolute inset-0 grain opacity-[0.05]" />
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_70%_50%_at_100%_0%,rgba(255,210,0,0.14),transparent_60%)]" />
+      <div className="pointer-events-none absolute inset-0 opacity-[0.07] [background-image:linear-gradient(rgba(255,255,255,0.14)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.09)_1px,transparent_1px)] [background-size:28px_28px]" />
 
-      <div className="relative space-y-3 sm:space-y-4">
+      <div className="relative space-y-4">
         <div className="flex items-center justify-between">
-          <p className="text-xs sm:text-sm font-bold text-black">{title}</p>
-          <span className="flex items-center justify-center w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-black text-xs sm:text-sm">
+          <p className="text-xs sm:text-sm font-extrabold text-white">{title}</p>
+          <span className="flex items-center justify-center w-8 h-8 rounded-xl border border-white/10 bg-black/30 text-sm">
             🔒
           </span>
         </div>
 
-        <div className="space-y-1.5 sm:space-y-2">
-          <div className="h-1.5 sm:h-2 w-4/5 rounded-full bg-black/8" />
-          <div className="h-1.5 sm:h-2 w-3/5 rounded-full bg-black/6" />
-          <div className="h-1.5 sm:h-2 w-2/5 rounded-full bg-black/5" />
+        <div className="space-y-2">
+          <div className="h-2 w-4/5 rounded-full bg-white/[0.08]" />
+          <div className="h-2 w-3/5 rounded-full bg-white/[0.06]" />
+          <div className="h-2 w-2/5 rounded-full bg-white/[0.05]" />
         </div>
 
-        <p className="text-[10px] sm:text-xs font-semibold text-black/45">
-          Generate pass to view this update.
+        <p className="text-[10px] sm:text-xs font-semibold text-white/55">
+          {subtitle}
         </p>
       </div>
 
-      <div className="shimmer absolute inset-0 pointer-events-none" />
+      {/* subtle shimmer */}
+      <div className="pointer-events-none absolute inset-0 opacity-[0.08] [background:linear-gradient(110deg,transparent,rgba(255,255,255,0.18),transparent)] translate-x-[-120%] animate-[shimmer_2.6s_infinite]" />
+      <style>{`
+        @keyframes shimmer { to { transform: translateX(120%); } }
+      `}</style>
     </motion.div>
   );
 }
 
-export function SectionHeader({
-  label,
-  title,
-  description,
+/* -------------------------------------------------------
+   New: “More information here” — Artist info blocks
+-------------------------------------------------------- */
+
+export function ArtistQuickFacts({
+  className = "",
 }: {
-  label: string;
-  title: string;
-  description?: string;
+  className?: string;
 }) {
   return (
-    <div className="space-y-2 sm:space-y-3">
-      <p className="label text-[10px] sm:text-xs">{label}</p>
-      <h2 className="title-section text-2xl sm:text-3xl md:text-4xl text-black">
-        {title}
-      </h2>
-      {description && (
-        <p className="body-text text-sm sm:text-base max-w-xl">{description}</p>
-      )}
+    <div
+      className={`relative overflow-hidden rounded-2xl border border-white/10 bg-white/[0.03] p-5 sm:p-6 shadow-[0_24px_90px_rgba(0,0,0,0.55)] ${className}`}
+    >
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_70%_55%_at_50%_0%,rgba(255,210,0,0.16),transparent_60%)]" />
+      <div className="relative space-y-4">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <p className="text-[10px] sm:text-xs font-extrabold tracking-[0.28em] uppercase text-[#FFD200]/85">
+              Artist Profile
+            </p>
+            <p className="mt-2 text-lg sm:text-xl font-black text-white tracking-[-0.02em]">
+              {YARDEN_META.stageName}
+              <span className="ml-2 text-xs sm:text-sm font-semibold text-white/55">
+                ({YARDEN_META.birthName})
+              </span>
+            </p>
+          </div>
+          <Pill tone="gold">☥ VERIFIED INFO</Pill>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <InfoRow k="Origin" v={YARDEN_META.origin} />
+          <InfoRow k="Breakout" v={`${YARDEN_META.breakout.title} • ${YARDEN_META.breakout.year}`} />
+          <InfoRow k="Debut EP" v={`${YARDEN_META.debutEP.title} • ${YARDEN_META.debutEP.releaseDate}`} />
+          <InfoRow k="Label" v="Etins Records / 0207 Def Jam" />
+        </div>
+
+        <div className="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <Stat label="Monthly listeners" value={YARDEN_META.spotify.monthlyListenersText} hint="Spotify audience" progress={0.78} />
+          <Stat label="Top track" value={YARDEN_META.spotify.topTrack.title} hint={YARDEN_META.spotify.topTrack.streamsText} progress={0.86} />
+          <Stat label="Catalog vibe" value="Dark • soulful" hint="Afrobeats / R&B edge" progress={0.62} />
+        </div>
+
+        <p className="text-xs sm:text-sm text-white/60 leading-relaxed">
+          {YARDEN_META.stageName} blends mellow, soulful melodies with darker grooves —
+          a “music has a soul” kind of signature. This block is reusable on Home, Music, or Press pages.
+        </p>
+      </div>
+    </div>
+  );
+}
+
+function InfoRow({ k, v }: { k: string; v: string }) {
+  return (
+    <div className="flex items-start justify-between gap-3 rounded-xl border border-white/10 bg-black/30 px-4 py-3">
+      <span className="text-[10px] sm:text-xs font-extrabold tracking-[0.22em] uppercase text-white/45">
+        {k}
+      </span>
+      <span className="text-xs sm:text-sm font-semibold text-white/75 text-right">
+        {v}
+      </span>
+    </div>
+  );
+}
+
+export function PlatformButtons({
+  spotify,
+  apple,
+  audiomack,
+  youtube,
+}: {
+  spotify?: string;
+  apple?: string;
+  audiomack?: string;
+  youtube?: string;
+}) {
+  const items = [
+    spotify ? { name: "Spotify", href: spotify, tone: "spotify" as const } : null,
+    apple ? { name: "Apple", href: apple, tone: "apple" as const } : null,
+    audiomack ? { name: "Audiomack", href: audiomack, tone: "neutral" as const } : null,
+    youtube ? { name: "YouTube", href: youtube, tone: "youtube" as const } : null,
+  ].filter(Boolean) as Array<{ name: string; href: string; tone: "spotify" | "apple" | "youtube" | "neutral" }>;
+
+  return (
+    <div className="flex flex-wrap gap-2">
+      {items.map((it) => (
+        <a
+          key={it.name}
+          href={it.href}
+          target="_blank"
+          rel="noopener noreferrer"
+          className={[
+            "inline-flex items-center justify-center gap-2 rounded-full px-4 py-2 text-xs font-extrabold border transition",
+            "focus:outline-none focus-visible:ring-2 focus-visible:ring-[#FFD200]/60 focus-visible:ring-offset-2 focus-visible:ring-offset-black",
+            it.tone === "spotify"
+              ? "bg-[#1DB954] text-white border-white/0 hover:opacity-95"
+              : it.tone === "apple"
+                ? "bg-white/10 text-white border-white/10 hover:bg-white/14"
+                : it.tone === "youtube"
+                  ? "bg-red-500/90 text-white border-white/0 hover:opacity-95"
+                  : "bg-white/[0.04] text-white/80 border-white/10 hover:bg-white/[0.06]",
+          ].join(" ")}
+        >
+          {it.name}
+          <span className="text-white/70">↗</span>
+        </a>
+      ))}
     </div>
   );
 }
@@ -357,24 +609,18 @@ export function AnkhPattern() {
       width="100%"
       height="100%"
       xmlns="http://www.w3.org/2000/svg"
-      className="opacity-[0.02]"
+      className="opacity-[0.025]"
     >
       <defs>
         <pattern
           id="ankh-pattern"
           x="0"
           y="0"
-          width="100"
-          height="100"
+          width="110"
+          height="110"
           patternUnits="userSpaceOnUse"
         >
-          <text
-            x="10"
-            y="65"
-            fontSize="48"
-            fontWeight="900"
-            fill="currentColor"
-          >
+          <text x="10" y="74" fontSize="54" fontWeight="900" fill="currentColor">
             ☥
           </text>
         </pattern>

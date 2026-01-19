@@ -1,23 +1,26 @@
 import "./globals.css";
-import type { Metadata } from "next";
-import { Header } from "@/components/Header";
+import type { Metadata, Viewport } from "next";
 
 export const metadata: Metadata = {
-  title: "The Yard — Yarden",
-  description: "Generate your Yard Pass and get exclusive updates.",
+  title: {
+    default: "Yarden",
+    template: "%s — Yarden",
+  },
+  description: "Yarden — official artist hub.",
 };
 
-export default function RootLayout({
-  children,
-}: Readonly<{ children: React.ReactNode }>) {
+export const viewport: Viewport = {
+  themeColor: "#05060A",
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+};
+
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
-      <body>
-        <div className="siteHeader">
-          <Header />
-        </div>
-
-        <main className="mx-auto w-full max-w-5xl px-4 pb-10 pt-10">{children}</main>
+      <body className="min-h-screen bg-[#05060A] text-white antialiased">
+        {children}
       </body>
     </html>
   );
