@@ -6,7 +6,8 @@ import Image from "next/image";
 import { useReducedMotion } from "framer-motion";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
-import HeroStage from "./HeroStage";
+import { HeroSection as HeroStage } from "./HeroStage";
+
 
 gsap.registerPlugin(ScrollTrigger);
 
