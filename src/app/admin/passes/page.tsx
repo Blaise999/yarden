@@ -2,6 +2,12 @@
 
 import React, { useEffect, useState, useCallback, useMemo } from "react";
 
+import { TourSection, type ShowItem, type TourConfig } from "@/components/landing/TourSection";
+import StoreSection, { type MerchItem, type StoreConfig } from "@/components/landing/StoreSection";
+import { NewsletterSection } from "@/components/landing/NewsletterSection";
+
+import { DEFAULT_CMS, type CmsData } from "@/content/defaultCms";
+
 interface YardPass {
   id: string;
   anonId: string;
@@ -18,14 +24,13 @@ interface YardPass {
   userAgent: string;
 }
 
-import { TourSection, type ShowItem, type TourConfig } from "@/components/landing/TourSection";
-import StoreSection, { type MerchItem, type StoreConfig } from "@/components/landing/StoreSection";
-import { NewsletterSection, type PressItem, type EmbedVideo } from "@/components/landing/NewsletterSection";
-
-import { DEFAULT_CMS, type CmsData } from "@/content/defaultCms";
-
 type View = "login" | "dashboard";
 type Tab = "passes" | "cms";
+
+// ✅ infer the exact CMS newsletter item types (fixes PressItem[] vs CmsPressItem[] errors)
+type CmsNewsletter = CmsData["newsletter"];
+type CmsPressItem = CmsNewsletter["pressItems"][number];
+type CmsEmbedVideo = CmsNewsletter["videos"][number];
 
 function formatDate(iso: string) {
   try {
@@ -102,9 +107,31 @@ export default function AdminPage() {
   const [newsletterDraft, setNewsletterDraft] = useState<CmsData["newsletter"]>(DEFAULT_CMS.newsletter);
   const [newsletterSaving, setNewsletterSaving] = useState(false);
 
-  useEffect(() => {
-    checkAuth();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+  // ✅ blank templates built from DEFAULT_CMS so shapes always match CmsPressItem/CmsEmbedVideo
+  const makeBlankPress = useCallback((): CmsPressItem => {
+    const base = DEFAULT_CMS.newsletter.pressItems?.[0];
+    // if your DEFAULT_CMS has at least 1 item (it should), this stays fully typed
+    return {
+      ...(base as CmsPressItem),
+      title: "",
+      outlet: "",
+      date: "",
+      href: "",
+      image: (base as any)?.image ?? "/media/yarden/press/youtube.jpg",
+      tag: "",
+      excerpt: "",
+    };
+  }, []);
+
+  const makeBlankVideo = useCallback((): CmsEmbedVideo => {
+    const base = DEFAULT_CMS.newsletter.videos?.[0];
+    return {
+      ...(base as CmsEmbedVideo),
+      title: "",
+      meta: "",
+      youtubeId: "",
+      href: "",
+    };
   }, []);
 
   const loadCms = useCallback(async () => {
@@ -148,49 +175,6 @@ export default function AdminPage() {
     }
   }, []);
 
-  const checkAuth = async () => {
-    try {
-      const res = await fetch("/api/admin/passes", { credentials: "include" });
-      if (res.ok) {
-        const data = await res.json();
-        setPasses(data.passes || []);
-        setView("dashboard");
-        await loadCms();
-      }
-    } catch {}
-  };
-
-  const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError("");
-    setLoading(true);
-
-    try {
-      const res = await fetch("/api/admin/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ password }),
-        credentials: "include",
-      });
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        setError(data.error || "Login failed");
-        return;
-      }
-
-      setPassword("");
-      await fetchPasses();
-      setView("dashboard");
-      await loadCms();
-    } catch {
-      setError("Connection error. Please try again.");
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const fetchPasses = useCallback(async () => {
     setLoading(true);
     setError("");
@@ -210,6 +194,60 @@ export default function AdminPage() {
       setLoading(false);
     }
   }, []);
+
+  const checkAuth = useCallback(async () => {
+    try {
+      const res = await fetch("/api/admin/passes", { credentials: "include" });
+      if (res.ok) {
+        const data = await res.json();
+        setPasses(data.passes || []);
+        setView("dashboard");
+        await loadCms();
+      }
+    } catch {
+      // ignore
+    }
+  }, [loadCms]);
+
+  useEffect(() => {
+    checkAuth();
+  }, [checkAuth]);
+
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError("");
+    setLoading(true);
+
+    try {
+      const res = await fetch("/api/admin/login", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ password }),
+        credentials: "include",
+      });
+
+      let data: any = null;
+      try {
+        data = await res.json();
+      } catch {
+        data = null;
+      }
+
+      if (!res.ok) {
+        setError(data?.error || "Login failed");
+        return;
+      }
+
+      setPassword("");
+      await fetchPasses();
+      setView("dashboard");
+      await loadCms();
+    } catch {
+      setError("Connection error. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleLogout = async () => {
     await fetch("/api/admin/login", { method: "DELETE", credentials: "include" });
@@ -344,7 +382,7 @@ export default function AdminPage() {
               disabled={loading || cmsLoading}
               className="px-4 py-2 bg-yellow-400/20 text-yellow-400 rounded-lg text-sm font-semibold hover:bg-yellow-400/30 transition disabled:opacity-50"
             >
-              {(loading || cmsLoading) ? "..." : "Refresh"}
+              {loading || cmsLoading ? "..." : "Refresh"}
             </button>
 
             <button
@@ -478,7 +516,10 @@ export default function AdminPage() {
                   Reset CMS
                 </button>
 
-                <a href="/" className="px-4 py-2 bg-black text-yellow-400 rounded-lg text-sm font-bold hover:bg-gray-900 transition">
+                <a
+                  href="/"
+                  className="px-4 py-2 bg-black text-yellow-400 rounded-lg text-sm font-bold hover:bg-gray-900 transition"
+                >
                   Open Site
                 </a>
               </div>
@@ -550,13 +591,19 @@ export default function AdminPage() {
 
       {selectedPass && (
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center p-4 z-50" onClick={() => setSelectedPass(null)}>
-          <div className="bg-white rounded-3xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-auto" onClick={(e) => e.stopPropagation()}>
+          <div
+            className="bg-white rounded-3xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="p-6 border-b border-gray-100 flex items-center justify-between sticky top-0 bg-white rounded-t-3xl">
               <div>
                 <h3 className="text-xl font-black text-gray-900">{selectedPass.name}</h3>
                 <p className="text-sm text-gray-500 font-mono">{selectedPass.id}</p>
               </div>
-              <button onClick={() => setSelectedPass(null)} className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition">
+              <button
+                onClick={() => setSelectedPass(null)}
+                className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition"
+              >
                 ✕
               </button>
             </div>
@@ -641,10 +688,7 @@ export default function AdminPage() {
                     onClick={() =>
                       setNewsletterDraft((d) => ({
                         ...d,
-                        pressItems: [
-                          { title: "", outlet: "", date: "", href: "", image: "/media/yarden/press/youtube.jpg", tag: "", excerpt: "" },
-                          ...d.pressItems,
-                        ] as PressItem[],
+                        pressItems: [makeBlankPress(), ...d.pressItems],
                       }))
                     }
                     className="px-4 py-2 bg-yellow-100 text-yellow-900 rounded-lg text-sm font-bold hover:bg-yellow-200 transition"
@@ -680,11 +724,11 @@ export default function AdminPage() {
                           placeholder="Title"
                         />
                         <input
-                          value={p.outlet}
+                          value={(p as any).outlet ?? ""}
                           onChange={(e) =>
                             setNewsletterDraft((d) => {
                               const next = [...d.pressItems];
-                              next[idx] = { ...next[idx], outlet: e.target.value };
+                              next[idx] = { ...next[idx], outlet: e.target.value } as any;
                               return { ...d, pressItems: next };
                             })
                           }
@@ -692,11 +736,11 @@ export default function AdminPage() {
                           placeholder="Outlet"
                         />
                         <input
-                          value={p.date}
+                          value={(p as any).date ?? ""}
                           onChange={(e) =>
                             setNewsletterDraft((d) => {
                               const next = [...d.pressItems];
-                              next[idx] = { ...next[idx], date: e.target.value };
+                              next[idx] = { ...next[idx], date: e.target.value } as any;
                               return { ...d, pressItems: next };
                             })
                           }
@@ -704,11 +748,11 @@ export default function AdminPage() {
                           placeholder="Date"
                         />
                         <input
-                          value={p.tag ?? ""}
+                          value={(p as any).tag ?? ""}
                           onChange={(e) =>
                             setNewsletterDraft((d) => {
                               const next = [...d.pressItems];
-                              next[idx] = { ...next[idx], tag: e.target.value };
+                              next[idx] = { ...next[idx], tag: e.target.value } as any;
                               return { ...d, pressItems: next };
                             })
                           }
@@ -728,11 +772,11 @@ export default function AdminPage() {
                           placeholder="Link (https://...)"
                         />
                         <input
-                          value={p.image}
+                          value={(p as any).image ?? ""}
                           onChange={(e) =>
                             setNewsletterDraft((d) => {
                               const next = [...d.pressItems];
-                              next[idx] = { ...next[idx], image: e.target.value };
+                              next[idx] = { ...next[idx], image: e.target.value } as any;
                               return { ...d, pressItems: next };
                             })
                           }
@@ -740,11 +784,11 @@ export default function AdminPage() {
                           placeholder="Image (/public path or https://...)"
                         />
                         <textarea
-                          value={p.excerpt ?? ""}
+                          value={(p as any).excerpt ?? ""}
                           onChange={(e) =>
                             setNewsletterDraft((d) => {
                               const next = [...d.pressItems];
-                              next[idx] = { ...next[idx], excerpt: e.target.value };
+                              next[idx] = { ...next[idx], excerpt: e.target.value } as any;
                               return { ...d, pressItems: next };
                             })
                           }
@@ -768,7 +812,7 @@ export default function AdminPage() {
                     onClick={() =>
                       setNewsletterDraft((d) => ({
                         ...d,
-                        videos: [{ title: "", meta: "", youtubeId: "", href: "" }, ...d.videos] as EmbedVideo[],
+                        videos: [makeBlankVideo(), ...d.videos],
                       }))
                     }
                     className="px-4 py-2 bg-yellow-100 text-yellow-900 rounded-lg text-sm font-bold hover:bg-yellow-200 transition"
@@ -779,7 +823,7 @@ export default function AdminPage() {
 
                 <div className="p-4 space-y-4">
                   {newsletterDraft.videos.map((v, idx) => (
-                    <div key={`${v.youtubeId || "vid"}_${idx}`} className="rounded-2xl border border-gray-200 p-4">
+                    <div key={`${(v as any).youtubeId || "vid"}_${idx}`} className="rounded-2xl border border-gray-200 p-4">
                       <div className="flex items-center justify-between gap-3 mb-3">
                         <p className="text-sm font-black text-gray-900">Video #{idx + 1}</p>
                         <button
@@ -792,11 +836,11 @@ export default function AdminPage() {
 
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                         <input
-                          value={v.title}
+                          value={(v as any).title ?? ""}
                           onChange={(e) =>
                             setNewsletterDraft((d) => {
                               const next = [...d.videos];
-                              next[idx] = { ...next[idx], title: e.target.value };
+                              next[idx] = { ...next[idx], title: e.target.value } as any;
                               return { ...d, videos: next };
                             })
                           }
@@ -804,11 +848,11 @@ export default function AdminPage() {
                           placeholder="Title"
                         />
                         <input
-                          value={v.meta ?? ""}
+                          value={(v as any).meta ?? ""}
                           onChange={(e) =>
                             setNewsletterDraft((d) => {
                               const next = [...d.videos];
-                              next[idx] = { ...next[idx], meta: e.target.value };
+                              next[idx] = { ...next[idx], meta: e.target.value } as any;
                               return { ...d, videos: next };
                             })
                           }
@@ -816,11 +860,11 @@ export default function AdminPage() {
                           placeholder="Meta"
                         />
                         <input
-                          value={v.youtubeId}
+                          value={(v as any).youtubeId ?? ""}
                           onChange={(e) =>
                             setNewsletterDraft((d) => {
                               const next = [...d.videos];
-                              next[idx] = { ...next[idx], youtubeId: e.target.value };
+                              next[idx] = { ...next[idx], youtubeId: e.target.value } as any;
                               return { ...d, videos: next };
                             })
                           }
@@ -828,11 +872,11 @@ export default function AdminPage() {
                           placeholder="YouTube ID"
                         />
                         <input
-                          value={v.href ?? ""}
+                          value={(v as any).href ?? ""}
                           onChange={(e) =>
                             setNewsletterDraft((d) => {
                               const next = [...d.videos];
-                              next[idx] = { ...next[idx], href: e.target.value };
+                              next[idx] = { ...next[idx], href: e.target.value } as any;
                               return { ...d, videos: next };
                             })
                           }
@@ -860,7 +904,8 @@ export default function AdminPage() {
                       const cleaned: CmsData["newsletter"] = {
                         backgroundImage: (newsletterDraft.backgroundImage ?? "").trim(),
                         pressItems: (newsletterDraft.pressItems ?? [])
-                          .map((p) => ({
+                          .map((p: any) => ({
+                            ...p,
                             title: (p.title ?? "").trim(),
                             outlet: (p.outlet ?? "").trim(),
                             date: (p.date ?? "").trim(),
@@ -869,15 +914,16 @@ export default function AdminPage() {
                             tag: (p.tag ?? "").trim() || undefined,
                             excerpt: (p.excerpt ?? "").trim() || undefined,
                           }))
-                          .filter((p) => p.title || p.href) as PressItem[],
+                          .filter((p: any) => p.title || p.href),
                         videos: (newsletterDraft.videos ?? [])
-                          .map((v) => ({
+                          .map((v: any) => ({
+                            ...v,
                             title: (v.title ?? "").trim(),
                             meta: (v.meta ?? "").trim() || undefined,
                             youtubeId: (v.youtubeId ?? "").trim(),
                             href: (v.href ?? "").trim() || undefined,
                           }))
-                          .filter((v) => v.title && v.youtubeId) as EmbedVideo[],
+                          .filter((v: any) => v.title && v.youtubeId),
                       };
 
                       await patchCms({ newsletter: cleaned });

@@ -2,6 +2,7 @@
 "use client";
 
 import React, { useLayoutEffect, useMemo, useRef, useState } from "react";
+
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 
@@ -297,27 +298,28 @@ export function VisualsSection(props?: {
 
   // spotlight transition (scan + punchy but clean)
   useLayoutEffect(() => {
-    if (reducedMotion) return;
-    const media = heroMediaRef.current;
-    const scan = heroScanRef.current;
-    const glow = heroGlowRef.current;
-    if (!media || !scan || !glow) return;
+  if (reducedMotion) return;
 
-    const tl = gsap.timeline({ defaults: { ease: "power3.out" } });
+  const media = heroMediaRef.current;
+  const scan = heroScanRef.current;
+  const glow = heroGlowRef.current;
+  if (!media || !scan || !glow) return;
 
-    tl.set(scan, { opacity: 0, xPercent: -140 });
-    tl.to(glow, { opacity: 1, duration: 0.25 }, 0);
-    tl.to(media, { scale: 1.02, duration: 0.32 }, 0);
+  const tl = gsap.timeline({ defaults: { ease: "power3.out" } });
 
-    tl.to(scan, { opacity: 1, duration: 0.06, ease: "power1.out" }, 0.06);
-    tl.to(scan, { xPercent: 140, duration: 0.42, ease: "power2.out" }, 0.08);
-    tl.to(scan, { opacity: 0, duration: 0.2 }, 0.32);
+  tl.set(scan, { opacity: 0, xPercent: -140 });
+  tl.to(glow, { opacity: 1, duration: 0.25 }, 0);
+  tl.to(media, { scale: 1.02, duration: 0.32 }, 0);
+  tl.to(scan, { opacity: 1, duration: 0.06, ease: "power1.out" }, 0.06);
+  tl.to(scan, { xPercent: 140, duration: 0.42, ease: "power2.out" }, 0.08);
+  tl.to(scan, { opacity: 0, duration: 0.2 }, 0.32);
+  tl.to(media, { scale: 1.0, duration: 0.5, ease: "power3.out" }, 0.18);
+  tl.to(glow, { opacity: 0.55, duration: 0.6 }, 0.22);
 
-    tl.to(media, { scale: 1.0, duration: 0.5, ease: "power3.out" }, 0.18);
-    tl.to(glow, { opacity: 0.55, duration: 0.6 }, 0.22);
-
-    return () => tl.kill();
-  }, [spotIdx, reducedMotion]);
+  return () => {
+    tl.kill(); // ✅ cleanup returns void
+  };
+}, [spotIdx, reducedMotion]);
 
   // enter reveal + auto-cycle while in view
   useLayoutEffect(() => {
