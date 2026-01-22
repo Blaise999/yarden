@@ -71,7 +71,15 @@ function maskPhone(phone: string) {
   return `${p.slice(0, 4)}***${p.slice(-3)}`;
 }
 
-const Field = memo(function Field({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
+const Field = memo(function Field({
+  label,
+  hint,
+  children,
+}: {
+  label: string;
+  hint?: string;
+  children: React.ReactNode;
+}) {
   return (
     <div>
       <label className="block text-xs sm:text-sm font-bold text-black/70 mb-1.5">{label}</label>
@@ -81,7 +89,7 @@ const Field = memo(function Field({ label, hint, children }: { label: string; hi
   );
 });
 
-export default function PassGenerator() {
+export default function PassGenerator({ embedded = false }: { embedded?: boolean }) {
   const prefersReduced = useReducedMotion();
 
   const [name, setName] = useState("");
@@ -276,16 +284,21 @@ export default function PassGenerator() {
 
   if (loadingExisting) {
     return (
-      <div className="flex items-center justify-center py-12">
+      <div className="flex items-center justify-center py-10">
         <div className="animate-spin w-8 h-8 border-4 border-black/20 border-t-black/60 rounded-full" />
       </div>
     );
   }
 
   return (
-    <div className="space-y-6 sm:space-y-8">
+    <div className={embedded ? "space-y-6" : "space-y-6 sm:space-y-8"}>
       {/* Top copy */}
-      <div className="rounded-2xl sm:rounded-3xl border border-black/10 bg-[#FFFEF5]/85 backdrop-blur-sm p-5 sm:p-6 md:p-7 shadow-[0_18px_55px_rgba(0,0,0,0.08)]">
+      <div
+        className={[
+          "rounded-2xl sm:rounded-3xl border border-black/10 bg-[#FFFEF5]/85 backdrop-blur-sm",
+          embedded ? "p-4 sm:p-5 shadow-[0_14px_45px_rgba(0,0,0,0.07)]" : "p-5 sm:p-6 md:p-7 shadow-[0_18px_55px_rgba(0,0,0,0.08)]",
+        ].join(" ")}
+      >
         <div className="flex items-start justify-between gap-4">
           <div>
             <h2 className="text-xl sm:text-2xl font-black text-black">{greeting}</h2>
@@ -488,7 +501,9 @@ export default function PassGenerator() {
                 {isLocked ? "Pass Preview" : "Your Yard Pass"}
               </p>
               {!isLocked && savedPass?.id ? (
-                <p className="text-[11px] sm:text-xs text-black/45 mt-1">ID: <span className="font-semibold">{savedPass.id}</span></p>
+                <p className="text-[11px] sm:text-xs text-black/45 mt-1">
+                  ID: <span className="font-semibold">{savedPass.id}</span>
+                </p>
               ) : null}
             </div>
 
@@ -764,7 +779,7 @@ async function drawPass(canvas: HTMLCanvasElement, card: PassData, isLocked: boo
     ctx.fillText(`Created: ${card.createdAt}`, contentX, fieldY + lineSpacing * 2 + 58);
   }
 
-  // Bottom message (more personal, not corny)
+  // Bottom message
   const msgY = H - 150;
   ctx.font = "italic 500 18px Georgia, serif";
   ctx.fillStyle = "#7A7A7A";
@@ -783,10 +798,10 @@ async function drawPass(canvas: HTMLCanvasElement, card: PassData, isLocked: boo
   ctx.fillStyle = "#6B5A44";
   ctx.fillText("— Yarden ☥", contentX, H - 92);
 
-  // Unique "member mark" (QR-ish) near bottom-right
+  // Unique "member mark"
   drawMemberMark(ctx, W - 205, H - 170, card.id);
 
-  // Stamp effect (still keeps your old vibe)
+  // Stamp effect
   drawStamp(ctx, W - 180, H - 120);
 
   // Bottom dotted line
@@ -808,12 +823,10 @@ function drawStarBorder(ctx: CanvasRenderingContext2D, W: number, H: number) {
   ctx.font = `900 ${starSize}px Arial`;
   ctx.fillStyle = "#2A2A2A";
 
-  // Top row
   for (let x = margin; x < W - margin; x += spacing) {
     ctx.fillText("★", x, margin + 10);
   }
 
-  // Bottom row
   for (let x = margin; x < W - margin; x += spacing) {
     if (Math.abs(x - W / 2) < spacing / 2) {
       ctx.fillStyle = "#D64545";
@@ -824,12 +837,10 @@ function drawStarBorder(ctx: CanvasRenderingContext2D, W: number, H: number) {
     }
   }
 
-  // Left column
   for (let y = margin + spacing; y < H - margin; y += spacing) {
     ctx.fillText("★", margin - 5, y);
   }
 
-  // Right column
   for (let y = margin + spacing; y < H - margin; y += spacing) {
     ctx.fillText("★", W - margin - 10, y);
   }
@@ -920,13 +931,11 @@ function drawStamp(ctx: CanvasRenderingContext2D, x: number, y: number) {
   ctx.restore();
 }
 
-/** A tiny deterministic "member mark" from the pass ID (feels official, no libs) */
 function drawMemberMark(ctx: CanvasRenderingContext2D, x: number, y: number, seed: string) {
   const size = 110;
   const cells = 11;
   const cell = Math.floor(size / cells);
 
-  // Frame
   ctx.save();
   ctx.globalAlpha = 0.9;
   ctx.fillStyle = "rgba(255,255,255,0.75)";
@@ -935,7 +944,6 @@ function drawMemberMark(ctx: CanvasRenderingContext2D, x: number, y: number, see
   ctx.lineWidth = 2;
   ctx.strokeRect(x, y, cell * cells, cell * cells);
 
-  // Finder corners (like QR)
   const drawFinder = (fx: number, fy: number) => {
     ctx.fillStyle = "rgba(0,0,0,0.85)";
     ctx.fillRect(fx, fy, cell * 3, cell * 3);
@@ -946,7 +954,6 @@ function drawMemberMark(ctx: CanvasRenderingContext2D, x: number, y: number, see
   drawFinder(x + cell * 7, y + cell);
   drawFinder(x + cell, y + cell * 7);
 
-  // Data bits
   const bits = hashBits(seed, cells * cells);
   let i = 0;
   for (let r = 0; r < cells; r++) {
@@ -965,7 +972,6 @@ function drawMemberMark(ctx: CanvasRenderingContext2D, x: number, y: number, see
     }
   }
 
-  // Label
   ctx.globalAlpha = 1;
   ctx.fillStyle = "rgba(0,0,0,0.65)";
   ctx.font = "700 10px Georgia, serif";
@@ -976,7 +982,6 @@ function drawMemberMark(ctx: CanvasRenderingContext2D, x: number, y: number, see
 }
 
 function hashBits(seed: string, n: number): boolean[] {
-  // simple string hash -> bits
   let h1 = 2166136261;
   for (let i = 0; i < seed.length; i++) {
     h1 ^= seed.charCodeAt(i);
@@ -985,7 +990,6 @@ function hashBits(seed: string, n: number): boolean[] {
   const out: boolean[] = [];
   let x = h1 >>> 0;
   for (let i = 0; i < n; i++) {
-    // xorshift
     x ^= x << 13;
     x ^= x >>> 17;
     x ^= x << 5;
