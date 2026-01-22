@@ -52,7 +52,7 @@ const DEFAULT_MERCH: MerchItem[] = [
   },
   {
     id: "merch2",
-    name: "You Only Live Once Quote Tee — Black",
+    name: "WAIT LYRIC TOP — Black",
     images: ["/Pictures/merch2.jpg"],
     tag: "Drop",
     available: true,
@@ -68,7 +68,7 @@ const DEFAULT_MERCH: MerchItem[] = [
   },
   {
     id: "merch4",
-    name: "You Only Live Once Quote Tee — White",
+    name: "WAIT LYRIC TOP — White",
     images: ["/Pictures/merch4.jpg"],
     tag: "Drop",
     available: true,
