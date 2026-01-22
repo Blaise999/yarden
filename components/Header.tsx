@@ -1,4 +1,4 @@
-// LandingHeader.tsx (FULL EDIT) — nav centered on desktop
+// LandingHeader.tsx (FULL EDIT) — hero-stage sync + glass-on-scroll + shrink
 "use client";
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
@@ -122,6 +122,10 @@ function luminance(rgb: { r: number; g: number; b: number }) {
   return (0.2126 * rgb.r + 0.7152 * rgb.g + 0.0722 * rgb.b) / 255;
 }
 
+// Hero stage sync event
+const HERO_STAGE_EVENT = "yarden:hero-stage";
+type HeroStageDetail = { stage: "A" | "B"; progress: number; inHero: boolean };
+
 // Icons
 function IconClose(props: { className?: string }) {
   return (
@@ -145,6 +149,7 @@ function IconArrowUpRight(props: { className?: string }) {
   );
 }
 
+// icon-only hamburger (no "Menu" word)
 function MenuButton(props: { open: boolean; onClick: () => void }) {
   return (
     <button
@@ -153,13 +158,13 @@ function MenuButton(props: { open: boolean; onClick: () => void }) {
       aria-label={props.open ? "Close menu" : "Open menu"}
       aria-expanded={props.open}
       className={cx(
-        "inline-flex h-11 items-center gap-3 rounded-full px-4",
+        "inline-flex h-11 w-11 items-center justify-center rounded-full",
         "bg-white/10 text-white ring-1 ring-white/15",
         "hover:bg-white/14",
         "focus:outline-none focus-visible:ring-2 focus-visible:ring-white/40"
       )}
     >
-      <span className="text-sm font-semibold tracking-tight">Menu</span>
+      <span className="sr-only">{props.open ? "Close menu" : "Open menu"}</span>
 
       <span className="relative inline-flex h-7 w-7 items-center justify-center">
         <motion.span
@@ -238,6 +243,7 @@ type LandingHeaderProps = {
 
   tintSources?: Record<string, string>;
   heroBgSrc?: string;
+  heroAltSrc?: string;
 
   socials?: SocialItem[];
   brandName?: string;
@@ -265,7 +271,10 @@ export default function LandingHeader(props: LandingHeaderProps) {
   const onNav = props.onNav ?? (() => {});
   const onLogo = props.onLogo ?? (() => onNav("top"));
 
-  // Scroll progress
+  // Header element (for syncing hero padding)
+  const headerElRef = useRef<HTMLElement | null>(null);
+
+  // Scroll progress (drives glass + shrink)
   const [scrollY, setScrollY] = useState(0);
   useEffect(() => {
     let raf = 0;
@@ -284,7 +293,49 @@ export default function LandingHeader(props: LandingHeaderProps) {
     };
   }, []);
 
-  const t = clamp((scrollY - 24) / 520, 0, 1);
+  // Hero stage sync (A/B while pinned)
+  const [heroStage, setHeroStage] = useState<"A" | "B">("A");
+  const [heroIn, setHeroIn] = useState(false);
+  useEffect(() => {
+    const onHeroStage = (e: Event) => {
+      const ce = e as CustomEvent<HeroStageDetail>;
+      if (!ce.detail) return;
+      setHeroStage(ce.detail.stage);
+      setHeroIn(!!ce.detail.inHero);
+    };
+    window.addEventListener(HERO_STAGE_EVENT, onHeroStage as any);
+    return () => window.removeEventListener(HERO_STAGE_EVENT, onHeroStage as any);
+  }, []);
+
+  // Glass only after you start scrolling
+  const t = clamp((scrollY - 10) / 240, 0, 1);
+  const showGlass = menuOpen || scrollY > 10;
+  const compact = !menuOpen && scrollY > 78;
+
+  // Sync a CSS var so Hero can pad exactly to the real header height
+  useEffect(() => {
+    const el = headerElRef.current;
+    if (!el) return;
+
+    const setVar = () => {
+      const h = Math.round(el.getBoundingClientRect().height);
+      document.documentElement.style.setProperty("--header-h", `${h}px`);
+    };
+
+    setVar();
+
+    let ro: ResizeObserver | null = null;
+    if (typeof ResizeObserver !== "undefined") {
+      ro = new ResizeObserver(() => setVar());
+      ro.observe(el);
+    }
+
+    window.addEventListener("resize", setVar, { passive: true });
+    return () => {
+      window.removeEventListener("resize", setVar);
+      ro?.disconnect();
+    };
+  }, [compact, menuOpen]);
 
   // Tint
   const [tint, setTint] = useState({ r: 180, g: 180, b: 200 });
@@ -292,12 +343,17 @@ export default function LandingHeader(props: LandingHeaderProps) {
   const cacheRef = useRef<Map<string, any>>(new Map());
 
   useEffect(() => {
-    if (!props.tintSources) return;
+    // Decide which image powers the header tint (NOT displayed, just sampled)
+    const heroA = props.heroBgSrc ?? props.tintSources?.top;
+    const heroB = props.heroAltSrc ?? heroA;
 
-    const src =
-      props.tintSources[props.activeId] ??
-      props.tintSources["top"] ??
-      props.tintSources[props.nav?.[0]?.id ?? "top"];
+    const sectionSrc =
+      props.tintSources?.[props.activeId] ??
+      props.tintSources?.["top"] ??
+      props.tintSources?.[props.nav?.[0]?.id ?? "top"];
+
+    // While the hero pin is active, use the current stage image for tint
+    const src = heroIn ? (heroStage === "B" ? heroB : heroA) : sectionSrc;
 
     if (!src) return;
 
@@ -319,7 +375,7 @@ export default function LandingHeader(props: LandingHeaderProps) {
     return () => {
       alive = false;
     };
-  }, [props.activeId, props.tintSources, props.nav]);
+  }, [props.activeId, props.tintSources, props.nav, props.heroBgSrc, props.heroAltSrc, heroIn, heroStage]);
 
   const cssVars = useMemo(
     () =>
@@ -329,51 +385,57 @@ export default function LandingHeader(props: LandingHeaderProps) {
     [tint]
   );
 
-  const scrim = 0.14 + 0.56 * t;
-  const blurPx = isSafari ? 0 : 8 + 12 * t;
-  const shadowA = 0.1 + 0.24 * t;
+  // Glass styling (0 at top)
+  const scrim = showGlass ? 0.10 + 0.46 * t : 0;
+  const blurPx = isSafari ? 0 : showGlass ? 10 + 10 * t : 0;
+  const shadowA = showGlass ? 0.10 + 0.26 * t : 0;
 
-  // logo selection
-  const heroZone = t < 0.22;
+  // logo selection (based on sampled luminance)
   const heroIsLight = luminance(raw) > 0.58;
+  const heroZone = heroIn && scrollY < 110;
   const useLightLogo = heroZone && heroIsLight;
   const logoSrc = useLightLogo ? LOGO_LIGHT : LOGO_DARK;
 
   const [logoOk, setLogoOk] = useState(true);
   useEffect(() => setLogoOk(true), [logoSrc]);
 
-  const topImg = props.heroBgSrc ?? props.tintSources?.top;
-  const useBlendInk = t < 0.16 && !!topImg;
+  // Blend only when truly on-hero and before glass appears (so it feels “embedded”)
+  const useBlendInk = !isSafari && heroIn && !showGlass;
   const inkText = cx(
     "text-white",
-    !isSafari && useBlendInk && "mix-blend-difference",
-    "[text-shadow:0_1px_12px_rgba(0,0,0,.35)]"
+    useBlendInk && "mix-blend-difference",
+    "[text-shadow:0_1px_18px_rgba(0,0,0,.55)]"
   );
 
   // Hide the normal header logo while the mobile menu is open (prevents double logo)
   const showHeaderLogo = !menuOpen;
 
+  const barH = compact ? "h-[66px] md:h-[70px]" : "h-[74px] md:h-[82px]";
+  const logoH = compact ? "h-8 md:h-9" : "h-10 md:h-10";
+
   return (
     <>
       <header
+        ref={headerElRef as any}
         className="fixed top-0 left-0 right-0 z-[2147483647] overflow-visible"
         style={{
           ...cssVars,
           borderBottom: "none",
-          boxShadow: `0 10px 30px rgba(0,0,0,${shadowA})`,
+          boxShadow: showGlass ? `0 10px 30px rgba(0,0,0,${shadowA})` : "none",
           transform: isSafari ? undefined : "translate3d(0,0,0)",
           willChange: isSafari ? undefined : "transform",
           backfaceVisibility: "hidden",
           WebkitBackfaceVisibility: "hidden",
         }}
       >
+        {/* glass layer (OFF at top, ON after scroll) */}
         <div className="pointer-events-none absolute inset-0 z-0 overflow-hidden">
           <div
             className="absolute inset-0"
             style={{
               opacity: scrim,
               background:
-                "linear-gradient(to bottom, rgba(7,7,10,0.90), rgba(7,7,10,0.56) 55%, rgba(7,7,10,0.16))",
+                "linear-gradient(to bottom, rgba(7,7,10,0.92), rgba(7,7,10,0.62) 55%, rgba(7,7,10,0.18))",
               ...(blurPx > 0
                 ? {
                     backdropFilter: `blur(${blurPx}px) saturate(${1.05 + 0.15 * t})`,
@@ -382,11 +444,24 @@ export default function LandingHeader(props: LandingHeaderProps) {
                 : {}),
             }}
           />
+          {showGlass ? (
+            <div
+              className="absolute inset-x-0 top-0 h-px"
+              style={{ background: "linear-gradient(90deg, transparent, rgb(var(--tint) / 0.65), transparent)" } as any}
+            />
+          ) : null}
         </div>
 
         <div className="relative z-10 pt-[env(safe-area-inset-top)]">
           {/* ✅ 3-column layout: left logo, centered nav, right actions */}
-          <div className={cx("mx-auto grid max-w-7xl items-center px-5 md:px-8", "h-[74px] md:h-[82px]", "grid-cols-[auto_1fr_auto]")}>
+          <div
+            className={cx(
+              "mx-auto grid max-w-7xl items-center px-5 md:px-8",
+              "grid-cols-[auto_1fr_auto]",
+              barH,
+              "transition-[height] duration-300"
+            )}
+          >
             {/* LEFT */}
             <div className="flex items-center">
               {showHeaderLogo ? (
@@ -395,12 +470,12 @@ export default function LandingHeader(props: LandingHeaderProps) {
                     <NextImage
                       src={logoSrc}
                       alt={`${brandName} logo`}
-                      width={128}
-                      height={52}
+                      width={140}
+                      height={56}
                       priority
                       draggable={false}
                       onError={() => setLogoOk(false)}
-                      className="h-10 w-auto object-contain"
+                      className={cx("w-auto object-contain transition-[height] duration-300", logoH)}
                     />
                   ) : (
                     <span className="text-lg font-semibold tracking-tight text-white [text-shadow:0_1px_18px_rgba(0,0,0,.55)]">
@@ -409,7 +484,7 @@ export default function LandingHeader(props: LandingHeaderProps) {
                   )}
                 </button>
               ) : (
-                <div className="h-10 w-[128px]" aria-hidden="true" />
+                <div className={cx("w-[140px]", logoH)} aria-hidden="true" />
               )}
             </div>
 

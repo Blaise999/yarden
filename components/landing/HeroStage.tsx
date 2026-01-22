@@ -1,4 +1,4 @@
-// HeroSection.tsx (FULL EDIT — layout-safe + Safari/GSAP stability)
+// HeroSection.tsx (FULL EDIT — header sync via CSS var + hero-stage event)
 "use client";
 
 import React, { useEffect, useRef, useState } from "react";
@@ -51,6 +51,15 @@ function useSafariInfo() {
   return info;
 }
 
+// Hero -> Header event (stage + presence)
+const HERO_STAGE_EVENT = "yarden:hero-stage";
+type HeroStageDetail = { stage: "A" | "B"; progress: number; inHero: boolean };
+
+function emitHeroStage(detail: HeroStageDetail) {
+  if (typeof window === "undefined") return;
+  window.dispatchEvent(new CustomEvent(HERO_STAGE_EVENT, { detail }));
+}
+
 export function HeroSection(props: {
   heroA: HeroImage;
   heroB: HeroImage;
@@ -60,7 +69,7 @@ export function HeroSection(props: {
   nowPlaying: NowPlaying;
 
   pinDistance?: number;
-  headerOffset?: number;
+  headerOffset?: number; // fallback only (CSS var --header-h is primary)
   fullBleed?: boolean;
 
   headlineA?: string;
@@ -86,7 +95,7 @@ export function HeroSection(props: {
   const reducedMotion = usePrefersReducedMotion();
   const { isSafari, isIOS } = useSafariInfo();
 
-  const headerOffset = props.headerOffset ?? 0;
+  const fallbackHeaderOffset = props.headerOffset ?? 84; // fallback if CSS var missing
   const fullBleed = props.fullBleed ?? true;
 
   // Refs
@@ -107,6 +116,16 @@ export function HeroSection(props: {
   const sceneBRef = useRef<HTMLDivElement | null>(null);
   const railARef = useRef<HTMLDivElement | null>(null);
   const railBRef = useRef<HTMLDivElement | null>(null);
+
+  // event throttle
+  const lastDetailRef = useRef<HeroStageDetail>({ stage: "A", progress: 0, inHero: false });
+  const rafEmitRef = useRef<number | null>(null);
+  const scheduleEmit = (detail: HeroStageDetail) => {
+    lastDetailRef.current = detail;
+    if (typeof window === "undefined") return;
+    if (rafEmitRef.current) cancelAnimationFrame(rafEmitRef.current);
+    rafEmitRef.current = requestAnimationFrame(() => emitHeroStage(lastDetailRef.current));
+  };
 
   // iOS Safari: lock a stable viewport height
   useEffect(() => {
@@ -179,6 +198,16 @@ export function HeroSection(props: {
   const refreshedOnce = useRef(false);
   const prevProgressRef = useRef(0);
 
+  // initial state for header
+  useEffect(() => {
+    scheduleEmit({ stage: "A", progress: 0, inHero: false });
+    return () => {
+      if (rafEmitRef.current) cancelAnimationFrame(rafEmitRef.current);
+      scheduleEmit({ stage: "A", progress: 0, inHero: false });
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   useGSAP(
     () => {
       // If reduced motion, keep Scene A as default and don't create ScrollTrigger.
@@ -206,19 +235,7 @@ export function HeroSection(props: {
       const nowA = nowARef.current;
       const nowB = nowBRef.current;
 
-      if (
-        !section ||
-        !pinEl ||
-        !media ||
-        !artA ||
-        !artB ||
-        !sceneA ||
-        !sceneB ||
-        !railA ||
-        !railB ||
-        !nowA ||
-        !nowB
-      ) {
+      if (!section || !pinEl || !media || !artA || !artB || !sceneA || !sceneB || !railA || !railB || !nowA || !nowB) {
         return;
       }
 
@@ -238,7 +255,7 @@ export function HeroSection(props: {
       if (pattern) gsap.set(pattern, { opacity: 0.16, scale: 1 });
       if (glowFx) gsap.set(glowFx, { opacity: 0, scale: 0.92 });
 
-      // Safari stability flags (avoid heavy 3D where it glitches)
+      // Safari stability flags
       gsap.set([media, artA, artB, pattern, glowFx].filter(Boolean), {
         backfaceVisibility: "hidden",
         webkitBackfaceVisibility: "hidden",
@@ -285,23 +302,11 @@ export function HeroSection(props: {
 
       masterTL.to(media, { scale: 0.995, duration: 1, ease: "none" }, 0);
 
-      masterTL.to(
-        artA,
-        { opacity: 0, scale: 1.2, y: -60, duration: transitionDuration, ease: "expo.inOut" },
-        transitionStart
-      );
-      masterTL.to(
-        artB,
-        { opacity: 1, scale: 1, y: 0, duration: transitionDuration, ease: "expo.inOut" },
-        transitionStart
-      );
+      masterTL.to(artA, { opacity: 0, scale: 1.2, y: -60, duration: transitionDuration, ease: "expo.inOut" }, transitionStart);
+      masterTL.to(artB, { opacity: 1, scale: 1, y: 0, duration: transitionDuration, ease: "expo.inOut" }, transitionStart);
 
       if (pattern) {
-        masterTL.to(
-          pattern,
-          { opacity: 0.32, scale: 1.08, duration: 0.85 * sf, ease: "expo.out" },
-          transitionStart + 0.05 * sf
-        );
+        masterTL.to(pattern, { opacity: 0.32, scale: 1.08, duration: 0.85 * sf, ease: "expo.out" }, transitionStart + 0.05 * sf);
       }
 
       const switchDur = 0.6 * sf;
@@ -325,20 +330,14 @@ export function HeroSection(props: {
       const flash = () => {
         if (!glowFx) return;
         gsap.killTweensOf(glowFx);
-        gsap.fromTo(
-          glowFx,
-          { opacity: 0, scale: 0.92 },
-          { opacity: 0.22, scale: 1.12, duration: 0.22, ease: "power2.out" }
-        );
+        gsap.fromTo(glowFx, { opacity: 0, scale: 0.92 }, { opacity: 0.22, scale: 1.12, duration: 0.22, ease: "power2.out" });
         gsap.to(glowFx, { opacity: 0, duration: 0.35, ease: "power2.in", delay: 0.08 });
       };
-
-      const startStr = headerOffset ? `top top+=${headerOffset}` : "top top";
 
       ScrollTrigger.create({
         id: "hero-pin",
         trigger: section,
-        start: startStr,
+        start: "top top",
         end: () => `+=${pinDistance}`,
         pin: pinEl,
         pinSpacing: true,
@@ -347,14 +346,23 @@ export function HeroSection(props: {
         scrub: isSafari ? 0.65 : 0.8,
         animation: masterTL,
 
-        // Safari: fixed pin + reparent helps avoid “blank” / compositing bugs
+        // Safari: fixed pin + reparent helps avoid compositing bugs
         pinType: isSafari ? "fixed" : "transform",
         pinReparent: isSafari,
+
+        onEnter: (self) => scheduleEmit({ stage: self.progress >= midTransition ? "B" : "A", progress: self.progress, inHero: true }),
+        onEnterBack: (self) => scheduleEmit({ stage: self.progress >= midTransition ? "B" : "A", progress: self.progress, inHero: true }),
+        onLeave: (self) => scheduleEmit({ stage: "B", progress: 1, inHero: false }),
+        onLeaveBack: (self) => scheduleEmit({ stage: "A", progress: 0, inHero: false }),
+
         onUpdate: (self) => {
           const p = self.progress;
           const next = p >= midTransition;
 
           setInB(next);
+
+          // hero-stage sync for header (tint + vibe only)
+          scheduleEmit({ stage: next ? "B" : "A", progress: p, inHero: true });
 
           if (glowFx) {
             const crossedUp = prevProgressRef.current < midTransition && p >= midTransition;
@@ -372,9 +380,10 @@ export function HeroSection(props: {
       return () => {
         masterTL.kill();
         ScrollTrigger.getById("hero-pin")?.kill(true);
+        scheduleEmit({ stage: "A", progress: 0, inHero: false });
       };
     },
-    { scope: rootRef, dependencies: [reducedMotion, pinDistance, isSafari, headerOffset] }
+    { scope: rootRef, dependencies: [reducedMotion, pinDistance, isSafari] }
   );
 
   // Refresh after both images load (prevents wrong pin start/end + overlap on first paint)
@@ -387,15 +396,17 @@ export function HeroSection(props: {
     });
   }, [loadedCount, reducedMotion]);
 
-  const topPad = Math.max(0, headerOffset) + 22;
-
   // Safari filters can cause flicker while pinned; keep it simple.
   const imageFilter = isSafari ? "none" : "contrast(1.14) saturate(1.22) brightness(1.06)";
 
   // Safe bottom space so the “Now / Featured” card never sits on top of text/rail.
-  // (Also accounts for iOS safe area).
   const safeBottomStyle: React.CSSProperties = {
     paddingBottom: "max(18rem, calc(15rem + env(safe-area-inset-bottom)))",
+  };
+
+  // Header-synced top padding (CSS var driven) with fallback
+  const topPadStyle: React.CSSProperties = {
+    paddingTop: `calc(var(--header-h, ${fallbackHeaderOffset}px) + 22px)`,
   };
 
   return (
@@ -459,7 +470,7 @@ export function HeroSection(props: {
               }}
             />
 
-            {/* HERO A (default visible even if GSAP is off) */}
+            {/* HERO A */}
             <div ref={artARef} className="absolute inset-0 opacity-100">
               <Image
                 src={props.heroA.src}
@@ -480,7 +491,7 @@ export function HeroSection(props: {
               <div className="absolute inset-0 bg-gradient-to-r from-black/58 via-black/06 to-transparent" />
             </div>
 
-            {/* HERO B (default hidden; GSAP fades it in) */}
+            {/* HERO B */}
             <div ref={artBRef} className="absolute inset-0 opacity-0">
               <Image
                 src={props.heroB.src}
@@ -544,12 +555,7 @@ export function HeroSection(props: {
                     )}
                   </div>
 
-                  <Button
-                    variant="primary"
-                    href={props.nowPlaying.href}
-                    target="_blank"
-                    iconLeft={<IconPlay className="h-5 w-5" />}
-                  >
+                  <Button variant="primary" href={props.nowPlaying.href} target="_blank" iconLeft={<IconPlay className="h-5 w-5" />}>
                     Play
                   </Button>
                 </div>
@@ -558,11 +564,7 @@ export function HeroSection(props: {
           </div>
 
           {/* FOREGROUND */}
-          <div
-            className="relative z-10 mx-auto max-w-7xl px-4 sm:px-5 md:px-8"
-            style={{ paddingTop: topPad, ...safeBottomStyle }}
-          >
-            {/* Important: padding bottom is handled via safeBottomStyle so nothing collides with the Now card */}
+          <div className="relative z-10 mx-auto max-w-7xl px-4 sm:px-5 md:px-8" style={{ ...topPadStyle, ...safeBottomStyle }}>
             <div className="pt-2">
               <div className="grid gap-10 md:grid-cols-[1.2fr_0.8fr] md:items-start">
                 {/* LEFT */}
@@ -577,7 +579,6 @@ export function HeroSection(props: {
                     ) : null}
                   </Pill>
 
-                  {/* Scene stack: big enough on mobile so content never runs under itself */}
                   <div className="relative mt-7 min-h-[420px] sm:min-h-[380px] md:min-h-[320px]">
                     {/* Scene A */}
                     <div ref={sceneARef} className="opacity-100">
@@ -589,31 +590,17 @@ export function HeroSection(props: {
                       </p>
 
                       <div className="mt-6 flex flex-wrap items-center gap-3 sm:mt-7">
-                        <Button
-                          variant="primary"
-                          href={props.listenHref}
-                          target="_blank"
-                          iconRight={<IconArrowUpRight className="h-5 w-5" />}
-                        >
+                        <Button variant="primary" href={props.listenHref} target="_blank" iconRight={<IconArrowUpRight className="h-5 w-5" />}>
                           Listen
                         </Button>
-                        <Button
-                          variant="secondary"
-                          href={props.followHref}
-                          target="_blank"
-                          iconRight={<IconArrowUpRight className="h-5 w-5" />}
-                        >
+                        <Button variant="secondary" href={props.followHref} target="_blank" iconRight={<IconArrowUpRight className="h-5 w-5" />}>
                           Follow
                         </Button>
                         <Button variant="ghost" onClick={props.onOpenPass} iconLeft={<IconSpark className="h-5 w-5" />}>
                           Pass
                         </Button>
                         {props.videosHref ? (
-                          <Button
-                            variant="ghost"
-                            href={props.videosHref}
-                            iconRight={<IconArrowUpRight className="h-5 w-5" />}
-                          >
+                          <Button variant="ghost" href={props.videosHref} iconRight={<IconArrowUpRight className="h-5 w-5" />}>
                             Visuals
                           </Button>
                         ) : null}
@@ -639,11 +626,7 @@ export function HeroSection(props: {
                           Watch
                         </Button>
                         {props.tourHref ? (
-                          <Button
-                            variant="secondary"
-                            href={props.tourHref}
-                            iconRight={<IconArrowUpRight className="h-5 w-5" />}
-                          >
+                          <Button variant="secondary" href={props.tourHref} iconRight={<IconArrowUpRight className="h-5 w-5" />}>
                             Tour
                           </Button>
                         ) : null}
@@ -669,13 +652,7 @@ export function HeroSection(props: {
                     {props.shopHref || props.videosHref ? (
                       <div className="mt-4 grid grid-cols-1 gap-3">
                         {props.videosHref ? (
-                          <RailCard
-                            label="Visuals"
-                            title="Latest drops"
-                            body="Official videos and highlights."
-                            href={props.videosHref}
-                            cta="Open"
-                          />
+                          <RailCard label="Visuals" title="Latest drops" body="Official videos and highlights." href={props.videosHref} cta="Open" />
                         ) : null}
                         {props.shopHref ? (
                           <RailCard label="Shop" title="Merch" body="Limited pieces and vault items." href={props.shopHref} cta="View" />
@@ -689,9 +666,7 @@ export function HeroSection(props: {
                     <RailCard label="Archive" title="Visual world" body="Watch the catalog." href={props.videosHref ?? props.followHref} cta="Enter" />
                     <div className="mt-4 grid grid-cols-1 gap-3">
                       <RailCard label="Listen" title="Streaming" body="Go to the latest release." href={props.listenHref} cta="Open" />
-                      {props.tourHref ? (
-                        <RailCard label="Tour" title="Dates" body="Updates + ticket links." href={props.tourHref} cta="View" />
-                      ) : null}
+                      {props.tourHref ? <RailCard label="Tour" title="Dates" body="Updates + ticket links." href={props.tourHref} cta="View" /> : null}
                     </div>
                   </div>
                 </div>

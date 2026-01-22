@@ -71,8 +71,20 @@ type PageClientProps = {
 };
 
 export default function PageClient(props: PageClientProps) {
-  const { headerOffset, links: LINKS, nav, heroA, heroB, releases, visuals, tourConfig, shows, storeConfig, merch, isAdmin } =
-    props;
+  const {
+    headerOffset,
+    links: LINKS,
+    nav,
+    heroA,
+    heroB,
+    releases,
+    visuals,
+    tourConfig,
+    shows,
+    storeConfig,
+    merch,
+    isAdmin,
+  } = props;
 
   const [active, setActive] = useState<string>("top");
   const [menuOpen, setMenuOpen] = useState(false);
@@ -161,6 +173,8 @@ export default function PageClient(props: PageClientProps) {
           onLogo={() => onNav("top")}
           tintSources={tintSources}
           heroBgSrc={heroA.src}
+          heroAltSrc={heroB.src}
+          listenHref={LINKS.releases.muse.spotify}
         />
 
         <main id="top">
