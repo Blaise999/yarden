@@ -228,7 +228,7 @@ type LandingHeaderProps = {
   listenHref?: string;
 };
 
-// ✅ two logo assets
+// two logo assets
 const LOGO_LIGHT = "/Pictures/yard.png";
 const LOGO_DARK = "/Pictures/yard2.png";
 
@@ -314,7 +314,7 @@ export default function LandingHeader(props: LandingHeaderProps) {
   const blurPx = 8 + 12 * t;
   const shadowA = 0.1 + 0.24 * t;
 
-  // ✅ decide "dark mode" for logo selection
+  // decide "dark mode" for logo selection
   const heroZone = t < 0.22;
   const heroIsLight = luminance(raw) > 0.58;
   const useLightLogo = heroZone && heroIsLight;
@@ -334,7 +334,7 @@ export default function LandingHeader(props: LandingHeaderProps) {
     "[text-shadow:0_1px_12px_rgba(0,0,0,.35)]"
   );
 
-  // ✅ Hide the normal header logo while the mobile menu is open (prevents double logo)
+  // Hide the normal header logo while the mobile menu is open (prevents double logo)
   const showHeaderLogo = !menuOpen;
 
   return (
@@ -345,6 +345,11 @@ export default function LandingHeader(props: LandingHeaderProps) {
           ...cssVars,
           borderBottom: "none",
           boxShadow: `0 10px 30px rgba(0,0,0,${shadowA})`,
+
+          // ✅ Force header onto its own compositor layer ABOVE pinned transform layers
+          transform: "translate3d(0,0,0)",
+          willChange: "transform",
+          backfaceVisibility: "hidden",
         }}
       >
         <div className="pointer-events-none absolute inset-0 z-0 overflow-hidden">
@@ -361,7 +366,6 @@ export default function LandingHeader(props: LandingHeaderProps) {
         </div>
 
         <div className="relative z-10 pt-[env(safe-area-inset-top)]">
-          {/* LEFT GROUP (logo + nav) / RIGHT GROUP (actions) */}
           <div
             className={cx("mx-auto flex max-w-7xl items-center justify-between px-5 md:px-8", "h-[74px] md:h-[82px]")}
           >
@@ -388,7 +392,6 @@ export default function LandingHeader(props: LandingHeaderProps) {
                   )}
                 </button>
               ) : (
-                // keep layout stable when logo is hidden (optional)
                 <div className="h-10 w-[128px]" aria-hidden="true" />
               )}
 

@@ -345,13 +345,13 @@ export function HeroSection(props: {
         anticipatePin: 1,
         invalidateOnRefresh: true,
 
-        // ✅ smoother + less “hang”
+        // smoother + less “hang”
         scrub: 0.7,
 
-        // ✅ let ScrollTrigger drive the timeline (no manual progress writes)
+        // let ScrollTrigger drive the timeline
         animation: masterTL,
 
-        // ✅ stable in full-bleed layouts
+        // keep your transform pin (less jitter in some layouts)
         pinType: "transform",
 
         // no reparenting (often causes jitter)
@@ -361,10 +361,8 @@ export function HeroSection(props: {
           const p = self.progress;
           const next = p >= midTransition;
 
-          // pointerEvents only flip on change
           setInB(next);
 
-          // glow only on cross
           if (glowFx) {
             const crossedUp = prevProgressRef.current < midTransition && p >= midTransition;
             const crossedDown = prevProgressRef.current >= midTransition && p < midTransition;
@@ -407,7 +405,7 @@ export function HeroSection(props: {
         ref={sectionRef as any}
         className={cx(
           "relative overflow-hidden",
-          // ✅ full-bleed WITHOUT transform (prevents pin jitter)
+          // full-bleed WITHOUT transform (prevents pin jitter)
           fullBleed && "w-screen ml-[calc(50%-50vw)] mr-[calc(50%-50vw)]"
         )}
         style={{ isolation: "isolate" }}
@@ -420,18 +418,18 @@ export function HeroSection(props: {
           <AnchorGrid />
         </div>
 
-        <div ref={pinRef} className={cx("relative mx-auto w-full", "min-h-[100svh] md:min-h-[860px]")}>
+        {/* ✅ z-0 so the fixed header can stay above reliably */}
+        <div ref={pinRef} className={cx("relative z-0 mx-auto w-full", "min-h-[100svh] md:min-h-[860px]")}>
           {/* MEDIA */}
           <div
             ref={mediaRef}
             className={cx(
-              "absolute inset-0 overflow-hidden",
+              "absolute inset-0 z-0 overflow-hidden",
               "shadow-[0_40px_100px_rgba(0,0,0,0.75)]",
               "ring-1 ring-white/10"
             )}
-            style={{
-              transform: "translateZ(0)",
-            }}
+            // ✅ DO NOT translateZ(0) — it can paint above fixed headers during pinning
+            style={{ willChange: "transform" }}
           >
             <FloatingCursorSpotlight disabled={reducedMotion} />
 
@@ -563,7 +561,10 @@ export function HeroSection(props: {
           </div>
 
           {/* FOREGROUND */}
-          <div className="relative mx-auto max-w-7xl px-4 sm:px-5 md:px-8" style={{ paddingTop: topPad }}>
+          <div
+            className="relative z-10 mx-auto max-w-7xl px-4 sm:px-5 md:px-8"
+            style={{ paddingTop: topPad }}
+          >
             <div className="pb-44">
               <div className="grid gap-10 md:grid-cols-[1.2fr_0.8fr] md:items-start">
                 {/* LEFT */}
@@ -606,7 +607,11 @@ export function HeroSection(props: {
                         >
                           Follow
                         </Button>
-                        <Button variant="ghost" onClick={props.onOpenPass} iconLeft={<IconSpark className="h-5 w-5" />}>
+                        <Button
+                          variant="ghost"
+                          onClick={props.onOpenPass}
+                          iconLeft={<IconSpark className="h-5 w-5" />}
+                        >
                           Generate Pass
                         </Button>
                         {props.videosHref && (
@@ -676,11 +681,19 @@ export function HeroSection(props: {
                           Enter Archive
                         </Button>
                         {props.tourHref && (
-                          <Button variant="secondary" href={props.tourHref} iconRight={<IconArrowUpRight className="h-5 w-5" />}>
+                          <Button
+                            variant="secondary"
+                            href={props.tourHref}
+                            iconRight={<IconArrowUpRight className="h-5 w-5" />}
+                          >
                             Tour Feed
                           </Button>
                         )}
-                        <Button variant="ghost" onClick={props.onOpenPass} iconLeft={<IconSpark className="h-5 w-5" />}>
+                        <Button
+                          variant="ghost"
+                          onClick={props.onOpenPass}
+                          iconLeft={<IconSpark className="h-5 w-5" />}
+                        >
                           Unlock Pass
                         </Button>
                       </div>
@@ -694,7 +707,9 @@ export function HeroSection(props: {
 
                       <div className="mt-8 rounded-3xl bg-black/30 p-4 ring-1 ring-white/10 backdrop-blur-xl">
                         <div className="text-[11px] uppercase tracking-[0.28em] text-white/65">Drop alerts</div>
-                        <div className="mt-1 text-[14px] font-semibold text-white">Releases, visuals & tour dates — first.</div>
+                        <div className="mt-1 text-[14px] font-semibold text-white">
+                          Releases, visuals & tour dates — first.
+                        </div>
                         <div className="mt-3 flex w-full gap-2">
                           <input
                             value={email}
@@ -707,7 +722,6 @@ export function HeroSection(props: {
                             onClick={joinNewsletter}
                             className={cx(
                               "h-11 shrink-0 rounded-2xl px-4 text-[13px] font-semibold ring-1 transition",
-                              // ✅ never go full-white (keeps it readable + not weird)
                               joinState === "ok"
                                 ? "bg-white/18 text-white ring-white/25"
                                 : "bg-white/12 text-white ring-white/12 hover:bg-white/16"
@@ -798,7 +812,9 @@ export function HeroSection(props: {
 
                         {press.length > 0 && (
                           <>
-                            <div className="mt-4 text-[11px] uppercase tracking-[0.28em] text-white/65">Featured in</div>
+                            <div className="mt-4 text-[11px] uppercase tracking-[0.28em] text-white/65">
+                              Featured in
+                            </div>
                             <div className="mt-2 flex flex-wrap gap-2">
                               {press.map((p) => (
                                 <span
@@ -894,7 +910,12 @@ function RailCard({
     </div>
   );
 
-  if (href) return <a href={href} className="block">{inner}</a>;
+  if (href)
+    return (
+      <a href={href} className="block">
+        {inner}
+      </a>
+    );
   if (onClick)
     return (
       <button type="button" onClick={onClick} className="block w-full text-left">
@@ -949,7 +970,12 @@ function FeatureCard({
     </div>
   );
 
-  if (href) return <a href={href} className="block">{card}</a>;
+  if (href)
+    return (
+      <a href={href} className="block">
+        {card}
+      </a>
+    );
   if (onClick)
     return (
       <button type="button" onClick={onClick} className="block w-full text-left">

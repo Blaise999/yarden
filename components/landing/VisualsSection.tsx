@@ -799,7 +799,7 @@ export function VisualsSection(props?: {
                   type="button"
                   onClick={() => openPlayer(spotlight)}
                   className={cx(
-                    "group relative overflow-hidden rounded-[26px] bg-white/[0.035] ring-1 ring-white/12 text-left",
+                    "group relative overflow-hidden rounded-[26px] bg-white/[0.03] ring-1 ring-white/12 text-left",
                     "shadow-[0_18px_55px_rgba(0,0,0,0.55)]",
                     "outline-none focus-visible:ring-2 focus-visible:ring-white/30",
                     "lg:col-span-8"
@@ -807,14 +807,13 @@ export function VisualsSection(props?: {
                   data-hero="1"
                 >
                   <div className="relative h-full">
-                    {/* ✅ SQUARE spotlight (good size) */}
+                    {/* ✅ Changed to 16:9 on mobile/tablet for much less vertical height, square only on desktop */}
                     <div
                       ref={heroMediaRef}
                       className={cx(
                         "relative overflow-hidden bg-black",
-                        "aspect-square",
-                        // keep it from becoming *too* huge on wide desktops
-                        "lg:mx-auto lg:max-w-[640px]"
+                        "aspect-video lg:aspect-square",
+                        "w-full max-w-xl mx-auto lg:w-full lg:max-w-[640px] lg:mx-auto"
                       )}
                     >
                       {/* ✅ Mobile: show full thumbnail (contain), Desktop: cover */}
@@ -894,9 +893,9 @@ export function VisualsSection(props?: {
                       </div>
                     </div>
 
-                    {/* meta BELOW the square (kept aligned to same width on desktop) */}
+                    {/* meta BELOW the media (aligned to same max width) */}
                     <div className="px-4 pb-4 pt-4">
-                      <div className="lg:mx-auto lg:max-w-[640px]">
+                      <div className="mx-auto max-w-xl lg:mx-auto lg:max-w-[640px]">
                         <div className="flex items-start justify-between gap-3">
                           <div className="min-w-0">
                             <div className="truncate text-[18px] font-semibold text-white">{spotlight.title}</div>
@@ -1015,7 +1014,7 @@ export function VisualsSection(props?: {
                     <div className="text-xs text-white/45">On rotation</div>
                   </div>
 
-                  <div className="mt-3 flex gap-3 overflow-x-auto pb-1 [-webkit-overflow-scrolling:touch]">
+                  <div className="mt-3 flex gap-3 overflow-x-auto pb-4 pl-4 pr-12 snap-x [-webkit-overflow-scrolling:touch]">
                     {upNext.map((v) => (
                       <button
                         key={`${v._key}-m`}
@@ -1029,15 +1028,17 @@ export function VisualsSection(props?: {
                           }
                         }}
                         className={cx(
-                          "shrink-0 w-[220px] rounded-2xl bg-white/[0.03] ring-1 ring-white/10 text-left",
+                          "shrink-0 w-[300px] snap-start rounded-2xl bg-white/[0.03] ring-1 ring-white/10 text-left",
                           "hover:bg-white/[0.05] transition"
                         )}
                       >
-                        {/* ✅ square on mobile too */}
-                        <div className="relative aspect-square overflow-hidden rounded-t-2xl bg-black">
+                        {/* ✅ Changed to 16:9 for consistency with spotlight on mobile */}
+                        <div className="relative aspect-video overflow-hidden rounded-t-2xl bg-black">
                           <SmartThumb candidates={v.thumbs} fallback={v.fallback} alt={`Yarden — ${v.title}`} fit="cover" />
                           <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent" />
-                          <div className="absolute left-3 top-3">{v.tag ? <Badge>{v.tag}</Badge> : <Badge>Next</Badge>}</div>
+                          <div className="absolute left-3 top-3">
+                            {v.tag ? <Badge>{v.tag}</Badge> : <Badge>Next</Badge>}
+                          </div>
                         </div>
                         <div className="p-3">
                           <div className="truncate text-sm font-semibold text-white">{v.title}</div>
