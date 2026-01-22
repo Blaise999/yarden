@@ -172,7 +172,7 @@ export function PassModal({ open, onClose, fullGeneratorHref }: PassModalProps) 
                   <div className="text-xs text-white/50">thisisyarden.com</div>
                 </div>
                 <div className={cx("mt-1 text-sm font-semibold tracking-tight text-white")}>
-                  /pass/{tier.toUpperCase()}-ABC-1234
+                  /pass/{tier.toUpperCase()}-ABC-1235
                 </div>
               </div>
             </div>
