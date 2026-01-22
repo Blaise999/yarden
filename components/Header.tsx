@@ -2,6 +2,7 @@
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
+import NextImage from "next/image";
 import { AnimatePresence, motion } from "framer-motion";
 
 type NavItem = { id: string; label: string };
@@ -15,7 +16,7 @@ function clamp(n: number, a: number, b: number) {
   return Math.max(a, Math.min(b, n));
 }
 
-// ---- Tint sampling (same as yours) ----
+// Tint sampling
 function mixToReadable(r: number, g: number, b: number) {
   const lift = 0.22;
   const nr = Math.round(r + (255 - r) * lift);
@@ -24,10 +25,14 @@ function mixToReadable(r: number, g: number, b: number) {
   return { r: clamp(nr, 70, 235), g: clamp(ng, 70, 235), b: clamp(nb, 70, 235) };
 }
 
-function sampleAverageRGB(img: HTMLImageElement) {
+function sampleAverageRGBBoth(img: HTMLImageElement) {
   const canvas = document.createElement("canvas");
   const ctx = canvas.getContext("2d", { willReadFrequently: true });
-  if (!ctx) return { r: 180, g: 180, b: 200 };
+  if (!ctx)
+    return {
+      raw: { r: 180, g: 180, b: 200 },
+      tint: { r: 180, g: 180, b: 200 },
+    };
 
   const w = 32;
   const h = 32;
@@ -51,35 +56,53 @@ function sampleAverageRGB(img: HTMLImageElement) {
     count++;
   }
 
-  if (!count) return { r: 180, g: 180, b: 200 };
-  r = Math.round(r / count);
-  g = Math.round(g / count);
-  b = Math.round(b / count);
+  if (!count)
+    return {
+      raw: { r: 180, g: 180, b: 200 },
+      tint: { r: 180, g: 180, b: 200 },
+    };
 
-  return mixToReadable(r, g, b);
+  const rr = Math.round(r / count);
+  const gg = Math.round(g / count);
+  const bb = Math.round(b / count);
+
+  return {
+    raw: { r: rr, g: gg, b: bb },
+    tint: mixToReadable(rr, gg, bb),
+  };
 }
 
-async function getTintFromSrc(src: string): Promise<{ r: number; g: number; b: number }> {
+async function getTintFromSrc(src: string): Promise<{ raw: { r: number; g: number; b: number }; tint: { r: number; g: number; b: number } }> {
   return new Promise((resolve) => {
-    const img = new Image();
+    const ImgCtor = (globalThis as any).Image as typeof Image | undefined;
+    if (!ImgCtor) {
+      resolve({ raw: { r: 180, g: 180, b: 200 }, tint: { r: 180, g: 180, b: 200 } });
+      return;
+    }
+
+    const img = new ImgCtor();
     img.decoding = "async";
     img.crossOrigin = "anonymous";
     img.src = src;
 
     const done = () => {
       try {
-        resolve(sampleAverageRGB(img));
+        resolve(sampleAverageRGBBoth(img));
       } catch {
-        resolve({ r: 180, g: 180, b: 200 });
+        resolve({ raw: { r: 180, g: 180, b: 200 }, tint: { r: 180, g: 180, b: 200 } });
       }
     };
 
     img.onload = done;
-    img.onerror = () => resolve({ r: 180, g: 180, b: 200 });
+    img.onerror = () => resolve({ raw: { r: 180, g: 180, b: 200 }, tint: { r: 180, g: 180, b: 200 } });
   });
 }
 
-// --- Icons ---
+function luminance(rgb: { r: number; g: number; b: number }) {
+  return (0.2126 * rgb.r + 0.7152 * rgb.g + 0.0722 * rgb.b) / 255;
+}
+
+// Icons
 function IconClose(props: { className?: string }) {
   return (
     <svg viewBox="0 0 24 24" className={props.className} fill="none" aria-hidden="true">
@@ -102,17 +125,17 @@ function IconArrowUpRight(props: { className?: string }) {
   );
 }
 
-// Mobile hamburger
 function MenuButton(props: { open: boolean; onClick: () => void }) {
   return (
     <button
+      type="button"
       onClick={props.onClick}
       aria-label={props.open ? "Close menu" : "Open menu"}
       aria-expanded={props.open}
       className={cx(
         "inline-flex h-11 items-center gap-3 rounded-full px-4",
-        "bg-transparent text-white",
-        "hover:bg-white/10",
+        "bg-white/10 text-white ring-1 ring-white/15",
+        "hover:bg-white/14",
         "focus:outline-none focus-visible:ring-2 focus-visible:ring-white/40"
       )}
     >
@@ -139,20 +162,6 @@ function MenuButton(props: { open: boolean; onClick: () => void }) {
   );
 }
 
-function SmallPill(props: { children: React.ReactNode; className?: string }) {
-  return (
-    <span
-      className={cx(
-        "inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs tracking-wide",
-        "bg-white/5 text-white/80 ring-1 ring-white/10",
-        props.className
-      )}
-    >
-      {props.children}
-    </span>
-  );
-}
-
 function ActionButton(props: {
   children: React.ReactNode;
   href?: string;
@@ -174,18 +183,17 @@ function ActionButton(props: {
   const content = (
     <>
       <span>{props.children}</span>
-      {props.iconRight ? (
+      {props.iconRight && (
         <span className="ml-1 inline-flex items-center transition-transform group-hover:translate-x-0.5">
           {props.iconRight}
         </span>
-      ) : null}
+      )}
     </>
   );
 
   if (props.href) {
-    const rel = props.target === "_blank" ? "noreferrer" : undefined;
     return (
-      <Link href={props.href} target={props.target} rel={rel} className={cls}>
+      <Link href={props.href} target={props.target} rel="noreferrer" className={cls}>
         {content}
       </Link>
     );
@@ -213,19 +221,19 @@ type LandingHeaderProps = {
 
   socials?: SocialItem[];
   brandName?: string;
-  brandTagline?: string;
 
   onOpenPass: () => void;
   listenHref?: string;
 };
 
+const LOGO_SRC = "/Pictures/yard.png";
+
 export default function LandingHeader(props: LandingHeaderProps) {
   const brandName = props.brandName ?? "Yarden";
-  const brandTagline = props.brandTagline ?? "new nostalgia";
 
   const [internalMenuOpen, setInternalMenuOpen] = useState(false);
   const isControlled = typeof props.menuOpen === "boolean";
-  const menuOpen = isControlled ? (props.menuOpen as boolean) : internalMenuOpen;
+  const menuOpen = isControlled ? props.menuOpen! : internalMenuOpen;
 
   const openMenu = props.onOpenMenu ?? (() => setInternalMenuOpen(true));
   const closeMenu = props.onCloseMenu ?? (() => setInternalMenuOpen(false));
@@ -234,7 +242,7 @@ export default function LandingHeader(props: LandingHeaderProps) {
   const onNav = props.onNav ?? (() => {});
   const onLogo = props.onLogo ?? (() => onNav("top"));
 
-  // scroll progress
+  // Scroll progress
   const [scrollY, setScrollY] = useState(0);
   useEffect(() => {
     let raf = 0;
@@ -253,12 +261,12 @@ export default function LandingHeader(props: LandingHeaderProps) {
     };
   }, []);
 
-  // ✅ slower ramp for pinned hero (feels “premium”)
-  const t = clamp((scrollY - 40) / 640, 0, 1);
+  const t = clamp((scrollY - 24) / 520, 0, 1);
 
-  // tint
-  const [tint, setTint] = useState<{ r: number; g: number; b: number }>({ r: 180, g: 180, b: 200 });
-  const cacheRef = useRef<Map<string, { r: number; g: number; b: number }>>(new Map());
+  // Tint
+  const [tint, setTint] = useState({ r: 180, g: 180, b: 200 });
+  const [raw, setRaw] = useState({ r: 180, g: 180, b: 200 });
+  const cacheRef = useRef<Map<string, any>>(new Map());
 
   useEffect(() => {
     if (!props.tintSources) return;
@@ -272,15 +280,17 @@ export default function LandingHeader(props: LandingHeaderProps) {
 
     const cached = cacheRef.current.get(src);
     if (cached) {
-      setTint(cached);
+      setTint(cached.tint);
+      setRaw(cached.raw);
       return;
     }
 
     let alive = true;
-    getTintFromSrc(src).then((rgb) => {
+    getTintFromSrc(src).then((res) => {
       if (!alive) return;
-      cacheRef.current.set(src, rgb);
-      setTint(rgb);
+      cacheRef.current.set(src, res);
+      setTint(res.tint);
+      setRaw(res.raw);
     });
 
     return () => {
@@ -288,20 +298,48 @@ export default function LandingHeader(props: LandingHeaderProps) {
     };
   }, [props.activeId, props.tintSources, props.nav]);
 
-  const cssVars = useMemo(() => {
-    const { r, g, b } = tint;
-    return { ["--tint" as any]: `${r} ${g} ${b}` } as React.CSSProperties;
-  }, [tint]);
+  const cssVars = useMemo(
+    () =>
+      ({
+        ["--tint" as any]: `${tint.r} ${tint.g} ${tint.b}`,
+      } as React.CSSProperties),
+    [tint]
+  );
 
-  // chrome
-  const chromeOn = t > 0.02;
-  const borderA = chromeOn ? 0.12 * t : 0;
-  const shadowA = chromeOn ? 0.35 * t : 0;
+  const scrim = 0.14 + 0.56 * t;
+  const blurPx = 8 + 12 * t;
+  const shadowA = 0.10 + 0.24 * t;
 
-  // chameleon ink while hero is dominant (optional but looks sick)
+  // ✅ Logo rule you want:
+  // - light hero: keep logo NORMAL (no matte filter)
+  // - dark hero: make logo WHITE
+  const heroZone = t < 0.22;
+  const heroIsLight = luminance(raw) > 0.58;
+  const logoUseNormal = heroZone && heroIsLight;
+
+  const logoFilter = logoUseNormal
+    ? "none"
+    : "brightness(0) invert(1) drop-shadow(0 14px 28px rgba(0,0,0,.55))";
+
+  const [logoOk, setLogoOk] = useState(true);
+
+  useEffect(() => {
+    let alive = true;
+    fetch(LOGO_SRC, { method: "HEAD" })
+      .then((r) => {
+        if (alive && !r.ok) setLogoOk(false);
+      })
+      .catch(() => {
+        if (alive) setLogoOk(false);
+      });
+    return () => {
+      alive = false;
+    };
+  }, []);
+
   const topImg = props.heroBgSrc ?? props.tintSources?.top;
-  const useBlendInk = t < 0.18 && !!topImg;
-  const inkWrap = cx(
+  const useBlendInk = t < 0.16 && !!topImg;
+  const inkText = cx(
     "text-white",
     useBlendInk && "mix-blend-difference",
     "[text-shadow:0_1px_12px_rgba(0,0,0,.35)]"
@@ -310,82 +348,90 @@ export default function LandingHeader(props: LandingHeaderProps) {
   return (
     <>
       <header
-        data-header-build="chameleon-v1"
-        className={cx("fixed top-0 left-0 right-0 z-[5000]")}
+        className="fixed top-0 left-0 right-0 z-[2147483647] overflow-visible"
         style={{
           ...cssVars,
-          borderBottom: borderA > 0 ? `1px solid rgba(255,255,255,${borderA})` : "1px solid transparent",
-          boxShadow: shadowA > 0 ? `0 10px 30px rgba(0,0,0,${shadowA})` : "none",
+          borderBottom: "none",
+          boxShadow: `0 10px 30px rgba(0,0,0,${shadowA})`,
         }}
       >
-        {/* ✅ REAL CHAMELEON: header is transparent at top, hero behind it does the blending */}
         <div className="pointer-events-none absolute inset-0 z-0 overflow-hidden">
-          {/* glass fades in */}
           <div
             className="absolute inset-0"
             style={{
-              opacity: t,
-              backgroundColor: `rgba(7,7,10,${0.10 + 0.62 * t})`,
-              backdropFilter: chromeOn ? `blur(${12 * t}px) saturate(${1 + 0.15 * t})` : "none",
-              WebkitBackdropFilter: chromeOn ? `blur(${12 * t}px) saturate(${1 + 0.15 * t})` : "none",
-              transform: "translateZ(0)",
-            }}
-          />
-
-          {/* subtle bottom fade so you never see an “edge” */}
-          <div
-            className="absolute inset-x-0 bottom-0 h-10"
-            style={{
-              background: "linear-gradient(to bottom, rgba(0,0,0,0), rgba(0,0,0,0.28))",
-              opacity: chromeOn ? clamp(t * 1.2, 0, 1) : 0,
+              opacity: scrim,
+              background:
+                "linear-gradient(to bottom, rgba(7,7,10,0.90), rgba(7,7,10,0.56) 55%, rgba(7,7,10,0.16))",
+              backdropFilter: `blur(${blurPx}px) saturate(${1.05 + 0.15 * t})`,
+              WebkitBackdropFilter: `blur(${blurPx}px) saturate(${1.05 + 0.15 * t})`,
             }}
           />
         </div>
 
-        {/* Content */}
         <div className="relative z-10 pt-[env(safe-area-inset-top)]">
-          <div className="mx-auto flex h-20 max-w-7xl items-center justify-between px-5 md:px-8">
-            {/* Brand */}
-            <button onClick={onLogo} className="flex items-center gap-3" aria-label="Go to top">
-              <span className="grid h-10 w-10 place-items-center">
-                <img src="/logo.png" alt={`${brandName} logo`} className="h-10 w-10 object-contain" draggable={false} />
-              </span>
-
-              <div className={cx("leading-tight", inkWrap)}>
-                <div className="text-sm font-semibold tracking-tight">{brandName}</div>
-                <div className="text-xs uppercase tracking-[0.24em] opacity-70">{brandTagline}</div>
-              </div>
-            </button>
-
-            {/* Desktop nav */}
-            <nav className={cx("hidden items-center gap-6 md:flex", inkWrap)}>
-              {props.nav.slice(1).map((n) => {
-                const active = props.activeId === n.id;
-                return (
-                  <button
-                    key={n.id}
-                    onClick={() => onNav(n.id)}
+          {/* ✅ Layout changed: LEFT GROUP (logo + nav) / RIGHT GROUP (actions) */}
+          <div className={cx("mx-auto flex max-w-7xl items-center justify-between px-5 md:px-8", "h-[74px] md:h-[82px]")}>
+            {/* LEFT GROUP */}
+            <div className="flex items-center gap-6">
+              {/* Logo */}
+              <button type="button" onClick={onLogo} aria-label="Go to top" className="block">
+                {logoOk ? (
+                  <NextImage
+                    src={LOGO_SRC}
+                    alt={`${brandName} logo`}
+                    width={120}
+                    height={56}
+                    priority
+                    draggable={false}
+                    onError={() => setLogoOk(false)}
+                    className="h-11 w-auto object-contain"
+                    style={{ filter: logoFilter }}
+                  />
+                ) : (
+                  <span
                     className={cx(
-                      "relative text-sm font-medium transition-opacity",
-                      active ? "opacity-100" : "opacity-70 hover:opacity-100"
+                      "text-lg font-semibold tracking-tight",
+                      logoUseNormal ? "text-black" : "text-white"
                     )}
                   >
-                    {n.label}
-                    {active ? (
-                      <span
-                        className="absolute left-0 right-0 -bottom-2 h-[2px] rounded-full"
-                        style={{ background: "rgba(var(--tint) / 0.85)" } as any}
-                      />
-                    ) : null}
-                  </button>
-                );
-              })}
-            </nav>
+                    {brandName}
+                  </span>
+                )}
+              </button>
 
-            {/* Actions */}
-            <div className="flex items-center gap-2">
-              {props.listenHref ? (
-                <div className={cx("hidden md:block", inkWrap)}>
+              {/* Desktop Nav (NOW on logo side) */}
+              <nav className={cx("hidden md:flex items-center", inkText)}>
+                <div className="flex items-center gap-6">
+                  {props.nav.slice(1).map((n) => {
+                    const active = props.activeId === n.id;
+                    return (
+                      <button
+                        key={n.id}
+                        type="button"
+                        onClick={() => onNav(n.id)}
+                        className={cx(
+                          "relative text-sm font-medium transition-opacity",
+                          active ? "opacity-100" : "opacity-70 hover:opacity-100"
+                        )}
+                      >
+                        {n.label}
+                        {active && (
+                          <span
+                            className="absolute left-0 right-0 -bottom-2 h-[2px] rounded-full"
+                            style={{ background: "rgb(var(--tint) / 0.85)" } as any}
+                          />
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              </nav>
+            </div>
+
+            {/* RIGHT GROUP */}
+            <div className="flex items-center gap-3">
+              {props.listenHref && (
+                <div className={cx("hidden md:block", inkText)}>
                   <Link
                     href={props.listenHref}
                     target="_blank"
@@ -395,17 +441,15 @@ export default function LandingHeader(props: LandingHeaderProps) {
                     Listen <IconArrowUpRight className="h-4 w-4" />
                   </Link>
                 </div>
-              ) : null}
+              )}
 
-              {/* Desktop */}
               <div className="hidden md:block">
                 <ActionButton variant="primary" onClick={props.onOpenPass}>
                   Generate Pass
                 </ActionButton>
               </div>
 
-              {/* Mobile */}
-              <div className={cx("md:hidden", inkWrap)}>
+              <div className="md:hidden">
                 <MenuButton open={menuOpen} onClick={toggleMenu} />
               </div>
             </div>
@@ -415,9 +459,9 @@ export default function LandingHeader(props: LandingHeaderProps) {
 
       {/* Mobile Menu */}
       <AnimatePresence>
-        {menuOpen ? (
+        {menuOpen && (
           <motion.div
-            className="fixed inset-0 z-[6000]"
+            className="fixed inset-0 z-[2147483646]"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -433,19 +477,25 @@ export default function LandingHeader(props: LandingHeaderProps) {
               onClick={(e) => e.stopPropagation()}
             >
               <div className="flex items-center justify-between border-b border-white/10 px-5 py-4">
-                <div className="flex items-center gap-3">
-                  <span className="grid h-10 w-10 place-items-center">
-                    <img src="/logo.png" alt={`${brandName} logo`} className="h-10 w-10 object-contain" draggable={false} />
-                  </span>
-                  <div>
-                    <div className="text-sm font-semibold text-white">{brandName}</div>
-                    <div className="text-xs uppercase tracking-[0.24em] text-white/60">{brandTagline}</div>
-                  </div>
-                </div>
+                {logoOk ? (
+                  <NextImage
+                    src={LOGO_SRC}
+                    alt={`${brandName} logo`}
+                    width={84}
+                    height={84}
+                    priority
+                    onError={() => setLogoOk(false)}
+                    className="h-[72px] w-auto object-contain"
+                    style={{ filter: "brightness(0) invert(1)" }}
+                  />
+                ) : (
+                  <div className="text-lg font-semibold tracking-tight text-white">{brandName}</div>
+                )}
 
                 <button
+                  type="button"
                   onClick={closeMenu}
-                  className="rounded-full p-2 text-white/70 hover:bg-white/10 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-white/40"
+                  className="rounded-full p-2 text-white/70 hover:bg-white/10 hover:text-white"
                   aria-label="Close menu"
                 >
                   <IconClose className="h-5 w-5" />
@@ -453,24 +503,16 @@ export default function LandingHeader(props: LandingHeaderProps) {
               </div>
 
               <div className="p-5">
-                <div className="flex flex-wrap gap-2">
-                  <SmallPill>Chameleon</SmallPill>
-                  <SmallPill>Ink UI</SmallPill>
-                  <SmallPill>Fast</SmallPill>
-                </div>
-
-                <div className="mt-5 grid gap-2">
+                <div className="grid gap-2">
                   {props.nav.slice(1).map((n) => (
                     <button
                       key={n.id}
+                      type="button"
                       onClick={() => {
                         closeMenu();
                         setTimeout(() => onNav(n.id), 40);
                       }}
-                      className={cx(
-                        "flex items-center justify-between rounded-2xl px-4 py-3 text-left transition",
-                        "bg-white/[0.03] ring-1 ring-white/10 hover:bg-white/[0.05]"
-                      )}
+                      className="flex items-center justify-between rounded-2xl px-4 py-3 bg-white/[0.03] ring-1 ring-white/10 hover:bg-white/[0.05] transition"
                     >
                       <span className="text-sm font-medium text-white">{n.label}</span>
                       <IconArrowUpRight className="h-5 w-5 text-white/60" />
@@ -480,7 +522,7 @@ export default function LandingHeader(props: LandingHeaderProps) {
 
                 <div className="my-7 h-px bg-white/10" />
 
-                <div className="grid gap-2">
+                <div className="grid gap-3">
                   <ActionButton
                     variant="primary"
                     className="w-full"
@@ -492,11 +534,11 @@ export default function LandingHeader(props: LandingHeaderProps) {
                     Generate Pass
                   </ActionButton>
 
-                  {props.listenHref ? (
+                  {props.listenHref && (
                     <ActionButton variant="secondary" className="w-full" href={props.listenHref} target="_blank">
                       Listen
                     </ActionButton>
-                  ) : null}
+                  )}
                 </div>
 
                 {props.socials?.length ? (
@@ -523,7 +565,7 @@ export default function LandingHeader(props: LandingHeaderProps) {
               </div>
             </motion.div>
           </motion.div>
-        ) : null}
+        )}
       </AnimatePresence>
     </>
   );
