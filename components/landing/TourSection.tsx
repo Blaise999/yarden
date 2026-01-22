@@ -32,7 +32,7 @@ export type ShowItem = {
   city: string;
   venue: string;
   href?: string;
-  status?: ShowStatus; // "announce" for coming soon
+  status?: ShowStatus; // "announce" = coming soon
 };
 
 export type TourConfig = {
@@ -48,8 +48,10 @@ export type TourConfig = {
   ticketPortalLabel?: string;
   passCtaLabel?: string;
 
-  // ✅ back-compat for app/page.tsx
-  providerHint?: "Bandsintown" | "Seated" | "Custom" | (string & {});
+  // ✅ strict union (avoids CMS mismatch)
+  providerHint?: "Bandsintown" | "Seated" | "Custom";
+  // ✅ optional custom display label (safe for CMS)
+  providerLabel?: string;
 
   // poster copy
   posterKicker?: string;
@@ -104,18 +106,23 @@ function parseDateISO(dateISO?: string) {
 }
 
 function formatShortDate(show: ShowItem) {
-  const d = parseDateISO(show.dateISO);
-  if (d) {
-    const month = d.toLocaleString("en-US", { month: "short" }).toUpperCase();
-    const day = String(d.getDate()).padStart(2, "0");
-    return { month, day };
+  if (show.dateISO) {
+    const t = Date.parse(show.dateISO + "T00:00:00");
+    if (Number.isFinite(t)) {
+      const d = new Date(t);
+      const month = d.toLocaleString("en-US", { month: "short" }).toUpperCase();
+      const day = String(d.getDate()).padStart(2, "0");
+      return { month, day };
+    }
   }
+
   if (show.dateLabel) {
     const parts = show.dateLabel.trim().split(/\s+/);
-    const month = (parts[0] || "—").toUpperCase();
-    const day = (parts[1] || "—").toUpperCase();
+    const month = (parts[0] ?? "—").toUpperCase();
+    const day = (parts[1] ?? "—").toUpperCase();
     return { month, day };
   }
+
   return { month: "—", day: "—" };
 }
 
@@ -148,10 +155,10 @@ function uniqCities(shows: ShowItem[]) {
   return out;
 }
 
-const STORAGE_KEY = "yarden:tour:draft:v5";
+const STORAGE_KEY = "yarden:tour:draft:v6";
 
 // Demo data used ONLY when editable and there is no incoming list.
-// All announce (coming soon), as requested.
+// All announce (coming soon).
 const DEMO_SHOWS: Omit<ShowItem, "id">[] = [
   { dateISO: "2026-03-22", city: "Lagos", venue: "Eko Convention Centre", status: "announce" },
   { dateISO: "2026-03-29", city: "Accra", venue: "AICC", status: "announce" },
@@ -168,26 +175,19 @@ function LivePreviewCard(props: { config: TourConfig; shows: ShowItem[] }) {
   const posterTitle = cfg.posterTitle ?? "Coming soon.";
   const posterBody =
     cfg.posterBody ??
-    "Tour announcements will live here — dates, cities, and ticket links the moment they drop.";
+    "This is the official board — cities, venues, and ticket links appear here the moment they’re confirmed.";
 
   const emptyKicker = cfg.emptyKicker ?? "Coming soon";
   const emptyTitle = cfg.emptyTitle ?? "No dates announced yet.";
-  const emptyBody =
-    cfg.emptyBody ?? "Join alerts to catch the first drop — cities, venues, and tickets.";
+  const emptyBody = cfg.emptyBody ?? "Get alerts for the first drop. Tour updates only.";
 
-  const cities = uniqCities(sorted).slice(0, 8);
+  const cities = uniqCities(sorted).slice(0, 10);
 
   return (
     <div className="overflow-hidden rounded-3xl bg-white/[0.03] ring-1 ring-white/10">
       <div className="relative aspect-[16/10]">
         {cfg.posterSrc?.trim() ? (
-          <Image
-            src={cfg.posterSrc}
-            alt={cfg.posterAlt ?? "Tour poster"}
-            fill
-            sizes="40vw"
-            className="object-cover"
-          />
+          <Image src={cfg.posterSrc} alt={cfg.posterAlt ?? "Tour poster"} fill sizes="40vw" className="object-cover" />
         ) : (
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_25%_20%,rgba(255,255,255,0.10),transparent_55%)]" />
         )}
@@ -274,7 +274,7 @@ export function TourSection(props: {
   // coming soon mode = no “live” signals yet
   const comingSoonMode = useMemo(() => !hasLiveSignals(sortedShows), [sortedShows]);
 
-  // only used if/when it goes live later
+  // for later (when any show becomes live)
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     return sortedShows.filter((s) => {
@@ -436,7 +436,7 @@ export function TourSection(props: {
 
   const cfg = props.config;
 
-  const total = sortedShows.length;
+  const totalStops = sortedShows.length;
   const cities = uniqCities(sortedShows);
   const notifyLabel = cfg.notifyCtaLabel ?? "Get alerts";
   const ticketPortalLabel = cfg.ticketPortalLabel ?? "Ticket portal";
@@ -447,19 +447,16 @@ export function TourSection(props: {
   const posterTitle = cfg.posterTitle ?? "Coming soon.";
   const posterBody =
     cfg.posterBody ??
-    "Tour announcements will live here — dates, cities, and ticket links the moment they drop.";
+    "This is the official board — cities, venues, and ticket links appear here the moment they’re confirmed.";
 
   const emptyKicker = cfg.emptyKicker ?? "Coming soon";
   const emptyTitle = cfg.emptyTitle ?? "Tour dates aren’t announced yet.";
   const emptyBody =
-    cfg.emptyBody ??
-    "Join alerts for the first drop. Cities, venues, and tickets will post here as soon as they’re live.";
+    cfg.emptyBody ?? "Get alerts for the first drop. Cities, venues, and tickets will post here as soon as they’re live.";
 
   const hasPoster = Boolean((cfg.posterSrc ?? "").trim());
 
-  const onNotify = () => {
-    props.onNotify?.();
-  };
+  const onNotify = () => props.onNotify?.();
 
   return (
     <section id={id} className="relative py-20 md:py-24">
@@ -485,7 +482,6 @@ export function TourSection(props: {
                 {notifyLabel}
               </Button>
 
-              {/* Keep portal CTA available for later (admin can set link), but coming soon stays primary */}
               {ticketPortalHref ? (
                 <Button
                   variant="secondary"
@@ -501,22 +497,11 @@ export function TourSection(props: {
         />
 
         <div className="mb-6 grid gap-4 lg:grid-cols-[1fr_1fr_1.25fr]">
-          <Stat
-            label="Status"
-            value={comingSoonMode ? "Coming soon" : "Live"}
-            hint={comingSoonMode ? "Announcements pending" : "Tickets / sold-out"}
-          />
-          <Stat
-            label="Cities"
-            value={String(cities.length)}
-            hint={cities.length ? "In rotation" : "To be announced"}
-          />
-
+          <Stat label="Mode" value={comingSoonMode ? "Coming soon" : "Live"} hint={comingSoonMode ? "Announcements pending" : "Tickets / sold-out"} />
+          <Stat label="Stops" value={String(totalStops)} hint={totalStops ? "On deck" : "To be announced"} />
           <div className="rounded-2xl bg-white/[0.04] p-5 ring-1 ring-white/10">
-            <div className="text-xs uppercase tracking-widest text-white/60">Stay updated</div>
-            <div className="mt-2 text-sm text-white/70">
-              Get notified when dates drop. No noise — only tour updates.
-            </div>
+            <div className="text-xs uppercase tracking-widest text-white/60">Alerts</div>
+            <div className="mt-2 text-sm text-white/70">Tour updates only — dates, cities, tickets.</div>
             <div className="mt-4 flex flex-wrap gap-2">
               <Button variant="primary" onClick={onNotify}>
                 {notifyLabel}
@@ -533,12 +518,17 @@ export function TourSection(props: {
             {/* LEFT */}
             <div className="p-6 md:p-8">
               <div className="flex flex-wrap items-center gap-2">
-                <Badge>Official tour board</Badge>
+                <Badge>Official board</Badge>
                 <Badge>{comingSoonMode ? "Coming soon" : "Live"}</Badge>
-                {cities.length ? <Badge>{cities[0]}{cities.length > 1 ? ` +${cities.length - 1}` : ""}</Badge> : null}
+                {cities.length ? (
+                  <Badge>
+                    {cities[0]}
+                    {cities.length > 1 ? ` +${cities.length - 1}` : ""}
+                  </Badge>
+                ) : null}
               </div>
 
-              {/* COMING SOON LAYOUT (your request) */}
+              {/* COMING SOON */}
               {comingSoonMode ? (
                 <div className="mt-6">
                   <div className="rounded-3xl bg-white/[0.03] p-7 ring-1 ring-white/10">
@@ -574,12 +564,7 @@ export function TourSection(props: {
                         {passLabel}
                       </Button>
                       {ticketPortalHref ? (
-                        <Button
-                          variant="ghost"
-                          href={ticketPortalHref}
-                          target="_blank"
-                          iconRight={<IconArrowUpRight className="h-4 w-4" />}
-                        >
+                        <Button variant="ghost" href={ticketPortalHref} target="_blank" iconRight={<IconArrowUpRight className="h-4 w-4" />}>
                           {ticketPortalLabel}
                         </Button>
                       ) : null}
@@ -590,12 +575,12 @@ export function TourSection(props: {
 
                   <div className="grid gap-4 md:grid-cols-3">
                     <Card className="p-5">
-                      <div className="text-xs uppercase tracking-widest text-white/60">Announcements</div>
-                      <div className="mt-2 text-sm text-white/70">Dates post here first.</div>
+                      <div className="text-xs uppercase tracking-widest text-white/60">Drop board</div>
+                      <div className="mt-2 text-sm text-white/70">Announcements land here first.</div>
                     </Card>
                     <Card className="p-5">
                       <div className="text-xs uppercase tracking-widest text-white/60">Alerts</div>
-                      <div className="mt-2 text-sm text-white/70">Join once. Get tour-only updates.</div>
+                      <div className="mt-2 text-sm text-white/70">One tap, tour updates only.</div>
                     </Card>
                     <Card className="p-5">
                       <div className="text-xs uppercase tracking-widest text-white/60">Tickets</div>
@@ -606,7 +591,7 @@ export function TourSection(props: {
                   {cfg.footerLine ? <div className="mt-5 text-xs text-white/45">{cfg.footerLine}</div> : null}
                 </div>
               ) : (
-                /* LIVE LAYOUT (kept for later: admin edits status/links and it automatically becomes live) */
+                /* LIVE LAYOUT (activates automatically when admin adds links or sets tickets/soldout) */
                 <div className="mt-6">
                   <div className="mb-5 grid gap-3 sm:grid-cols-2">
                     <input
@@ -627,7 +612,7 @@ export function TourSection(props: {
                       )}
                     >
                       <option value="all" className="bg-[#0B0B10]">
-                        All statuses
+                        All
                       </option>
                       <option value="tickets" className="bg-[#0B0B10]">
                         Tickets
@@ -685,7 +670,7 @@ export function TourSection(props: {
               )}
             </div>
 
-            {/* RIGHT: poster */}
+            {/* RIGHT */}
             <div className="relative min-h-[360px]" data-tour-poster="true">
               {hasPoster ? (
                 <>
@@ -724,12 +709,7 @@ export function TourSection(props: {
                     </Button>
 
                     {ticketPortalHref ? (
-                      <Button
-                        variant="ghost"
-                        href={ticketPortalHref}
-                        target="_blank"
-                        iconRight={<IconArrowUpRight className="h-4 w-4" />}
-                      >
+                      <Button variant="ghost" href={ticketPortalHref} target="_blank" iconRight={<IconArrowUpRight className="h-4 w-4" />}>
                         {ticketPortalLabel}
                       </Button>
                     ) : null}
@@ -740,16 +720,16 @@ export function TourSection(props: {
           </div>
         </Card>
 
-        {/* ADMIN CMS (kept + strong; edits instantly reflect in preview) */}
+        {/* ADMIN CMS */}
         <Modal open={!!props.editable && editOpen} onClose={() => setEditOpen(false)} title="Tour CMS">
           <div className="grid gap-6 lg:grid-cols-[1.05fr_.95fr]">
-            {/* LEFT: controls */}
+            {/* LEFT */}
             <div className="grid gap-6">
               <Card className="p-5">
                 <div className="flex items-center justify-between gap-3">
                   <div>
                     <div className="text-xs uppercase tracking-widest text-white/60">Section copy</div>
-                    <div className="mt-1 text-sm text-white/70">Preview updates as you type.</div>
+                    <div className="mt-1 text-sm text-white/70">Headline, description, CTAs.</div>
                   </div>
                   <div className="flex items-center gap-2">
                     <Badge>Draft</Badge>
@@ -949,7 +929,7 @@ export function TourSection(props: {
                         persistDraft(draftShows, next);
                       }}
                       rows={3}
-                      placeholder="Tour announcements will live here — dates, cities, and ticket links the moment they drop."
+                      placeholder="This is the official board — cities, venues, and ticket links appear here the moment they’re confirmed."
                       className={cx(
                         "mt-2 w-full resize-none rounded-2xl bg-white/[0.04] px-4 py-3 text-sm text-white placeholder:text-white/35",
                         "ring-1 ring-white/10 outline-none focus:ring-2 focus:ring-white/30"
@@ -1002,7 +982,7 @@ export function TourSection(props: {
                           persistDraft(draftShows, next);
                         }}
                         rows={3}
-                        placeholder="Join alerts for the first drop. Cities, venues, and tickets will post here as soon as they’re live."
+                        placeholder="Get alerts for the first drop. Cities, venues, and tickets will post here as soon as they’re live."
                         className={cx(
                           "mt-2 w-full resize-none rounded-2xl bg-white/[0.04] px-4 py-3 text-sm text-white placeholder:text-white/35",
                           "ring-1 ring-white/10 outline-none focus:ring-2 focus:ring-white/30"
@@ -1015,7 +995,7 @@ export function TourSection(props: {
 
               <Card className="p-5">
                 <div className="flex items-center justify-between gap-3">
-                  <div className="text-xs uppercase tracking-widest text-white/60">Shows (still “Coming soon”)</div>
+                  <div className="text-xs uppercase tracking-widest text-white/60">Shows</div>
                   <div className="flex flex-wrap gap-2">
                     <Button variant="secondary" onClick={addShow}>
                       Add show
@@ -1049,6 +1029,7 @@ export function TourSection(props: {
                             type="button"
                             onClick={() => moveShow(s.id, -1)}
                             className="rounded-full px-2 py-1 text-xs text-white/70 hover:bg-white/10 hover:text-white"
+                            aria-label="Move up"
                           >
                             ↑
                           </button>
@@ -1056,6 +1037,7 @@ export function TourSection(props: {
                             type="button"
                             onClick={() => moveShow(s.id, 1)}
                             className="rounded-full px-2 py-1 text-xs text-white/70 hover:bg-white/10 hover:text-white"
+                            aria-label="Move down"
                           >
                             ↓
                           </button>
@@ -1085,7 +1067,7 @@ export function TourSection(props: {
                         </label>
 
                         <label className="block">
-                          <span className="text-xs uppercase tracking-widest text-white/60">Date label (fallback)</span>
+                          <span className="text-xs uppercase tracking-widest text-white/60">Date label</span>
                           <input
                             value={s.dateLabel ?? ""}
                             onChange={(e) => updateShow(s.id, { dateLabel: e.target.value })}
@@ -1124,9 +1106,7 @@ export function TourSection(props: {
                         </label>
 
                         <label className="block md:col-span-2">
-                          <span className="text-xs uppercase tracking-widest text-white/60">
-                            Ticket link (leave blank for “Coming soon”)
-                          </span>
+                          <span className="text-xs uppercase tracking-widest text-white/60">Ticket link (optional)</span>
                           <input
                             value={s.href ?? ""}
                             onChange={(e) => updateShow(s.id, { href: e.target.value })}
@@ -1138,7 +1118,6 @@ export function TourSection(props: {
                           />
                         </label>
 
-                        {/* keep status for later, but default announce */}
                         <label className="block">
                           <span className="text-xs uppercase tracking-widest text-white/60">Status</span>
                           <select
@@ -1167,9 +1146,7 @@ export function TourSection(props: {
               </Card>
 
               <div className="flex flex-wrap items-center justify-between gap-3">
-                <div className="text-xs text-white/50">
-                  Draft saves locally. Wire <span className="text-white/70">onSave()</span> to publish from your admin backend.
-                </div>
+                <div className="text-xs text-white/50">Draft mode. Publish when you hit Save.</div>
 
                 <div className="flex flex-wrap gap-2">
                   <Button variant="ghost" onClick={() => setEditOpen(false)}>
@@ -1178,9 +1155,7 @@ export function TourSection(props: {
                   <Button
                     variant="primary"
                     onClick={saveNow}
-                    iconRight={
-                      saving ? <span className="text-xs">Saving…</span> : <IconArrowUpRight className="h-4 w-4" />
-                    }
+                    iconRight={saving ? <span className="text-xs">Saving…</span> : <IconArrowUpRight className="h-4 w-4" />}
                   >
                     Save
                   </Button>
@@ -1188,17 +1163,14 @@ export function TourSection(props: {
               </div>
             </div>
 
-            {/* RIGHT: live preview */}
+            {/* RIGHT */}
             <div className="grid gap-4">
               <div className="flex items-center justify-between">
                 <div className="text-xs uppercase tracking-widest text-white/60">Live preview</div>
-                <Badge>Updates instantly</Badge>
+                <Badge>Instant</Badge>
               </div>
 
-              <LivePreviewCard
-                config={{ ...props.config, ...draftConfig }}
-                shows={draftShows.filter((s) => !isEmptyRow(s))}
-              />
+              <LivePreviewCard config={{ ...props.config, ...draftConfig }} shows={draftShows.filter((s) => !isEmptyRow(s))} />
             </div>
           </div>
         </Modal>
