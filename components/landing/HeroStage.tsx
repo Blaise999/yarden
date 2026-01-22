@@ -58,10 +58,8 @@ export function HeroSection(props: {
   statsA?: Array<{ label: string; value: string; hint?: string }>;
   statsB?: Array<{ label: string; value: string; hint?: string }>;
 
-  // ✅ NEW: accept eraLabel to match usage (eraLabel="Muse")
   eraLabel?: string;
 
-  // optional “pro musician site” extras
   tourHref?: string;
   shopHref?: string;
   videosHref?: string;
@@ -130,7 +128,6 @@ export function HeroSection(props: {
       href: props.tourHref,
     } as NextShow);
 
-  // ✅ NEW: local value for rendering
   const eraLabel = props.eraLabel?.trim();
 
   // newsletter (optional)
@@ -211,6 +208,7 @@ export function HeroSection(props: {
         return;
       }
 
+      // Kill prior instance
       ScrollTrigger.getById("hero-pin")?.kill(true);
 
       // --- anti-flicker / anti-shimmer ---
@@ -221,17 +219,18 @@ export function HeroSection(props: {
 
       gsap.set(pinEl, { willChange: "transform", force3D: true });
 
+      // Keep container stable (avoid animating borderRadius — that can repaint & stutter)
       gsap.set(media, {
         borderRadius: 0,
         scale: 1,
         y: 0,
         x: 0,
-        willChange: "transform, border-radius",
+        willChange: "transform, opacity",
         force3D: true,
         transformOrigin: "50% 50%",
       });
 
-      // Reduced initial zoom for smoother feel and better “full screen” coverage
+      // Images
       gsap.set(artA, {
         opacity: 1,
         visibility: "visible",
@@ -243,7 +242,7 @@ export function HeroSection(props: {
       gsap.set(artB, {
         opacity: 0,
         visibility: "visible",
-        scale: 1.15,
+        scale: 1.12,
         y: 60,
         x: 0,
         force3D: true,
@@ -253,26 +252,38 @@ export function HeroSection(props: {
       if (glowFx) gsap.set(glowFx, { opacity: 0, scale: 0.92, force3D: true });
 
       // foreground initial scene A
-      gsap.set(sceneA, { opacity: 1, y: 0, pointerEvents: "auto" });
-      gsap.set(sceneB, { opacity: 0, y: 14, pointerEvents: "none" });
+      gsap.set(sceneA, { opacity: 1, y: 0 });
+      gsap.set(sceneB, { opacity: 0, y: 14 });
 
-      gsap.set(railA, { opacity: 1, y: 0, pointerEvents: "auto" });
-      gsap.set(railB, { opacity: 0, y: 14, pointerEvents: "none" });
+      gsap.set(railA, { opacity: 1, y: 0 });
+      gsap.set(railB, { opacity: 0, y: 14 });
 
       gsap.set(nowA, { opacity: 1, y: 0 });
       gsap.set(nowB, { opacity: 0, y: 10 });
 
-      // Master timeline – everything driven directly by scroll progress (eliminates shake/glitch from separate timelines)
-      const masterTL = gsap.timeline({ paused: true, defaults: { overwrite: "auto" } });
+      // Pointer events (only flip when crossing midpoint — no per-frame gsap.set)
+      let inB = false;
+      const setInB = (next: boolean) => {
+        if (inB === next) return;
+        inB = next;
+        sceneA.style.pointerEvents = next ? "none" : "auto";
+        railA.style.pointerEvents = next ? "none" : "auto";
+        sceneB.style.pointerEvents = next ? "auto" : "none";
+        railB.style.pointerEvents = next ? "auto" : "none";
+      };
+      setInB(false);
+
+      // Master timeline (ScrollTrigger drives it directly)
+      const masterTL = gsap.timeline({ defaults: { overwrite: "auto" } });
 
       const transitionStart = 0.45;
       const transitionDuration = 0.25;
       const sf = transitionDuration;
 
-      // Subtle “breathe” effect (reduced intensity so images stay closer to full-screen)
-      masterTL.to(media, { scale: 0.99, borderRadius: 32, duration: 1, ease: "none" }, 0);
+      // Tiny “breathe” (transform only)
+      masterTL.to(media, { scale: 0.995, duration: 1, ease: "none" }, 0);
 
-      // Image morph (smoother, less extreme movement)
+      // Image morph
       masterTL.to(
         artA,
         { opacity: 0, scale: 1.2, y: -60, duration: transitionDuration, ease: "expo.inOut" },
@@ -293,18 +304,6 @@ export function HeroSection(props: {
         );
       }
 
-      // Glow flash (triggered on crossing mid-transition)
-      const flash = () => {
-        if (!glowFx) return;
-        gsap.killTweensOf(glowFx);
-        gsap.fromTo(
-          glowFx,
-          { opacity: 0, scale: 0.92 },
-          { opacity: 0.24, scale: 1.12, duration: 0.22, ease: "power2.out" }
-        );
-        gsap.to(glowFx, { opacity: 0, duration: 0.35, ease: "power2.in", delay: 0.08 });
-      };
-
       // Foreground / rail / now-playing switch
       const switchDur = 0.6 * sf;
       const switchAStart = transitionStart + 0.08 * sf;
@@ -324,6 +323,18 @@ export function HeroSection(props: {
 
       const midTransition = transitionStart + transitionDuration / 2;
 
+      // Glow flash (only on crossing midpoint)
+      const flash = () => {
+        if (!glowFx) return;
+        gsap.killTweensOf(glowFx);
+        gsap.fromTo(
+          glowFx,
+          { opacity: 0, scale: 0.92 },
+          { opacity: 0.24, scale: 1.12, duration: 0.22, ease: "power2.out" }
+        );
+        gsap.to(glowFx, { opacity: 0, duration: 0.35, ease: "power2.in", delay: 0.08 });
+      };
+
       ScrollTrigger.create({
         id: "hero-pin",
         trigger: section,
@@ -333,19 +344,27 @@ export function HeroSection(props: {
         pinSpacing: true,
         anticipatePin: 1,
         invalidateOnRefresh: true,
-        scrub: 0.9,
-        fastScrollEnd: true,
-        pinType: ScrollTrigger.isTouch ? "transform" : "fixed",
-        pinReparent: true,
+
+        // ✅ smoother + less “hang”
+        scrub: 0.7,
+
+        // ✅ let ScrollTrigger drive the timeline (no manual progress writes)
+        animation: masterTL,
+
+        // ✅ stable in full-bleed layouts
+        pinType: "transform",
+
+        // no reparenting (often causes jitter)
+        pinReparent: false,
+
         onUpdate: (self) => {
-          masterTL.progress(self.progress);
-
           const p = self.progress;
-          const inB = p >= midTransition;
+          const next = p >= midTransition;
 
-          gsap.set([sceneA, railA], { pointerEvents: inB ? "none" : "auto" });
-          gsap.set([sceneB, railB], { pointerEvents: inB ? "auto" : "none" });
+          // pointerEvents only flip on change
+          setInB(next);
 
+          // glow only on cross
           if (glowFx) {
             const crossedUp = prevProgressRef.current < midTransition && p >= midTransition;
             const crossedDown = prevProgressRef.current >= midTransition && p < midTransition;
@@ -354,10 +373,16 @@ export function HeroSection(props: {
 
           prevProgressRef.current = p;
         },
+
         onRefreshInit: () => {
           gsap.set([media, artA, artB], { x: 0 });
         },
       });
+
+      return () => {
+        masterTL.kill();
+        ScrollTrigger.getById("hero-pin")?.kill(true);
+      };
     },
     { scope: rootRef, dependencies: [reducedMotion, pinDistance] }
   );
@@ -380,7 +405,11 @@ export function HeroSection(props: {
     <div ref={rootRef}>
       <section
         ref={sectionRef as any}
-        className={cx("relative overflow-hidden", fullBleed && "w-screen left-1/2 -translate-x-1/2")}
+        className={cx(
+          "relative overflow-hidden",
+          // ✅ full-bleed WITHOUT transform (prevents pin jitter)
+          fullBleed && "w-screen ml-[calc(50%-50vw)] mr-[calc(50%-50vw)]"
+        )}
         style={{ isolation: "isolate" }}
       >
         {/* Background */}
@@ -397,13 +426,11 @@ export function HeroSection(props: {
             ref={mediaRef}
             className={cx(
               "absolute inset-0 overflow-hidden",
-              // Reduced shadow for fuller appearance
               "shadow-[0_40px_100px_rgba(0,0,0,0.75)]",
-              "ring-1 ring-white/08"
+              "ring-1 ring-white/10"
             )}
             style={{
               transform: "translateZ(0)",
-              contain: "paint",
             }}
           >
             <FloatingCursorSpotlight disabled={reducedMotion} />
@@ -545,7 +572,6 @@ export function HeroSection(props: {
                     <IconAnkh className="h-4 w-4" />
                     <span>Yarden</span>
 
-                    {/* ✅ NEW: show eraLabel if provided */}
                     {eraLabel ? (
                       <span className="ml-2 inline-flex items-center rounded-full bg-white/10 px-2 py-1 text-[10px] font-semibold tracking-normal text-white/75 ring-1 ring-white/10">
                         {eraLabel}
@@ -584,7 +610,11 @@ export function HeroSection(props: {
                           Generate Pass
                         </Button>
                         {props.videosHref && (
-                          <Button variant="ghost" href={props.videosHref} iconRight={<IconArrowUpRight className="h-5 w-5" />}>
+                          <Button
+                            variant="ghost"
+                            href={props.videosHref}
+                            iconRight={<IconArrowUpRight className="h-5 w-5" />}
+                          >
                             Watch Visuals
                           </Button>
                         )}
@@ -677,8 +707,9 @@ export function HeroSection(props: {
                             onClick={joinNewsletter}
                             className={cx(
                               "h-11 shrink-0 rounded-2xl px-4 text-[13px] font-semibold ring-1 transition",
+                              // ✅ never go full-white (keeps it readable + not weird)
                               joinState === "ok"
-                                ? "bg-white text-black ring-white/0"
+                                ? "bg-white/18 text-white ring-white/25"
                                 : "bg-white/12 text-white ring-white/12 hover:bg-white/16"
                             )}
                           >

@@ -7,9 +7,7 @@ import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 
 import {
-  Badge,
   Button,
-  Card,
   IconArrowUpRight,
   IconClose,
   IconPlay,
@@ -144,10 +142,19 @@ function svgFallbackDataUrl(label: string) {
         <stop offset="0" stop-color="rgba(255,255,255,.14)"/>
         <stop offset="1" stop-color="rgba(255,255,255,0)"/>
       </radialGradient>
+      <filter id="grain">
+        <feTurbulence type="fractalNoise" baseFrequency=".8" numOctaves="3" stitchTiles="stitch"/>
+        <feColorMatrix type="matrix" values="
+          1 0 0 0 0
+          0 1 0 0 0
+          0 0 1 0 0
+          0 0 0 .18 0"/>
+      </filter>
     </defs>
     <rect width="1200" height="675" fill="url(#g)"/>
     <rect width="1200" height="675" fill="url(#r)"/>
-    <g opacity=".85">
+    <rect width="1200" height="675" filter="url(#grain)" opacity=".18"/>
+    <g opacity=".9">
       <path d="M520 290 L520 385 L615 337.5 Z" fill="rgba(255,255,255,.85)"/>
     </g>
     <text x="60" y="600" font-family="ui-sans-serif, system-ui" font-size="42" fill="rgba(255,255,255,.72)" letter-spacing="6">
@@ -237,7 +244,7 @@ function buildPreviewSrc(t: YTTarget | null) {
     iv_load_policy: "3",
     cc_load_policy: "0",
     loop: "1",
-    playlist: id, // needed for loop
+    playlist: id,
   });
   return `https://www.youtube-nocookie.com/embed/${id}?${params.toString()}`;
 }
@@ -256,10 +263,7 @@ export function VisualsSection(props?: {
   title?: string;
   desc?: string;
 
-  // how often spotlight auto-switches (ms)
   cycleMs?: number;
-
-  // limit how many items to show total
   maxItems?: number;
 }) {
   const reducedMotion = usePrefersReducedMotion();
@@ -288,8 +292,6 @@ export function VisualsSection(props?: {
   const [iframeReady, setIframeReady] = useState(false);
 
   const [spotIdx, setSpotIdx] = useState(0);
-
-  // preview ready for the desktop hero iframe (so it fades in over the thumbnail)
   const [heroPreviewReady, setHeroPreviewReady] = useState(false);
 
   const items = useMemo<ResolvedItem[]>(() => {
@@ -309,7 +311,6 @@ export function VisualsSection(props?: {
 
   const safeSpotIdx = Math.min(spotIdx, Math.max(0, items.length - 1));
   const spotlight = items[safeSpotIdx] ?? items[0];
-  const upNext = items.filter((_, i) => i !== safeSpotIdx);
 
   const openPlayer = (item: ResolvedItem) => {
     if (!item?.yt) {
@@ -338,17 +339,15 @@ export function VisualsSection(props?: {
     const tl = gsap.timeline({ defaults: { ease: "power3.out" } });
 
     tl.set(scan, { opacity: 0, xPercent: -140 });
-    tl.to(glow, { opacity: 1, duration: 0.22 }, 0);
-    tl.to(media, { scale: 1.02, duration: 0.32 }, 0);
-    tl.to(scan, { opacity: 1, duration: 0.06, ease: "power1.out" }, 0.06);
+    tl.to(glow, { opacity: 1, duration: 0.2 }, 0);
+    tl.to(media, { scale: 1.015, duration: 0.28 }, 0);
+    tl.to(scan, { opacity: 1, duration: 0.06, ease: "power1.out" }, 0.05);
     tl.to(scan, { xPercent: 140, duration: 0.42, ease: "power2.out" }, 0.08);
-    tl.to(scan, { opacity: 0, duration: 0.2 }, 0.32);
-    tl.to(media, { scale: 1.0, duration: 0.5, ease: "power3.out" }, 0.18);
-    tl.to(glow, { opacity: 0.55, duration: 0.6 }, 0.22);
+    tl.to(scan, { opacity: 0, duration: 0.18 }, 0.3);
+    tl.to(media, { scale: 1.0, duration: 0.5 }, 0.16);
+    tl.to(glow, { opacity: 0.55, duration: 0.6 }, 0.2);
 
-    return () => {
-      tl.kill();
-    };
+    return () => tl.kill();
   }, [spotIdx, reducedMotion]);
 
   // enter reveal + auto-cycle while in view
@@ -362,25 +361,20 @@ export function VisualsSection(props?: {
     const ctx = gsap.context(() => {
       const hero = stage.querySelector<HTMLElement>("[data-hero='1']");
       const railItems = Array.from(stage.querySelectorAll<HTMLElement>("[data-rail-item='1']"));
-      const miniCards = Array.from(stage.querySelectorAll<HTMLElement>("[data-mini='1']"));
+      const mobileCards = Array.from(stage.querySelectorAll<HTMLElement>("[data-mobile-card='1']"));
 
       if (!hero) return;
 
-      gsap.set(hero, { opacity: 0, y: 24, scale: 1.02, filter: "blur(10px)" });
-      gsap.set(railItems, { opacity: 0, x: 18, rotateY: -12, filter: "blur(8px)" });
-      gsap.set(miniCards, { opacity: 0, y: 18, filter: "blur(8px)" });
+      gsap.set(hero, { opacity: 0, y: 22, scale: 1.015, filter: "blur(10px)" });
+      gsap.set(railItems, { opacity: 0, x: 16, rotateY: -10, filter: "blur(8px)" });
+      gsap.set(mobileCards, { opacity: 0, y: 14, filter: "blur(8px)" });
 
       const tl = gsap.timeline({ paused: true, defaults: { ease: "power3.out" } });
 
-      // HERO first (spotlight)
       tl.to(hero, { opacity: 1, y: 0, scale: 1, filter: "blur(0px)", duration: 0.75 });
-
-      // pause beat (so it FEELS like spotlight)
-      tl.to({}, { duration: 0.35 });
-
-      // then the rest appears
-      tl.to(railItems, { opacity: 1, x: 0, rotateY: 0, filter: "blur(0px)", duration: 0.6, stagger: 0.06 }, "-=0.15");
-      tl.to(miniCards, { opacity: 1, y: 0, filter: "blur(0px)", duration: 0.65, stagger: 0.07 }, "-=0.35");
+      tl.to({}, { duration: 0.25 });
+      tl.to(railItems, { opacity: 1, x: 0, rotateY: 0, filter: "blur(0px)", duration: 0.55, stagger: 0.05 }, "-=0.1");
+      tl.to(mobileCards, { opacity: 1, y: 0, filter: "blur(0px)", duration: 0.55, stagger: 0.05 }, "-=0.35");
 
       ScrollTrigger.create({
         trigger: stage,
@@ -446,79 +440,91 @@ export function VisualsSection(props?: {
 
   return (
     <section id={id} className="relative py-20 md:py-24">
-      <div ref={rootRef} className="mx-auto max-w-7xl px-5 md:px-8">
-        <SectionHeader
-          eyebrow={props?.eyebrow ?? "Visuals"}
-          title={props?.title ?? "Spotlight visuals — on rotation."}
-          desc={
-            props?.desc ??
-            "A featured premiere view that takes the full frame. Then it cycles through the catalogue automatically."
-          }
-          right={
-            <div className="flex flex-wrap gap-2">
-              <Button variant="secondary" href={channelHref} target="_blank" iconRight={<IconArrowUpRight className="h-4 w-4" />}>
-                YouTube
-              </Button>
-              <Button variant="ghost" href={videosHref} target="_blank" iconRight={<IconArrowUpRight className="h-4 w-4" />}>
-                Videos
-              </Button>
-              <Button
-                variant="ghost"
-                href={playlistsHref}
-                target="_blank"
-                iconRight={<IconArrowUpRight className="h-4 w-4" />}
-              >
-                Playlists
-              </Button>
-            </div>
-          }
-        />
+      {/* split padding: header stays padded, stage can go edge-to-edge on mobile */}
+      <div ref={rootRef} className="mx-auto max-w-7xl">
+        <div className="px-5 md:px-8">
+          <SectionHeader
+            eyebrow={props?.eyebrow ?? "Watch"}
+            title={props?.title ?? "Visuals"}
+            desc={props?.desc ?? "Featured first. Then the queue — tap any clip to play right here."}
+            right={
+              <div className="flex flex-wrap gap-2">
+                <Button variant="secondary" href={channelHref} target="_blank" iconRight={<IconArrowUpRight className="h-4 w-4" />}>
+                  YouTube
+                </Button>
+                <Button variant="ghost" href={videosHref} target="_blank" iconRight={<IconArrowUpRight className="h-4 w-4" />}>
+                  All videos
+                </Button>
+                <Button variant="ghost" href={playlistsHref} target="_blank" iconRight={<IconArrowUpRight className="h-4 w-4" />}>
+                  Playlists
+                </Button>
+              </div>
+            }
+          />
+        </div>
 
-        {/* STAGE */}
-        <div ref={stageRef} className="mt-10">
+        {/* STAGE (edge-to-edge on mobile, framed from md+) */}
+        <div ref={stageRef} className="mt-8 md:mt-10 md:px-8">
           <div
             className={cx(
-              "relative overflow-hidden rounded-[36px] bg-white/[0.03] ring-1 ring-white/10",
-              "shadow-[0_24px_70px_rgba(0,0,0,0.55)]"
+              "relative overflow-hidden",
+              "rounded-none md:rounded-[36px]",
+              "bg-transparent md:bg-white/[0.03]",
+              "md:ring-1 md:ring-white/10",
+              "shadow-none md:shadow-[0_24px_70px_rgba(0,0,0,0.55)]"
             )}
           >
-            <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_30%_10%,rgba(255,255,255,0.10),rgba(0,0,0,0)_60%)]" />
-            <div className="pointer-events-none absolute inset-0 bg-gradient-to-r from-black/45 via-transparent to-black/45" />
+            {/* subtle atmosphere (desktop mostly) */}
+            <div className="pointer-events-none absolute inset-0 hidden md:block bg-[radial-gradient(circle_at_30%_10%,rgba(255,255,255,0.10),rgba(0,0,0,0)_60%)]" />
+            <div className="pointer-events-none absolute inset-0 hidden md:block bg-gradient-to-r from-black/45 via-transparent to-black/45" />
 
-            <div className="relative z-[2] p-5 md:p-7">
-              <div className="grid gap-6 lg:grid-cols-12 lg:items-stretch">
-                {/* HERO */}
+            <div className="relative z-[2] p-0 md:p-7">
+              <div className="grid gap-0 lg:grid-cols-12 lg:gap-6 lg:items-stretch">
+                {/* HERO (go big on mobile) */}
                 <button
                   type="button"
                   onClick={() => openPlayer(spotlight)}
                   className={cx(
-                    "group relative overflow-hidden rounded-[28px] bg-white/[0.035] ring-1 ring-white/12 text-left",
-                    "shadow-[0_18px_55px_rgba(0,0,0,0.55)]",
+                    "group relative w-full overflow-hidden text-left",
+                    // remove the “card-in-card” feeling on mobile
+                    "rounded-none lg:rounded-[28px]",
+                    "bg-black/10 lg:bg-white/[0.035]",
+                    "ring-0 lg:ring-1 lg:ring-white/12",
+                    "shadow-none lg:shadow-[0_18px_55px_rgba(0,0,0,0.55)]",
                     "outline-none focus-visible:ring-2 focus-visible:ring-white/30",
                     "lg:col-span-8 lg:h-full"
                   )}
                   data-hero="1"
                 >
                   <div className="relative h-full">
-                    {/* This wrapper fills the hero card on desktop; stays aspect-video on mobile */}
                     <div
                       ref={heroMediaRef}
                       className={cx(
                         "relative overflow-hidden",
-                        "aspect-video",
+                        // BIG viewing area on mobile
+                        "h-[52svh] min-h-[320px] max-h-[560px]",
+                        // keep classic shape on tablets
+                        "md:h-auto md:aspect-video",
+                        // fill on desktop grid
                         "lg:aspect-auto lg:h-full"
                       )}
                     >
-                      {/* base thumbnail (always) */}
+                      {/* base thumbnail */}
                       <SmartThumb
                         candidates={spotlight.thumbs}
                         fallback={spotlight.fallback}
                         alt={`Yarden — ${spotlight.title}`}
                         priority
                         onSettled={() => (ScrollTrigger as any)?.refresh?.()}
+                        className="scale-[1.02]"
                       />
 
-                      {/* desktop premiere preview (muted autoplay, fades in over thumb) */}
+                      {/* unify chaotic thumbs (subtle matte + vignette) */}
+                      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_25%,rgba(255,255,255,0.12),rgba(0,0,0,0.00)_55%)]" />
+                      <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/70 via-black/12 to-black/0" />
+                      <div className="pointer-events-none absolute inset-0 bg-gradient-to-r from-black/18 via-transparent to-black/18" />
+
+                      {/* desktop premiere preview */}
                       {showDesktopPreview ? (
                         <div
                           className={cx(
@@ -536,204 +542,240 @@ export function VisualsSection(props?: {
                         </div>
                       ) : null}
 
+                      {/* scan + glow accent (light) */}
                       <div
                         ref={heroScanRef}
                         className="pointer-events-none absolute inset-0 opacity-0"
                         style={{
                           background:
-                            "linear-gradient(90deg, rgba(255,255,255,0.00) 0%, rgba(255,255,255,0.18) 45%, rgba(255,255,255,0.00) 70%)",
+                            "linear-gradient(90deg, rgba(255,255,255,0.00) 0%, rgba(255,255,255,0.16) 45%, rgba(255,255,255,0.00) 70%)",
                           mixBlendMode: "screen",
                         }}
                       />
-
                       <div
                         ref={heroGlowRef}
                         className="pointer-events-none absolute inset-0 opacity-0"
                         style={{
-                          background:
-                            "radial-gradient(circle at 30% 20%, rgba(255,255,255,0.16), rgba(255,255,255,0.00) 60%)",
+                          background: "radial-gradient(circle at 30% 20%, rgba(255,255,255,0.14), rgba(255,255,255,0.00) 60%)",
                         }}
                       />
 
-                      {/* cinematic overlay */}
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/18 to-transparent" />
+                      {/* mobile/desktop play badge (center) */}
+                      <div className="pointer-events-none absolute inset-0 grid place-items-center">
+                        <div
+                          className={cx(
+                            "rounded-full px-4 py-3 backdrop-blur-xl",
+                            "bg-black/45 ring-1 ring-white/12",
+                            "text-white/90",
+                            "shadow-[0_20px_60px_rgba(0,0,0,0.55)]"
+                          )}
+                        >
+                          <div className="flex items-center gap-2 text-sm font-semibold">
+                            <IconPlay className="h-4 w-4" />
+                            Watch
+                          </div>
+                        </div>
+                      </div>
 
-                      {/* top pills */}
-                      <div className="absolute left-5 top-5 flex items-center gap-2">
+                      {/* desktop top pills only (don’t steal mobile space) */}
+                      <div className="absolute left-5 top-5 hidden md:flex items-center gap-2">
                         <Pill tone="brand" className="gap-2">
                           <IconPlay className="h-4 w-4" />
-                          Spotlight
+                          Featured
                         </Pill>
                         <Pill tone="muted">{spotlight.kind}</Pill>
                         <Pill tone="muted">{spotlight.year}</Pill>
+                        {spotlight.tag ? <Pill tone="ghost">{spotlight.tag}</Pill> : null}
                       </div>
 
-                      {/* desktop glass label (small, not blocking) */}
+                      {/* desktop glass label (kept clean) */}
                       <div className="absolute bottom-5 left-5 hidden lg:block">
-                        <div className="rounded-2xl bg-black/38 px-4 py-3 ring-1 ring-white/12 backdrop-blur-xl">
+                        <div className="rounded-2xl bg-black/40 px-4 py-3 ring-1 ring-white/12 backdrop-blur-xl">
                           <div className="text-[11px] uppercase tracking-widest text-white/60">@thisisyarden</div>
                           <div className="mt-1 text-[20px] font-semibold text-white">{spotlight.title}</div>
                           <div className="mt-2 flex items-center gap-2 text-sm text-white/60">
-                            <span>Play here</span>
+                            <span>Play</span>
                             <IconArrowUpRight className="h-4 w-4 transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
                           </div>
                         </div>
                       </div>
                     </div>
 
-                    {/* mobile meta BELOW the visual (no blocking) */}
-                    <div className="lg:hidden px-4 pb-4 pt-4">
-                      <div className="text-xs uppercase tracking-widest text-white/55">@thisisyarden</div>
-                      <div className="mt-2 text-[18px] font-semibold text-white">{spotlight.title}</div>
-                      <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-white/60">
-                        <span>{spotlight.kind}</span>
-                        <span className="opacity-60">•</span>
-                        <span>{spotlight.year}</span>
-                        {spotlight.tag ? (
-                          <>
-                            <span className="opacity-60">•</span>
-                            <span className="text-white/75">{spotlight.tag}</span>
-                          </>
-                        ) : null}
+                    {/* mobile meta BELOW (clean + roomy) */}
+                    <div className="lg:hidden px-5 pb-5 pt-4">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Pill tone="brand" className="gap-2">
+                          <IconPlay className="h-4 w-4" />
+                          Featured
+                        </Pill>
+                        <Pill tone="muted">{spotlight.kind}</Pill>
+                        <Pill tone="muted">{spotlight.year}</Pill>
+                        {spotlight.tag ? <Pill tone="ghost">{spotlight.tag}</Pill> : null}
                       </div>
-                      <div className="mt-3 inline-flex items-center gap-2 text-sm text-white/60">
+
+                      <div className="mt-3 text-[20px] font-semibold text-white">{spotlight.title}</div>
+                      <div className="mt-2 text-sm text-white/60">
+                        <span className="text-white/70">@thisisyarden</span>
+                        <span className="mx-2 opacity-60">•</span>
                         <span>Tap to watch</span>
-                        <IconArrowUpRight className="h-4 w-4" />
                       </div>
                     </div>
                   </div>
                 </button>
 
-                {/* RIGHT COLUMN */}
-                <div className="lg:col-span-4 lg:h-full">
+                {/* DESKTOP QUEUE (right column) */}
+                <div className="hidden lg:block lg:col-span-4 lg:h-full">
                   <div className="flex items-center justify-between">
-                    <div className="text-sm font-semibold text-white">Up next</div>
-                    <div className="text-xs text-white/50">Auto-cycles</div>
+                    <div className="text-sm font-semibold text-white">On deck</div>
+                    <div className="text-xs text-white/50">Rotating</div>
                   </div>
 
                   <div className="mt-4 grid gap-3">
-                    {upNext.slice(0, 4).map((v, i) => (
-                      <button
-                        key={v._key}
-                        type="button"
-                        data-rail-item="1"
-                        onClick={() => {
-                          const idx = items.findIndex((x) => x._key === v._key);
-                          if (idx !== -1) {
-                            setSpotIdx(idx);
-                            (rootRef.current as any)?.__pauseAuto?.();
-                          }
-                        }}
-                        className={cx(
-                          "group flex items-center gap-3 rounded-2xl bg-white/[0.03] p-3 ring-1 ring-white/10 text-left",
-                          "hover:bg-white/[0.05] transition"
-                        )}
-                      >
-                        <div className="relative h-16 w-24 overflow-hidden rounded-xl ring-1 ring-white/10">
-                          <SmartThumb candidates={v.thumbs} fallback={v.fallback} alt={`Yarden — ${v.title}`} />
-                          <div className="absolute inset-0 bg-gradient-to-t from-black/55 via-transparent to-transparent" />
-                        </div>
+                    {items.slice(0, 6).map((v, i) => {
+                      const isNow = v._key === spotlight._key;
 
-                        <div className="min-w-0 flex-1">
-                          <div className="flex items-center gap-2">
-                            <div className="text-xs text-white/45 tabular-nums">{String(i + 1).padStart(2, "0")}</div>
-                            <div className="truncate text-sm font-semibold text-white">{v.title}</div>
-                          </div>
-                          <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-white/55">
-                            <span>{v.kind}</span>
-                            <span className="opacity-60">•</span>
-                            <span>{v.year}</span>
-                            {v.tag ? (
-                              <>
-                                <span className="opacity-60">•</span>
-                                <span className="text-white/70">{v.tag}</span>
-                              </>
+                      return (
+                        <button
+                          key={v._key}
+                          type="button"
+                          data-rail-item="1"
+                          onClick={() => {
+                            const idx = items.findIndex((x) => x._key === v._key);
+                            if (idx !== -1) {
+                              setSpotIdx(idx);
+                              (rootRef.current as any)?.__pauseAuto?.();
+                            }
+                          }}
+                          className={cx(
+                            "group relative flex items-center gap-3 rounded-2xl p-3 text-left transition",
+                            "ring-1",
+                            isNow ? "bg-white/[0.06] ring-white/20" : "bg-white/[0.03] ring-white/10 hover:bg-white/[0.05]"
+                          )}
+                        >
+                          {/* active edge */}
+                          <div
+                            className={cx(
+                              "absolute left-0 top-1/2 h-10 w-[3px] -translate-y-1/2 rounded-full transition-opacity",
+                              isNow ? "opacity-100" : "opacity-0 group-hover:opacity-60"
+                            )}
+                            style={{
+                              background: "linear-gradient(180deg, rgba(255,255,255,0.70), rgba(255,255,255,0.10))",
+                            }}
+                          />
+
+                          <div className="relative h-16 w-24 overflow-hidden rounded-xl ring-1 ring-white/10">
+                            <SmartThumb candidates={v.thumbs} fallback={v.fallback} alt={`Yarden — ${v.title}`} />
+                            <div className="absolute inset-0 bg-gradient-to-t from-black/55 via-transparent to-transparent" />
+                            {isNow ? (
+                              <div className="absolute left-2 top-2 rounded-full bg-black/55 px-2 py-1 text-[10px] font-semibold text-white/90 ring-1 ring-white/12 backdrop-blur">
+                                NOW
+                              </div>
                             ) : null}
                           </div>
-                        </div>
 
-                        <div className="shrink-0 text-white/40 group-hover:text-white/70 transition">
-                          <IconArrowUpRight className="h-4 w-4" />
-                        </div>
-                      </button>
-                    ))}
-                  </div>
-
-                  {/* mini grid */}
-                  <div className="mt-5 grid grid-cols-2 gap-3">
-                    {items.slice(0, 4).map((v) => (
-                      <button
-                        key={`${v._key}-mini`}
-                        type="button"
-                        data-mini="1"
-                        onClick={() => {
-                          const idx = items.findIndex((x) => x._key === v._key);
-                          if (idx !== -1) {
-                            setSpotIdx(idx);
-                            (rootRef.current as any)?.__pauseAuto?.();
-                          }
-                        }}
-                        className={cx(
-                          "relative overflow-hidden rounded-2xl bg-white/[0.03] ring-1 ring-white/10 text-left",
-                          "hover:bg-white/[0.05] transition"
-                        )}
-                      >
-                        <div className="relative aspect-[16/10]">
-                          <SmartThumb candidates={v.thumbs} fallback={v.fallback} alt={`Yarden — ${v.title}`} />
-                          <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent" />
-                          <div className="absolute left-3 top-3">
-                            <Pill tone="muted" className="gap-2">
-                              <IconPlay className="h-4 w-4" />
-                              Play
-                            </Pill>
-                          </div>
-                          <div className="absolute bottom-3 left-3 right-3">
-                            <div className="truncate text-sm font-semibold text-white">{v.title}</div>
-                            <div className="mt-1 text-xs text-white/55">
-                              {v.kind} • {v.year}
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-2">
+                              <div className="text-xs text-white/45 tabular-nums">{String(i + 1).padStart(2, "0")}</div>
+                              <div className="truncate text-sm font-semibold text-white">{v.title}</div>
+                            </div>
+                            <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-white/55">
+                              <span>{v.kind}</span>
+                              <span className="opacity-60">•</span>
+                              <span>{v.year}</span>
+                              {v.tag ? (
+                                <>
+                                  <span className="opacity-60">•</span>
+                                  <span className="text-white/70">{v.tag}</span>
+                                </>
+                              ) : null}
                             </div>
                           </div>
-                        </div>
-                      </button>
-                    ))}
+
+                          <div className="shrink-0 text-white/35 group-hover:text-white/70 transition">
+                            <IconArrowUpRight className="h-4 w-4" />
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  <div className="mt-4 flex gap-2">
+                    <Button variant="secondary" href={videosHref} target="_blank" iconRight={<IconArrowUpRight className="h-4 w-4" />}>
+                      See all
+                    </Button>
+                    <Button variant="ghost" href={playlistsHref} target="_blank" iconRight={<IconArrowUpRight className="h-4 w-4" />}>
+                      Playlists
+                    </Button>
                   </div>
                 </div>
               </div>
 
-              {/* pro/cool cards (no “tips”) */}
-              <div className="mt-8 grid gap-6 lg:grid-cols-3">
-                <Card className="p-6">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <Badge>Premiere view</Badge>
-                    <Badge>Full frame</Badge>
-                  </div>
-                  <div className="mt-4 text-lg font-semibold">Spotlight mode.</div>
-                  <p className="mt-2 text-sm leading-relaxed text-white/60">
-                    The featured visual takes the entire stage — built to feel like an opening scene, not a thumbnail wall.
-                  </p>
-                </Card>
+              {/* MOBILE QUEUE (horizontal, big tap targets, snap) */}
+              <div className="lg:hidden px-5 pb-6">
+                <div className="mt-4 flex items-center justify-between">
+                  <div className="text-sm font-semibold text-white">On deck</div>
+                  <div className="text-xs text-white/50">Swipe</div>
+                </div>
 
-                <Card className="p-6">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <Badge>Rotation</Badge>
-                    <Badge>Curated queue</Badge>
-                  </div>
-                  <div className="mt-4 text-lg font-semibold">Always moving.</div>
-                  <p className="mt-2 text-sm leading-relaxed text-white/60">
-                    A clean “Up next” rail that cycles on intervals and respects user clicks — it pauses, then resumes.
-                  </p>
-                </Card>
+                <div className="mt-3 -mx-5 overflow-x-auto px-5 pb-2">
+                  <div className="flex gap-3 snap-x snap-mandatory">
+                    {items.map((v) => {
+                      const isNow = v._key === spotlight._key;
 
-                <Card className="p-6">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <Badge>Official links</Badge>
-                    <Badge>Clean embeds</Badge>
+                      return (
+                        <button
+                          key={`${v._key}-mobile`}
+                          type="button"
+                          data-mobile-card="1"
+                          onClick={() => {
+                            const idx = items.findIndex((x) => x._key === v._key);
+                            if (idx !== -1) {
+                              setSpotIdx(idx);
+                              (rootRef.current as any)?.__pauseAuto?.();
+                            }
+                          }}
+                          className={cx(
+                            "snap-start shrink-0 text-left",
+                            "w-[78%] min-w-[280px] max-w-[360px]",
+                            "rounded-3xl overflow-hidden",
+                            "bg-white/[0.03] ring-1 transition",
+                            isNow ? "ring-white/20" : "ring-white/10"
+                          )}
+                        >
+                          <div className="relative aspect-[16/10] overflow-hidden">
+                            <SmartThumb candidates={v.thumbs} fallback={v.fallback} alt={`Yarden — ${v.title}`} />
+                            <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/10 to-transparent" />
+
+                            <div className="absolute left-3 top-3 flex items-center gap-2">
+                              <Pill tone="muted" className="gap-2">
+                                <IconPlay className="h-4 w-4" />
+                                Play
+                              </Pill>
+                              {isNow ? <Pill tone="brand">Now</Pill> : null}
+                            </div>
+
+                            <div className="absolute bottom-3 left-3 right-3">
+                              <div className="truncate text-sm font-semibold text-white">{v.title}</div>
+                              <div className="mt-1 text-xs text-white/55">
+                                {v.kind} • {v.year}
+                                {v.tag ? <span className="text-white/70"> • {v.tag}</span> : null}
+                              </div>
+                            </div>
+                          </div>
+                        </button>
+                      );
+                    })}
                   </div>
-                  <div className="mt-4 text-lg font-semibold">Built for release.</div>
-                  <p className="mt-2 text-sm leading-relaxed text-white/60">
-                    Official uploads, high-res thumbnails, and a native watch modal — everything stays inside the experience.
-                  </p>
-                </Card>
+                </div>
+
+                <div className="mt-4 flex flex-wrap gap-2">
+                  <Button variant="secondary" href={videosHref} target="_blank" iconRight={<IconArrowUpRight className="h-4 w-4" />}>
+                    All videos
+                  </Button>
+                  <Button variant="ghost" href={playlistsHref} target="_blank" iconRight={<IconArrowUpRight className="h-4 w-4" />}>
+                    Playlists
+                  </Button>
+                </div>
               </div>
             </div>
           </div>
@@ -748,16 +790,16 @@ export function VisualsSection(props?: {
           setActive(null);
           setIframeReady(false);
         }}
-        title={active ? `${active.title} — ${active.kind}` : "Watch"}
+        title={active ? `${active.title}` : "Watch"}
       >
         <div className="grid gap-4">
           <div className="relative overflow-hidden rounded-2xl bg-black ring-1 ring-white/10">
             <div className="aspect-video">
               <div className={cx("absolute inset-0 transition-opacity", iframeReady ? "opacity-0" : "opacity-100")}>
                 {active ? (
-                  <SmartThumb candidates={active.thumbs} fallback={active.fallback} alt={active.title} className="opacity-90" priority />
+                  <SmartThumb candidates={active.thumbs} fallback={active.fallback} alt={active.title} className="opacity-95" priority />
                 ) : null}
-                <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent" />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/15 to-transparent" />
               </div>
 
               {embedSrc ? (
@@ -776,13 +818,19 @@ export function VisualsSection(props?: {
               )}
             </div>
 
+            {/* bigger, cleaner close target */}
             <button
               onClick={() => {
                 setOpen(false);
                 setActive(null);
                 setIframeReady(false);
               }}
-              className="absolute right-3 top-3 rounded-full bg-black/60 p-2 text-white/80 ring-1 ring-white/10 hover:bg-black/75 hover:text-white"
+              className={cx(
+                "absolute right-3 top-3 rounded-full",
+                "bg-black/65 p-2.5 text-white/85 ring-1 ring-white/12 backdrop-blur",
+                "hover:bg-black/80 hover:text-white transition",
+                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/30"
+              )}
               aria-label="Close"
               type="button"
             >
