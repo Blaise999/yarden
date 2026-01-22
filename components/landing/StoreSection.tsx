@@ -19,14 +19,14 @@ import {
 export type MerchLink = { label: string; href: string };
 
 export type MerchItem = {
-  id: string;
+  id: string; // MUST be merch1..merch4 for this setup
   name: string;
-  price?: string; // kept (not rendered yet)
+  price?: string; // kept for later (not rendered)
   images: string[];
   tag?: string;
-  href?: string; // primary link
-  links?: MerchLink[]; // extra links (max 3 shown on card)
-  available?: boolean; // false => "coming soon"
+  href?: string;
+  links?: MerchLink[];
+  available?: boolean;
 };
 
 export type StoreConfig = {
@@ -36,16 +36,74 @@ export type StoreConfig = {
   storeHref?: string;
 };
 
-const STORAGE_KEY = "yarden:store:draft:v1";
+// bump key so old “weird drafts” don’t keep loading
+const STORAGE_KEY = "yarden:store:draft:v2";
 
-function uid(prefix: string) {
-  try {
-    // @ts-ignore
-    const u = crypto?.randomUUID?.();
-    return u ? `${prefix}_${u}` : `${prefix}_${Math.random().toString(16).slice(2)}`;
-  } catch {
-    return `${prefix}_${Math.random().toString(16).slice(2)}`;
-  }
+const ALLOWED_IDS = ["merch1", "merch2", "merch3", "merch4"] as const;
+
+const DEFAULT_MERCH: MerchItem[] = [
+  {
+    id: "merch1",
+    name: "Yarden’s Angel Tee — Black",
+    images: ["/Pictures/merch1.jpg"],
+    tag: "Drop",
+    available: true,
+    href: "",
+  },
+  {
+    id: "merch2",
+    name: "You Only Live Once Quote Tee — Black",
+    images: ["/Pictures/merch2.jpg"],
+    tag: "Drop",
+    available: true,
+    href: "",
+  },
+  {
+    id: "merch3",
+    name: "Yarden’s Angel Tee — White",
+    images: ["/Pictures/merch3.jpg"],
+    tag: "Drop",
+    available: true,
+    href: "",
+  },
+  {
+    id: "merch4",
+    name: "You Only Live Once Quote Tee — White",
+    images: ["/Pictures/merch4.jpg"],
+    tag: "Drop",
+    available: true,
+    href: "",
+  },
+];
+
+function normalizeImgSrc(src: string) {
+  const s = (src || "").trim().replaceAll("\\", "/");
+  if (!s) return "";
+  if (/^https?:\/\//i.test(s)) return s;
+  if (s.startsWith("/")) return s;
+  return `/${s}`;
+}
+
+/** Force ONLY the 4 items, in the right order, with correct image paths */
+function enforceFourOnly(list?: MerchItem[] | null): MerchItem[] {
+  const src = Array.isArray(list) ? list : [];
+
+  return ALLOWED_IDS.map((id) => {
+    const found = src.find((x) => x?.id === id);
+    const base = DEFAULT_MERCH.find((d) => d.id === id)!;
+
+    const images =
+      found?.images?.length
+        ? found.images.map(normalizeImgSrc).filter(Boolean)
+        : base.images.map(normalizeImgSrc);
+
+    return {
+      ...base,
+      ...(found || {}),
+      id, // force id
+      images: images.length ? images : base.images,
+    };
+  });
 }
 
 /** tiny helper for safe external target/rel */
@@ -78,11 +136,9 @@ function ImgCover({
 }
 
 function MerchCard({ item }: { item: MerchItem }) {
-  const fallback = "/media/yarden/merch-tee.jpg";
-
   const safeImgs = useMemo(() => {
-    const list = (item.images ?? []).map((s) => s.trim()).filter(Boolean);
-    return list.length ? list : [fallback];
+    const list = (item.images ?? []).map(normalizeImgSrc).filter(Boolean);
+    return list.length ? list : ["/Pictures/merch1.jpg"];
   }, [item.images]);
 
   const [i, setI] = useState(0);
@@ -91,7 +147,7 @@ function MerchCard({ item }: { item: MerchItem }) {
     setI((prev) => Math.min(prev, Math.max(0, safeImgs.length - 1)));
   }, [safeImgs.length]);
 
-  // swipe inside image only (keeps carousel scroll separate)
+  // swipe inside image only
   const startX = useRef<number | null>(null);
   const lastX = useRef<number | null>(null);
 
@@ -107,7 +163,6 @@ function MerchCard({ item }: { item: MerchItem }) {
       <div
         className="relative aspect-[4/5] select-none overflow-hidden"
         onPointerDown={(e) => {
-          // only consider horizontal swipes if user starts on the image
           startX.current = e.clientX;
           lastX.current = e.clientX;
         }}
@@ -136,6 +191,7 @@ function MerchCard({ item }: { item: MerchItem }) {
             if (safeImgs.length > 1) next();
           }}
         />
+
         <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent" />
 
         <div className="absolute left-4 top-4 flex items-center gap-2">
@@ -164,7 +220,6 @@ function MerchCard({ item }: { item: MerchItem }) {
           <div className="rounded-2xl bg-black/40 p-4 ring-1 ring-white/10 backdrop-blur-xl">
             <div className="text-sm font-semibold text-white">{item.name}</div>
 
-            {/* no prices yet — ecommerce feel: show CTA only */}
             <div className="mt-2 flex items-center justify-between gap-3">
               <div className="text-xs text-white/55">
                 {item.available === false ? "Drop soon" : "Limited drop"}
@@ -180,38 +235,12 @@ function MerchCard({ item }: { item: MerchItem }) {
                   <IconArrowUpRight className="h-4 w-4 transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
                 </Link>
               ) : (
-                <span className="text-sm font-medium text-white/35">No link</span>
+                <span className="text-xs font-medium text-white/45">Details soon</span>
               )}
             </div>
           </div>
         </div>
       </div>
-
-      {item.links?.length ? (
-        <div className="p-5">
-          <div className="flex flex-wrap gap-2">
-            {item.links
-              .map((l) => ({ ...l, href: (l.href || "").trim() }))
-              .filter((l) => l.label && l.href && l.href !== "#")
-              .slice(0, 3)
-              .map((l) => (
-                <Link
-                  key={`${item.id}:${l.label}:${l.href}`}
-                  href={l.href}
-                  {...linkProps(l.href)}
-                  className={cx(
-                    "inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-medium",
-                    "bg-white/5 text-white/75 ring-1 ring-white/10 hover:bg-white/8 hover:text-white"
-                  )}
-                >
-                  <span>{l.label}</span>
-                  <IconArrowUpRight className="h-3.5 w-3.5" />
-                </Link>
-              ))}
-            {item.links.length > 3 ? <Badge>+{item.links.length - 3} more</Badge> : null}
-          </div>
-        </div>
-      ) : null}
     </Card>
   );
 }
@@ -226,13 +255,16 @@ export default function StoreSection(props: {
 }) {
   const id = props.id ?? "store";
 
+  // FORCE: only these 4, always
+  const baseMerch = useMemo(() => enforceFourOnly(props.merch), [props.merch]);
+
   const [editOpen, setEditOpen] = useState(false);
   const [saving, setSaving] = useState(false);
 
-  const [draftMerch, setDraftMerch] = useState<MerchItem[]>(props.merch);
+  const [draftMerch, setDraftMerch] = useState<MerchItem[]>(baseMerch);
   const [draftConfig, setDraftConfig] = useState<StoreConfig>(props.config);
 
-  // load draft when editable
+  // load draft when editable (but still enforce only 4)
   useEffect(() => {
     if (!props.editable) return;
     try {
@@ -240,51 +272,34 @@ export default function StoreSection(props: {
       if (!raw) return;
       const parsed = JSON.parse(raw);
       if (parsed?.merch && parsed?.config) {
-        setDraftMerch(parsed.merch);
+        setDraftMerch(enforceFourOnly(parsed.merch));
         setDraftConfig(parsed.config);
       }
     } catch {}
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [props.editable]);
 
-  // when closing editor, reset drafts to props
+  // when closing editor, reset drafts to base
   useEffect(() => {
     if (editOpen) return;
-    setDraftMerch(props.merch);
+    setDraftMerch(baseMerch);
     setDraftConfig(props.config);
-  }, [props.merch, props.config, editOpen]);
+  }, [baseMerch, props.config, editOpen]);
 
   const persistDraft = (merch: MerchItem[], config: StoreConfig) => {
     if (!props.editable) return;
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify({ merch, config, updatedAt: Date.now() }));
+      localStorage.setItem(
+        STORAGE_KEY,
+        JSON.stringify({ merch: enforceFourOnly(merch), config, updatedAt: Date.now() })
+      );
     } catch {}
   };
 
-  const addItem = () => {
-    const next: MerchItem = {
-      id: uid("merch"),
-      name: "New item",
-      price: "", // not used yet
-      images: ["/media/yarden/merch-tee.jpg"],
-      tag: "Drop soon",
-      available: false,
-      href: "",
-      links: [{ label: "Notify me", href: "#" }],
-    };
-    const updated = [next, ...draftMerch];
-    setDraftMerch(updated);
-    persistDraft(updated, draftConfig);
-  };
-
-  const removeItem = (itemId: string) => {
-    const updated = draftMerch.filter((m) => m.id !== itemId);
-    setDraftMerch(updated);
-    persistDraft(updated, draftConfig);
-  };
-
   const updateItem = (itemId: string, patch: Partial<MerchItem>) => {
-    const updated = draftMerch.map((m) => (m.id === itemId ? { ...m, ...patch } : m));
+    const updated = enforceFourOnly(
+      draftMerch.map((m) => (m.id === itemId ? { ...m, ...patch } : m))
+    );
     setDraftMerch(updated);
     persistDraft(updated, draftConfig);
   };
@@ -292,16 +307,17 @@ export default function StoreSection(props: {
   const saveNow = async () => {
     setSaving(true);
     try {
-      persistDraft(draftMerch, draftConfig);
-      if (props.onSave) await props.onSave({ merch: draftMerch, config: draftConfig });
+      const clean = enforceFourOnly(draftMerch);
+      persistDraft(clean, draftConfig);
+      if (props.onSave) await props.onSave({ merch: clean, config: draftConfig });
       setEditOpen(false);
     } finally {
       setSaving(false);
     }
   };
 
-  // IMPORTANT: render from draft when editable, else props
-  const merchToRender = props.editable ? draftMerch : props.merch;
+  // render from draft when editable, else base
+  const merchToRender = props.editable ? draftMerch : baseMerch;
   const cfgToRender = props.editable ? draftConfig : props.config;
 
   // --- Ecommerce carousel rail ---
@@ -341,7 +357,7 @@ export default function StoreSection(props: {
         <SectionHeader
           eyebrow={cfgToRender.eyebrow ?? "Store"}
           title={cfgToRender.title ?? "Merch that matches the era."}
-          desc={cfgToRender.desc ?? "Swipe to browse the drop — each slide is the next piece."}
+          desc={cfgToRender.desc ?? "Swipe to browse — each slide is the next piece."}
           right={
             <div className="flex flex-wrap gap-2">
               {props.editable ? (
@@ -362,13 +378,10 @@ export default function StoreSection(props: {
           }
         />
 
-        {/* ECOMMERCE FEEL: Horizontal snap carousel */}
         <div className="relative mt-8">
-          {/* edge fades */}
           <div className="pointer-events-none absolute inset-y-0 left-0 w-10 bg-gradient-to-r from-black/40 to-transparent" />
           <div className="pointer-events-none absolute inset-y-0 right-0 w-10 bg-gradient-to-l from-black/40 to-transparent" />
 
-          {/* arrows (desktop) */}
           <div className="pointer-events-none absolute inset-y-0 left-0 hidden md:flex items-center">
             <button
               type="button"
@@ -381,8 +394,6 @@ export default function StoreSection(props: {
               )}
               aria-label="Previous product"
             >
-              <span className="sr-only">Previous</span>
-              {/* using existing IconArrowUpRight rotated to avoid adding new icon deps */}
               <IconArrowUpRight className="h-5 w-5 rotate-180" />
             </button>
           </div>
@@ -399,21 +410,17 @@ export default function StoreSection(props: {
               )}
               aria-label="Next product"
             >
-              <span className="sr-only">Next</span>
               <IconArrowUpRight className="h-5 w-5" />
             </button>
           </div>
 
-          {/* rail */}
           <div
             ref={railRef}
             onScroll={recalcRail}
             className={cx(
-              // full-bleed rail feel
               "-mx-5 px-5 md:-mx-8 md:px-8",
               "flex gap-6 overflow-x-auto pb-4 pt-2",
               "snap-x snap-mandatory scroll-smooth",
-              // hide scrollbar (no plugin)
               "[scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
             )}
           >
@@ -421,22 +428,14 @@ export default function StoreSection(props: {
               <div
                 key={m.id}
                 data-merch-card={idx === 0 ? "1" : undefined}
-                className={cx(
-                  "shrink-0 snap-start",
-                  // ecommerce sizing: one main card with a peek of next
-                  "w-[82vw] max-w-[420px]",
-                  "sm:w-[420px]"
-                )}
+                className={cx("shrink-0 snap-start", "w-[82vw] max-w-[420px]", "sm:w-[420px]")}
               >
                 <MerchCard item={m} />
               </div>
             ))}
-
-            {/* little trailing spacer so last card can snap nicely */}
             <div className="shrink-0 w-4 md:w-8" aria-hidden />
           </div>
 
-          {/* tiny hint */}
           <div className="mt-2 flex items-center justify-between text-xs text-white/45">
             <span className="hidden sm:inline">Swipe / scroll to the next product</span>
             <span className="sm:hidden">Swipe for next</span>
@@ -497,48 +496,27 @@ export default function StoreSection(props: {
               </label>
             </div>
 
-            <div className="flex items-center justify-between gap-3">
-              <div className="flex items-center gap-2">
-                <Badge>Items</Badge>
-                <Badge>{draftMerch.length}</Badge>
-              </div>
-              <div className="flex gap-2">
-                <Button variant="secondary" onClick={addItem}>
-                  Add item
-                </Button>
-                <Button
-                  variant="ghost"
-                  onClick={() => {
-                    try {
-                      localStorage.removeItem(STORAGE_KEY);
-                    } catch {}
-                    setDraftMerch(props.merch);
-                    setDraftConfig(props.config);
-                  }}
-                >
-                  Reset draft
-                </Button>
-              </div>
-            </div>
-
             <div className="grid gap-3">
               {draftMerch.map((m) => (
                 <div key={m.id} className="rounded-2xl bg-white/[0.03] p-4 ring-1 ring-white/10">
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex flex-wrap gap-2">
                       {m.tag ? <Pill tone="brand">{m.tag}</Pill> : <Pill tone="muted">Item</Pill>}
-                      {m.available === false ? (
-                        <Pill tone="muted">Coming soon</Pill>
-                      ) : (
-                        <Pill tone="brand">Live</Pill>
-                      )}
+                      {m.available === false ? <Pill tone="muted">Coming soon</Pill> : <Pill tone="brand">Live</Pill>}
                     </div>
 
                     <button
                       type="button"
-                      onClick={() => removeItem(m.id)}
+                      onClick={() => {
+                        try {
+                          localStorage.removeItem(STORAGE_KEY);
+                        } catch {}
+                        setDraftMerch(baseMerch);
+                        setDraftConfig(props.config);
+                      }}
                       className="rounded-full p-2 text-white/60 hover:bg-white/10 hover:text-white"
-                      aria-label="Remove"
+                      aria-label="Reset draft"
+                      title="Reset"
                     >
                       <IconClose className="h-5 w-5" />
                     </button>
@@ -557,57 +535,11 @@ export default function StoreSection(props: {
                       />
                     </label>
 
-                    {/* price kept for later, still editable if you want, but optional:
-                        if you truly want to hide it from editor too, tell me and I’ll remove this field. */}
-                    <label className="block">
-                      <span className="text-xs uppercase tracking-widest text-white/60">Price (later)</span>
-                      <input
-                        value={m.price ?? ""}
-                        onChange={(e) => updateItem(m.id, { price: e.target.value })}
-                        placeholder="—"
-                        className={cx(
-                          "mt-2 w-full rounded-2xl bg-white/[0.04] px-4 py-3 text-sm text-white",
-                          "ring-1 ring-white/10 outline-none focus:ring-2 focus:ring-white/30"
-                        )}
-                      />
-                    </label>
-
                     <label className="block">
                       <span className="text-xs uppercase tracking-widest text-white/60">Tag</span>
                       <input
                         value={m.tag ?? ""}
                         onChange={(e) => updateItem(m.id, { tag: e.target.value })}
-                        className={cx(
-                          "mt-2 w-full rounded-2xl bg-white/[0.04] px-4 py-3 text-sm text-white",
-                          "ring-1 ring-white/10 outline-none focus:ring-2 focus:ring-white/30"
-                        )}
-                      />
-                    </label>
-
-                    <label className="block md:col-span-2">
-                      <span className="text-xs uppercase tracking-widest text-white/60">Images (comma separated)</span>
-                      <input
-                        value={(m.images ?? []).join(", ")}
-                        onChange={(e) =>
-                          updateItem(m.id, {
-                            images: e.target.value
-                              .split(",")
-                              .map((s) => s.trim())
-                              .filter(Boolean),
-                          })
-                        }
-                        className={cx(
-                          "mt-2 w-full rounded-2xl bg-white/[0.04] px-4 py-3 text-sm text-white",
-                          "ring-1 ring-white/10 outline-none focus:ring-2 focus:ring-white/30"
-                        )}
-                      />
-                    </label>
-
-                    <label className="block md:col-span-2">
-                      <span className="text-xs uppercase tracking-widest text-white/60">Primary link</span>
-                      <input
-                        value={m.href ?? ""}
-                        onChange={(e) => updateItem(m.id, { href: e.target.value })}
                         className={cx(
                           "mt-2 w-full rounded-2xl bg-white/[0.04] px-4 py-3 text-sm text-white",
                           "ring-1 ring-white/10 outline-none focus:ring-2 focus:ring-white/30"
@@ -632,6 +564,38 @@ export default function StoreSection(props: {
                           Coming soon
                         </option>
                       </select>
+                    </label>
+
+                    <label className="block md:col-span-2">
+                      <span className="text-xs uppercase tracking-widest text-white/60">Images (comma separated)</span>
+                      <input
+                        value={(m.images ?? []).join(", ")}
+                        onChange={(e) =>
+                          updateItem(m.id, {
+                            images: e.target.value
+                              .split(",")
+                              .map((s) => s.trim())
+                              .filter(Boolean),
+                          })
+                        }
+                        placeholder="/Pictures/merch1.jpg"
+                        className={cx(
+                          "mt-2 w-full rounded-2xl bg-white/[0.04] px-4 py-3 text-sm text-white",
+                          "ring-1 ring-white/10 outline-none focus:ring-2 focus:ring-white/30"
+                        )}
+                      />
+                    </label>
+
+                    <label className="block md:col-span-2">
+                      <span className="text-xs uppercase tracking-widest text-white/60">Primary link</span>
+                      <input
+                        value={m.href ?? ""}
+                        onChange={(e) => updateItem(m.id, { href: e.target.value })}
+                        className={cx(
+                          "mt-2 w-full rounded-2xl bg-white/[0.04] px-4 py-3 text-sm text-white",
+                          "ring-1 ring-white/10 outline-none focus:ring-2 focus:ring-white/30"
+                        )}
+                      />
                     </label>
                   </div>
                 </div>
