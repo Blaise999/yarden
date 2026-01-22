@@ -1,4 +1,4 @@
-// HeroSection.tsx (FULL EDIT)
+// HeroSection.tsx (FULL EDIT — simplified)
 "use client";
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
@@ -12,8 +12,6 @@ import {
   usePrefersReducedMotion,
   Pill,
   Button,
-  Stat,
-  Badge,
   RadialGlow,
   AnchorGrid,
   FloatingCursorSpotlight,
@@ -91,7 +89,7 @@ export function HeroSection(props: {
   const headerOffset = props.headerOffset ?? 0;
   const fullBleed = props.fullBleed ?? true;
 
-  // Refs (move up so effects can use them safely)
+  // Refs
   const rootRef = useRef<HTMLDivElement | null>(null);
   const sectionRef = useRef<HTMLElement | null>(null);
   const pinRef = useRef<HTMLDivElement | null>(null);
@@ -110,7 +108,7 @@ export function HeroSection(props: {
   const railARef = useRef<HTMLDivElement | null>(null);
   const railBRef = useRef<HTMLDivElement | null>(null);
 
-  // Safari iOS: lock a stable viewport height to avoid address-bar resize jumps while pinned
+  // iOS Safari: lock a stable viewport height
   useEffect(() => {
     if (!isIOS) return;
     const el = rootRef.current;
@@ -131,7 +129,7 @@ export function HeroSection(props: {
   const [pinDistance, setPinDistance] = useState<number>(() => {
     if (typeof props.pinDistance === "number") return props.pinDistance;
     if (typeof window === "undefined") return 1400;
-    return window.innerWidth < 768 ? 980 : 1600;
+    return window.innerWidth < 768 ? 920 : 1500;
   });
 
   useEffect(() => {
@@ -141,7 +139,7 @@ export function HeroSection(props: {
     }
     let raf = 0;
     const onResize = () => {
-      const next = window.innerWidth < 768 ? 980 : 1600;
+      const next = window.innerWidth < 768 ? 920 : 1500;
       if (pinDistance !== next) {
         setPinDistance(next);
         cancelAnimationFrame(raf);
@@ -155,47 +153,23 @@ export function HeroSection(props: {
     };
   }, [props.pinDistance, pinDistance]);
 
-  // Scene copy
+  // Copy (short)
   const headlineA = props.headlineA ?? "Yarden";
-  const subheadA =
-    props.subheadA ??
-    "Official home for releases, premieres, tour updates, and member access — all in one place.";
+  const subheadA = props.subheadA ?? "New releases, visuals, and tour updates — in one place.";
 
-  const headlineB = props.headlineB ?? "Visual Archive";
-  const subheadB =
-    props.subheadB ??
-    "Explore the world: official videos, live moments, behind-the-scenes, and the full catalog.";
-
-  const badgesA = useMemo(() => props.badgesA ?? [], [props.badgesA]);
-  const badgesB = useMemo(() => props.badgesB ?? [], [props.badgesB]);
-  const statsA = useMemo(() => props.statsA ?? [], [props.statsA]);
-  const statsB = useMemo(() => props.statsB ?? [], [props.statsB]);
-
-  const socials = useMemo(() => props.socials ?? [], [props.socials]);
-  const press = useMemo(() => props.press ?? [], [props.press]);
+  const headlineB = props.headlineB ?? "Visuals";
+  const subheadB = props.subheadB ?? "Official videos, live moments, and highlights.";
 
   const nextShow: NextShow =
     props.nextShow ??
     ({
-      dateLabel: "DATES SOON",
+      dateLabel: "SOON",
       city: "Tour",
-      venue: "City drops + ticket links",
+      venue: "Dates and ticket links",
       href: props.tourHref,
     } as NextShow);
 
   const eraLabel = props.eraLabel?.trim();
-
-  // newsletter (optional)
-  const [email, setEmail] = useState("");
-  const [joinState, setJoinState] = useState<"idle" | "ok">("idle");
-  const joinNewsletter = () => {
-    const e = email.trim();
-    if (!e) return;
-    props.onJoinNewsletter?.({ email: e });
-    setJoinState("ok");
-    window.setTimeout(() => setJoinState("idle"), 1400);
-    setEmail("");
-  };
 
   // load tracking
   const [loadedCount, setLoadedCount] = useState(0);
@@ -208,7 +182,6 @@ export function HeroSection(props: {
     () => {
       if (reducedMotion) return;
 
-      // Safari can spam refresh triggers while scrolling; keep this stable
       ScrollTrigger.config({
         ignoreMobileResize: true,
         autoRefreshEvents: "visibilitychange,DOMContentLoaded,load",
@@ -247,21 +220,17 @@ export function HeroSection(props: {
         return;
       }
 
-      // Kill prior instance
       ScrollTrigger.getById("hero-pin")?.kill(true);
 
-      // --- Safari-safe anti-flicker ---
       gsap.set([media, artA, artB, pattern, glowFx].filter(Boolean), {
         backfaceVisibility: "hidden",
         webkitBackfaceVisibility: "hidden",
-        // Safari often flickers with preserve-3d + opacity/filters while scrubbing
         transformStyle: isSafari ? "flat" : "preserve-3d",
       });
 
       gsap.set(pinEl, { willChange: "transform", force3D: isSafari ? false : true });
       if (isSafari) gsap.set([artA, artB], { z: 0.01 });
 
-      // Keep container stable (avoid animating borderRadius — repaint & stutter)
       gsap.set(media, {
         borderRadius: 0,
         scale: 1,
@@ -272,38 +241,21 @@ export function HeroSection(props: {
         transformOrigin: "50% 50%",
       });
 
-      // Images
-      gsap.set(artA, {
-        opacity: 1,
-        visibility: "visible",
-        scale: 1,
-        y: 0,
-        x: 0,
-        force3D: isSafari ? false : true,
-      });
-      gsap.set(artB, {
-        opacity: 0,
-        visibility: "visible",
-        scale: 1.12,
-        y: 60,
-        x: 0,
-        force3D: isSafari ? false : true,
-      });
+      gsap.set(artA, { opacity: 1, visibility: "visible", scale: 1, y: 0, x: 0, force3D: isSafari ? false : true });
+      gsap.set(artB, { opacity: 0, visibility: "visible", scale: 1.12, y: 60, x: 0, force3D: isSafari ? false : true });
 
-      if (pattern) gsap.set(pattern, { opacity: 0.18, scale: 1, force3D: isSafari ? false : true });
+      if (pattern) gsap.set(pattern, { opacity: 0.16, scale: 1, force3D: isSafari ? false : true });
       if (glowFx) gsap.set(glowFx, { opacity: 0, scale: 0.92, force3D: isSafari ? false : true });
 
-      // foreground initial scene A
       gsap.set(sceneA, { opacity: 1, y: 0 });
-      gsap.set(sceneB, { opacity: 0, y: 14 });
+      gsap.set(sceneB, { opacity: 0, y: 12 });
 
       gsap.set(railA, { opacity: 1, y: 0 });
-      gsap.set(railB, { opacity: 0, y: 14 });
+      gsap.set(railB, { opacity: 0, y: 12 });
 
       gsap.set(nowA, { opacity: 1, y: 0 });
-      gsap.set(nowB, { opacity: 0, y: 10 });
+      gsap.set(nowB, { opacity: 0, y: 8 });
 
-      // Pointer events (only flip when crossing midpoint — no per-frame gsap.set)
       let inB = false;
       const setInB = (next: boolean) => {
         if (inB === next) return;
@@ -315,17 +267,14 @@ export function HeroSection(props: {
       };
       setInB(false);
 
-      // Master timeline (ScrollTrigger drives it directly)
       const masterTL = gsap.timeline({ defaults: { overwrite: "auto" } });
 
       const transitionStart = 0.45;
       const transitionDuration = 0.25;
       const sf = transitionDuration;
 
-      // Tiny “breathe” (transform only)
       masterTL.to(media, { scale: 0.995, duration: 1, ease: "none" }, 0);
 
-      // Image morph
       masterTL.to(
         artA,
         { opacity: 0, scale: 1.2, y: -60, duration: transitionDuration, ease: "expo.inOut" },
@@ -337,42 +286,39 @@ export function HeroSection(props: {
         transitionStart
       );
 
-      // Pattern
       if (pattern) {
         masterTL.to(
           pattern,
-          { opacity: 0.34, scale: 1.1, duration: 0.85 * sf, ease: "expo.out" },
+          { opacity: 0.32, scale: 1.08, duration: 0.85 * sf, ease: "expo.out" },
           transitionStart + 0.05 * sf
         );
       }
 
-      // Foreground / rail / now-playing switch
       const switchDur = 0.6 * sf;
       const switchAStart = transitionStart + 0.08 * sf;
       const switchBStart = transitionStart + 0.16 * sf;
 
-      masterTL.to(sceneA, { opacity: 0, y: -12, duration: switchDur, ease: "expo.out" }, switchAStart);
+      masterTL.to(sceneA, { opacity: 0, y: -10, duration: switchDur, ease: "expo.out" }, switchAStart);
       masterTL.to(sceneB, { opacity: 1, y: 0, duration: switchDur, ease: "expo.out" }, switchBStart);
-      masterTL.to(railA, { opacity: 0, y: -12, duration: switchDur, ease: "expo.out" }, switchAStart);
+      masterTL.to(railA, { opacity: 0, y: -10, duration: switchDur, ease: "expo.out" }, switchAStart);
       masterTL.to(railB, { opacity: 1, y: 0, duration: switchDur, ease: "expo.out" }, switchBStart);
 
       const nowDur = 0.45 * sf;
       const nowAStart = transitionStart + 0.12 * sf;
       const nowBStart = transitionStart + 0.18 * sf;
 
-      masterTL.to(nowA, { opacity: 0, y: -8, duration: nowDur, ease: "power2.out" }, nowAStart);
+      masterTL.to(nowA, { opacity: 0, y: -6, duration: nowDur, ease: "power2.out" }, nowAStart);
       masterTL.to(nowB, { opacity: 1, y: 0, duration: nowDur, ease: "power2.out" }, nowBStart);
 
       const midTransition = transitionStart + transitionDuration / 2;
 
-      // Glow flash (only on crossing midpoint)
       const flash = () => {
         if (!glowFx) return;
         gsap.killTweensOf(glowFx);
         gsap.fromTo(
           glowFx,
           { opacity: 0, scale: 0.92 },
-          { opacity: 0.24, scale: 1.12, duration: 0.22, ease: "power2.out" }
+          { opacity: 0.22, scale: 1.12, duration: 0.22, ease: "power2.out" }
         );
         gsap.to(glowFx, { opacity: 0, duration: 0.35, ease: "power2.in", delay: 0.08 });
       };
@@ -386,19 +332,10 @@ export function HeroSection(props: {
         pinSpacing: true,
         anticipatePin: 1,
         invalidateOnRefresh: true,
-
-        // Safari: a bit tighter scrub feels less “rubber-bandy”
         scrub: isSafari ? 0.55 : 0.7,
-
-        // let ScrollTrigger drive the timeline
         animation: masterTL,
-
-        // ✅ KEY FIX: Safari hates transform-pinning with scrubbed opacity/filters/blends
         pinType: isSafari ? "fixed" : "transform",
-
-        // no reparenting (often causes jitter)
         pinReparent: false,
-
         onUpdate: (self) => {
           const p = self.progress;
           const next = p >= midTransition;
@@ -413,7 +350,6 @@ export function HeroSection(props: {
 
           prevProgressRef.current = p;
         },
-
         onRefreshInit: () => {
           gsap.set([media, artA, artB], { x: 0 });
         },
@@ -427,7 +363,6 @@ export function HeroSection(props: {
     { scope: rootRef, dependencies: [reducedMotion, pinDistance, isSafari] }
   );
 
-  // refresh only once after both images load
   useEffect(() => {
     if (reducedMotion || loadedCount < 2 || refreshedOnce.current) return;
     refreshedOnce.current = true;
@@ -438,8 +373,6 @@ export function HeroSection(props: {
   }, [loadedCount, reducedMotion]);
 
   const topPad = Math.max(0, headerOffset) + 24;
-
-  // Safari: CSS filter on large images + scrubbed opacity can flicker badly
   const imageFilter = isSafari ? "none" : "contrast(1.14) saturate(1.22) brightness(1.06)";
 
   return (
@@ -448,7 +381,6 @@ export function HeroSection(props: {
         ref={sectionRef as any}
         className={cx(
           "relative overflow-hidden",
-          // full-bleed WITHOUT transform (prevents pin jitter)
           fullBleed && "w-screen ml-[calc(50%-50vw)] mr-[calc(50%-50vw)]"
         )}
         style={{ isolation: "isolate" }}
@@ -461,11 +393,10 @@ export function HeroSection(props: {
           <AnchorGrid />
         </div>
 
-        {/* ✅ z-0 so the fixed header can stay above reliably */}
+        {/* Pin wrapper */}
         <div
           ref={pinRef}
           className={cx("relative z-0 mx-auto w-full", "min-h-[100svh] md:min-h-[860px]")}
-          // iOS Safari: stable pinned height
           style={isIOS ? ({ minHeight: "var(--hero-vh, 100vh)" } as any) : undefined}
         >
           {/* MEDIA */}
@@ -492,15 +423,11 @@ export function HeroSection(props: {
 
             <div
               ref={patternRef}
-              className={cx(
-                "pointer-events-none absolute inset-0 opacity-0",
-                // Safari: blend modes + scrubbing can shimmer
-                !isSafari && "mix-blend-soft-light"
-              )}
+              className={cx("pointer-events-none absolute inset-0 opacity-0", !isSafari && "mix-blend-soft-light")}
               style={{
                 backgroundImage: `
-                  radial-gradient(circle at 15% 20%, rgba(255,255,255,0.18) 0%, transparent 38%),
-                  radial-gradient(circle at 85% 25%, rgba(255,255,255,0.14) 0%, transparent 44%),
+                  radial-gradient(circle at 15% 20%, rgba(255,255,255,0.16) 0%, transparent 38%),
+                  radial-gradient(circle at 85% 25%, rgba(255,255,255,0.12) 0%, transparent 44%),
                   repeating-linear-gradient(135deg, rgba(255,255,255,0.08) 0px, rgba(255,255,255,0.08) 1px, transparent 1px, transparent 18px),
                   repeating-linear-gradient(45deg, rgba(255,255,255,0.05) 0px, rgba(255,255,255,0.05) 1px, transparent 1px, transparent 24px)
                 `,
@@ -518,10 +445,7 @@ export function HeroSection(props: {
                 priority
                 sizes="100vw"
                 className="object-cover"
-                style={{
-                  objectPosition: props.heroA.focus ?? "50% 35%",
-                  filter: imageFilter,
-                }}
+                style={{ objectPosition: props.heroA.focus ?? "50% 35%", filter: imageFilter }}
                 onLoadingComplete={() => {
                   if (!loadedAOnce.current) {
                     loadedAOnce.current = true;
@@ -529,8 +453,8 @@ export function HeroSection(props: {
                   }
                 }}
               />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/78 via-black/20 to-black/6" />
-              <div className="absolute inset-0 bg-gradient-to-r from-black/58 via-black/08 to-transparent" />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/78 via-black/18 to-black/6" />
+              <div className="absolute inset-0 bg-gradient-to-r from-black/58 via-black/06 to-transparent" />
             </div>
 
             {/* HERO B */}
@@ -541,10 +465,7 @@ export function HeroSection(props: {
                 fill
                 sizes="100vw"
                 className="object-cover"
-                style={{
-                  objectPosition: props.heroB.focus ?? "50% 35%",
-                  filter: imageFilter,
-                }}
+                style={{ objectPosition: props.heroB.focus ?? "50% 35%", filter: imageFilter }}
                 onLoadingComplete={() => {
                   if (!loadedBOnce.current) {
                     loadedBOnce.current = true;
@@ -552,16 +473,16 @@ export function HeroSection(props: {
                   }
                 }}
               />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/28 to-black/10" />
-              <div className="absolute inset-0 bg-gradient-to-r from-black/65 via-black/14 to-transparent" />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/24 to-black/10" />
+              <div className="absolute inset-0 bg-gradient-to-r from-black/65 via-black/12 to-transparent" />
             </div>
 
-            {/* Bottom “Now / Featured” */}
+            {/* Bottom Now / Featured */}
             <div className="absolute bottom-4 left-4 right-4 sm:bottom-5 sm:left-5 sm:right-5 md:bottom-8 md:left-8 md:right-8">
               <div className="rounded-3xl bg-black/38 p-5 ring-1 ring-white/10 backdrop-blur-xl">
                 <div className="relative">
                   <div ref={nowARef}>
-                    <div className="text-[11px] uppercase tracking-[0.32em] text-white/70">Now playing</div>
+                    <div className="text-[11px] uppercase tracking-[0.32em] text-white/70">Now</div>
                     <div className="mt-1.5 truncate text-xl font-semibold text-white md:text-2xl">
                       {props.nowPlaying.title}
                     </div>
@@ -569,12 +490,12 @@ export function HeroSection(props: {
                   </div>
 
                   <div ref={nowBRef} className="absolute inset-0" aria-hidden>
-                    <div className="text-[11px] uppercase tracking-[0.32em] text-white/70">Featured visual</div>
+                    <div className="text-[11px] uppercase tracking-[0.32em] text-white/70">Featured</div>
                     <div className="mt-1.5 truncate text-xl font-semibold text-white md:text-2xl">
                       {props.nowPlaying.title}
                     </div>
                     <div className="mt-1 text-sm text-white/65">
-                      {props.nowPlaying.hintB ?? "Official video / live moment"}
+                      {props.nowPlaying.hintB ?? "Watch the latest visual"}
                     </div>
                   </div>
                 </div>
@@ -588,7 +509,7 @@ export function HeroSection(props: {
                     )}
                     {props.nowPlaying.official?.apple && (
                       <Button variant="ghost" href={props.nowPlaying.official.apple} target="_blank">
-                        Apple Music
+                        Apple
                       </Button>
                     )}
                     {props.nowPlaying.official?.youtube && (
@@ -604,7 +525,7 @@ export function HeroSection(props: {
                     target="_blank"
                     iconLeft={<IconPlay className="h-5 w-5" />}
                   >
-                    Play Now
+                    Play
                   </Button>
                 </div>
               </div>
@@ -612,10 +533,7 @@ export function HeroSection(props: {
           </div>
 
           {/* FOREGROUND */}
-          <div
-            className="relative z-10 mx-auto max-w-7xl px-4 sm:px-5 md:px-8"
-            style={{ paddingTop: topPad }}
-          >
+          <div className="relative z-10 mx-auto max-w-7xl px-4 sm:px-5 md:px-8" style={{ paddingTop: topPad }}>
             <div className="pb-44">
               <div className="grid gap-10 md:grid-cols-[1.2fr_0.8fr] md:items-start">
                 {/* LEFT */}
@@ -623,7 +541,6 @@ export function HeroSection(props: {
                   <Pill tone="brand" className="uppercase tracking-wider">
                     <IconAnkh className="h-4 w-4" />
                     <span>Yarden</span>
-
                     {eraLabel ? (
                       <span className="ml-2 inline-flex items-center rounded-full bg-white/10 px-2 py-1 text-[10px] font-semibold tracking-normal text-white/75 ring-1 ring-white/10">
                         {eraLabel}
@@ -631,17 +548,15 @@ export function HeroSection(props: {
                     ) : null}
                   </Pill>
 
-                  <div className="relative mt-8 min-h-[360px]">
+                  <div className="relative mt-8 min-h-[300px]">
                     {/* Scene A */}
                     <div ref={sceneARef}>
                       <h1 className="text-balance text-5xl font-semibold tracking-tighter text-white md:text-7xl">
                         {headlineA}
                       </h1>
-                      <p className="mt-6 text-pretty text-lg leading-relaxed text-white/75 md:text-xl">
-                        {subheadA}
-                      </p>
+                      <p className="mt-5 text-pretty text-lg leading-relaxed text-white/75 md:text-xl">{subheadA}</p>
 
-                      <div className="mt-8 flex flex-wrap items-center gap-4">
+                      <div className="mt-7 flex flex-wrap items-center gap-3">
                         <Button
                           variant="primary"
                           href={props.listenHref}
@@ -658,58 +573,14 @@ export function HeroSection(props: {
                         >
                           Follow
                         </Button>
-                        <Button
-                          variant="ghost"
-                          onClick={props.onOpenPass}
-                          iconLeft={<IconSpark className="h-5 w-5" />}
-                        >
-                          Generate Pass
+                        <Button variant="ghost" onClick={props.onOpenPass} iconLeft={<IconSpark className="h-5 w-5" />}>
+                          Pass
                         </Button>
-                        {props.videosHref && (
-                          <Button
-                            variant="ghost"
-                            href={props.videosHref}
-                            iconRight={<IconArrowUpRight className="h-5 w-5" />}
-                          >
-                            Watch Visuals
+                        {props.videosHref ? (
+                          <Button variant="ghost" href={props.videosHref} iconRight={<IconArrowUpRight className="h-5 w-5" />}>
+                            Visuals
                           </Button>
-                        )}
-                      </div>
-
-                      {(badgesA.length > 0 || statsA.length > 0) && (
-                        <div className="mt-10 space-y-4">
-                          {badgesA.length > 0 && (
-                            <div className="flex flex-wrap gap-3">
-                              {badgesA.map((b) => (
-                                <Badge key={b}>{b}</Badge>
-                              ))}
-                            </div>
-                          )}
-                          {statsA.length > 0 && (
-                            <div className="grid grid-cols-2 gap-4 md:grid-cols-3">
-                              {statsA.map((s) => (
-                                <Stat key={s.label} label={s.label} value={s.value} hint={s.hint} />
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                      )}
-
-                      <div className="mt-10 grid grid-cols-1 gap-3 sm:grid-cols-2">
-                        <FeatureCard
-                          label="Member access"
-                          title="Pass perks"
-                          body="Early drops, private updates, and limited moments."
-                          cta="Generate"
-                          onClick={props.onOpenPass}
-                        />
-                        <FeatureCard
-                          label="Premieres"
-                          title="Official visuals"
-                          body="Cinematic releases, live sessions, and edits."
-                          href={props.videosHref ?? props.followHref}
-                          cta="Explore"
-                        />
+                        ) : null}
                       </div>
                     </div>
 
@@ -718,89 +589,26 @@ export function HeroSection(props: {
                       <h2 className="text-balance text-5xl font-semibold tracking-tighter text-white md:text-7xl">
                         {headlineB}
                       </h2>
-                      <p className="mt-6 text-pretty text-lg leading-relaxed text-white/75 md:text-xl">
-                        {subheadB}
-                      </p>
+                      <p className="mt-5 text-pretty text-lg leading-relaxed text-white/75 md:text-xl">{subheadB}</p>
 
-                      <div className="mt-8 flex flex-wrap items-center gap-4">
+                      <div className="mt-7 flex flex-wrap items-center gap-3">
                         <Button
                           variant="primary"
                           href={props.videosHref ?? props.followHref}
                           target={props.videosHref ? undefined : "_blank"}
                           iconRight={<IconArrowUpRight className="h-5 w-5" />}
                         >
-                          Enter Archive
+                          Watch
                         </Button>
-                        {props.tourHref && (
-                          <Button
-                            variant="secondary"
-                            href={props.tourHref}
-                            iconRight={<IconArrowUpRight className="h-5 w-5" />}
-                          >
-                            Tour Feed
+                        {props.tourHref ? (
+                          <Button variant="secondary" href={props.tourHref} iconRight={<IconArrowUpRight className="h-5 w-5" />}>
+                            Tour
                           </Button>
-                        )}
-                        <Button
-                          variant="ghost"
-                          onClick={props.onOpenPass}
-                          iconLeft={<IconSpark className="h-5 w-5" />}
-                        >
-                          Unlock Pass
+                        ) : null}
+                        <Button variant="ghost" onClick={props.onOpenPass} iconLeft={<IconSpark className="h-5 w-5" />}>
+                          Pass
                         </Button>
                       </div>
-
-                      <div className="mt-10 grid grid-cols-1 gap-3 sm:grid-cols-2">
-                        <FeaturePill title="Official videos" body="Music videos, visualizers, live takes, edits." />
-                        <FeaturePill title="Catalog" body="Releases with credits, highlights, and context." />
-                        <FeaturePill title="Tour moments" body="Live clips, backstage, city drops, updates." />
-                        <FeaturePill title="Community" body="Drop alerts + early links straight to you." />
-                      </div>
-
-                      <div className="mt-8 rounded-3xl bg-black/30 p-4 ring-1 ring-white/10 backdrop-blur-xl">
-                        <div className="text-[11px] uppercase tracking-[0.28em] text-white/65">Drop alerts</div>
-                        <div className="mt-1 text-[14px] font-semibold text-white">
-                          Releases, visuals & tour dates — first.
-                        </div>
-                        <div className="mt-3 flex w-full gap-2">
-                          <input
-                            value={email}
-                            onChange={(e) => setEmail(e.target.value)}
-                            placeholder="Email address"
-                            className="h-11 w-full rounded-2xl bg-white/10 px-4 text-[13px] text-white placeholder:text-white/45 ring-1 ring-white/10 outline-none focus:ring-white/25"
-                          />
-                          <button
-                            type="button"
-                            onClick={joinNewsletter}
-                            className={cx(
-                              "h-11 shrink-0 rounded-2xl px-4 text-[13px] font-semibold ring-1 transition",
-                              joinState === "ok"
-                                ? "bg-white/18 text-white ring-white/25"
-                                : "bg-white/12 text-white ring-white/12 hover:bg-white/16"
-                            )}
-                          >
-                            {joinState === "ok" ? "Joined" : "Join"}
-                          </button>
-                        </div>
-                      </div>
-
-                      {(badgesB.length > 0 || statsB.length > 0) && (
-                        <div className="mt-10 space-y-4">
-                          {badgesB.length > 0 && (
-                            <div className="flex flex-wrap gap-3">
-                              {badgesB.map((b) => (
-                                <Badge key={b}>{b}</Badge>
-                              ))}
-                            </div>
-                          )}
-                          {statsB.length > 0 && (
-                            <div className="grid grid-cols-2 gap-4 md:grid-cols-3">
-                              {statsB.map((s) => (
-                                <Stat key={s.label} label={s.label} value={s.value} hint={s.hint} />
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                      )}
                     </div>
                   </div>
                 </div>
@@ -810,76 +618,34 @@ export function HeroSection(props: {
                   {/* Rail A */}
                   <div ref={railARef}>
                     <RailCard
-                      label="Next show"
+                      label="Next"
                       title={`${nextShow.dateLabel} · ${nextShow.city}`}
                       body={nextShow.venue}
                       href={nextShow.href ?? props.tourHref}
                       cta={nextShow.href || props.tourHref ? "Tickets" : undefined}
                     />
-                    <div className="mt-4 grid grid-cols-1 gap-3">
-                      <RailCard
-                        label="Member pass"
-                        title="Access perks"
-                        body="Drops, private updates, and exclusives."
-                        onClick={props.onOpenPass}
-                        cta="Generate"
-                      />
-                      <RailCard
-                        label="Merch"
-                        title="Official shop"
-                        body="Limited pieces and vault items."
-                        href={props.shopHref}
-                        cta={props.shopHref ? "Shop" : undefined}
-                      />
-                      <RailCard
-                        label="Press kit"
-                        title="Bookings + media"
-                        body="Press highlights, photos, and contact."
-                        href={props.followHref}
-                        cta="Open"
-                      />
-                    </div>
-
-                    {(socials.length > 0 || press.length > 0) && (
-                      <div className="mt-4 rounded-3xl bg-black/26 p-4 ring-1 ring-white/10 backdrop-blur-xl">
-                        {socials.length > 0 && (
-                          <>
-                            <div className="text-[11px] uppercase tracking-[0.28em] text-white/65">Socials</div>
-                            <div className="mt-2 flex flex-wrap gap-2">
-                              {socials.map((s) => (
-                                <Button
-                                  key={s.href}
-                                  variant="ghost"
-                                  href={s.href}
-                                  target="_blank"
-                                  iconRight={<IconArrowUpRight className="h-4 w-4" />}
-                                >
-                                  {s.label}
-                                </Button>
-                              ))}
-                            </div>
-                          </>
-                        )}
-
-                        {press.length > 0 && (
-                          <>
-                            <div className="mt-4 text-[11px] uppercase tracking-[0.28em] text-white/65">
-                              Featured in
-                            </div>
-                            <div className="mt-2 flex flex-wrap gap-2">
-                              {press.map((p) => (
-                                <span
-                                  key={p}
-                                  className="rounded-full bg-white/8 px-3 py-1.5 text-[12px] font-semibold text-white/70 ring-1 ring-white/10"
-                                >
-                                  {p}
-                                </span>
-                              ))}
-                            </div>
-                          </>
-                        )}
+                    {(props.shopHref || props.videosHref) ? (
+                      <div className="mt-4 grid grid-cols-1 gap-3">
+                        {props.videosHref ? (
+                          <RailCard
+                            label="Visuals"
+                            title="Latest drops"
+                            body="Official videos and highlights."
+                            href={props.videosHref}
+                            cta="Open"
+                          />
+                        ) : null}
+                        {props.shopHref ? (
+                          <RailCard
+                            label="Shop"
+                            title="Merch"
+                            body="Limited pieces and vault items."
+                            href={props.shopHref}
+                            cta="View"
+                          />
+                        ) : null}
                       </div>
-                    )}
+                    ) : null}
                   </div>
 
                   {/* Rail B */}
@@ -887,37 +653,21 @@ export function HeroSection(props: {
                     <RailCard
                       label="Archive"
                       title="Visual world"
-                      body="Official videos, live moments, and story layers."
+                      body="Watch the catalog."
                       href={props.videosHref ?? props.followHref}
                       cta="Enter"
                     />
                     <div className="mt-4 grid grid-cols-1 gap-3">
                       <RailCard
-                        label="Catalog"
-                        title="Releases + credits"
-                        body="Tracklists, producers, features, highlights."
+                        label="Listen"
+                        title="Streaming"
+                        body="Go to the latest release."
                         href={props.listenHref}
-                        cta="Explore"
+                        cta="Open"
                       />
-                      <RailCard
-                        label="Tour feed"
-                        title="Dates + updates"
-                        body="Ticket links and city announcements."
-                        href={props.tourHref}
-                        cta={props.tourHref ? "View" : undefined}
-                      />
-                      <RailCard
-                        label="Join list"
-                        title="Drop alerts"
-                        body="Premieres, merch drops, private moments."
-                        onClick={() => {
-                          const el = rootRef.current?.querySelector(
-                            "input[placeholder='Email address']"
-                          ) as HTMLInputElement | null;
-                          el?.focus();
-                        }}
-                        cta="Join"
-                      />
+                      {props.tourHref ? (
+                        <RailCard label="Tour" title="Dates" body="Updates + ticket links." href={props.tourHref} cta="View" />
+                      ) : null}
                     </div>
                   </div>
                 </div>
@@ -974,64 +724,4 @@ function RailCard({
       </button>
     );
   return inner;
-}
-
-function FeaturePill({ title, body }: { title: string; body: string }) {
-  return (
-    <div className="rounded-3xl bg-black/26 p-4 ring-1 ring-white/10 backdrop-blur-xl">
-      <div className="text-[13px] font-semibold text-white">{title}</div>
-      <div className="mt-1 text-[12px] leading-relaxed text-white/70">{body}</div>
-    </div>
-  );
-}
-
-function FeatureCard({
-  label,
-  title,
-  body,
-  cta,
-  href,
-  onClick,
-}: {
-  label: string;
-  title: string;
-  body: string;
-  cta: string;
-  href?: string;
-  onClick?: () => void;
-}) {
-  const card = (
-    <div className="relative overflow-hidden rounded-3xl bg-black/30 p-5 ring-1 ring-white/10 backdrop-blur-xl">
-      <div
-        className="pointer-events-none absolute inset-0 opacity-70"
-        style={{
-          background:
-            "radial-gradient(700px 280px at 12% 18%, rgba(255,255,255,0.10), transparent 55%), radial-gradient(700px 280px at 88% 24%, rgba(255,255,255,0.06), transparent 55%)",
-        }}
-      />
-      <div className="relative">
-        <div className="text-[10px] uppercase tracking-[0.28em] text-white/60">{label}</div>
-        <div className="mt-1 text-[14px] font-semibold text-white">{title}</div>
-        <div className="mt-1 text-[12px] leading-relaxed text-white/70">{body}</div>
-        <div className="mt-4 inline-flex items-center gap-2 rounded-2xl bg-white/10 px-4 py-2 text-[12px] font-semibold text-white ring-1 ring-white/12">
-          {cta}
-          <IconArrowUpRight className="h-4 w-4" />
-        </div>
-      </div>
-    </div>
-  );
-
-  if (href)
-    return (
-      <a href={href} className="block">
-        {card}
-      </a>
-    );
-  if (onClick)
-    return (
-      <button type="button" onClick={onClick} className="block w-full text-left">
-        {card}
-      </button>
-    );
-  return card;
 }
