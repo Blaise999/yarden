@@ -1,4 +1,4 @@
-// LandingHeader.tsx (FULL EDIT) — overlap-safe on scroll (more solid + border + shrink)
+// LandingHeader.tsx (FULL EDIT) — chameleon preserved + overlap fixed *after* hero
 "use client";
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
@@ -29,10 +29,7 @@ function detectSafari() {
 }
 
 function useSafariInfo() {
-  const [info, setInfo] = useState<{ isSafari: boolean; isIOS: boolean }>({
-    isSafari: false,
-    isIOS: false,
-  });
+  const [info, setInfo] = useState<{ isSafari: boolean; isIOS: boolean }>({ isSafari: false, isIOS: false });
   useEffect(() => setInfo(detectSafari()), []);
   return info;
 }
@@ -289,8 +286,9 @@ export default function LandingHeader(props: LandingHeaderProps) {
 
   const t = clamp((scrollY - 24) / 520, 0, 1);
 
-  // Extra solid-ification once we’re actually into content
-  const solid = clamp((scrollY - 110) / 220, 0, 1);
+  // ✅ overlap lock starts later (after hero), so chameleon stays alive at top
+  const lockStart = 260; // push this up/down if your hero is taller/shorter
+  const lock = clamp((scrollY - lockStart) / 220, 0, 1);
 
   // Tint
   const [tint, setTint] = useState({ r: 180, g: 180, b: 200 });
@@ -335,27 +333,19 @@ export default function LandingHeader(props: LandingHeaderProps) {
     [tint]
   );
 
-  // ✅ Make the header feel “separated” from content as you scroll:
-  // - more opaque scrim
-  // - subtle hairline border
-  // - slightly stronger shadow
-  // - shrink height a bit
-  const blurPx = isSafari ? 0 : 8 + 12 * t;
-  const shadowA = 0.14 + 0.26 * t + 0.16 * solid;
+  // Chameleon glass stays; only becomes more “solid” after hero via lock
+  const baseScrim = 0.14 + 0.56 * t;
+  const scrim = clamp(baseScrim + 0.22 * lock, 0, 0.92);
 
-  // overlay opacity ramps up HARDER so you don't see text/images under it
-  const scrim = clamp(0.18 + 0.62 * t + 0.22 * solid, 0, 0.98);
+  const blurPx = isSafari ? 0 : 8 + 12 * t; // keep your glassy blur logic
+  const shadowA = 0.1 + 0.24 * t + 0.14 * lock;
 
-  // gradient endpoints also get darker (reduces “overlap” look)
-  const topA = clamp(0.84 + 0.12 * t + 0.08 * solid, 0, 0.98);
-  const midA = clamp(0.56 + 0.22 * t + 0.12 * solid, 0, 0.95);
-  const botA = clamp(0.14 + 0.18 * t + 0.10 * solid, 0, 0.7);
+  // border only shows after lock starts (separation from content)
+  const borderA = 0.02 + 0.14 * lock;
 
-  const borderA = clamp(0.06 + 0.10 * t + 0.08 * solid, 0, 0.22);
-
-  // header height shrink (prevents “overlapping slab” feeling)
-  const hMobile = Math.round(74 - 10 * t); // 74 → 64
-  const hDesktop = Math.round(82 - 12 * t); // 82 → 70
+  // height shrink keeps it from feeling like a slab over content
+  const hMobile = Math.round(74 - 8 * t - 4 * lock); // 74 → ~62
+  const hDesktop = Math.round(82 - 10 * t - 6 * lock); // 82 → ~66
 
   // logo selection
   const heroZone = t < 0.22;
@@ -367,8 +357,9 @@ export default function LandingHeader(props: LandingHeaderProps) {
   useEffect(() => setLogoOk(true), [logoSrc]);
 
   const topImg = props.heroBgSrc ?? props.tintSources?.top;
-  // only allow blend-difference very near the top so it doesn’t “fight” content later
-  const useBlendInk = t < 0.1 && !!topImg && solid < 0.15;
+
+  // ✅ restore chameleon: allow blend-difference near top (hero), disable after lock
+  const useBlendInk = t < 0.16 && !!topImg && lock < 0.5;
 
   const inkText = cx(
     "text-white",
@@ -398,37 +389,34 @@ export default function LandingHeader(props: LandingHeaderProps) {
             className="absolute inset-0"
             style={{
               opacity: scrim,
+              // ✅ keep your original gradient, just slightly deeper after lock
               background: `linear-gradient(to bottom,
-                rgba(7,7,10,${topA}),
-                rgba(7,7,10,${midA}) 55%,
-                rgba(7,7,10,${botA})
+                rgba(7,7,10,${clamp(0.9 + 0.05 * lock, 0, 0.98)}),
+                rgba(7,7,10,${clamp(0.56 + 0.12 * lock, 0, 0.9)}) 55%,
+                rgba(7,7,10,${clamp(0.16 + 0.08 * lock, 0, 0.7)})
               )`,
               ...(blurPx > 0
                 ? {
-                    backdropFilter: `blur(${blurPx}px) saturate(${1.08 + 0.12 * t})`,
-                    WebkitBackdropFilter: `blur(${blurPx}px) saturate(${1.08 + 0.12 * t})`,
+                    backdropFilter: `blur(${blurPx}px) saturate(${1.05 + 0.15 * t})`,
+                    WebkitBackdropFilter: `blur(${blurPx}px) saturate(${1.05 + 0.15 * t})`,
                   }
                 : {}),
             }}
           />
 
-          {/* tiny tint line that helps separation without looking “boxy” */}
+          {/* tint line stays subtle (helps separation when locked) */}
           <div
             className="absolute left-0 right-0 bottom-0 h-[2px]"
             style={{
-              opacity: 0.24 + 0.38 * t,
+              opacity: 0.18 + 0.26 * lock,
               background: "linear-gradient(90deg, transparent, rgb(var(--tint) / 0.65), transparent)",
             }}
           />
         </div>
 
         <div className="relative z-10 pt-[env(safe-area-inset-top)]">
-          {/* ✅ 3-column layout: left logo, centered nav, right actions */}
           <div
-            className={cx(
-              "mx-auto grid max-w-7xl items-center px-5 md:px-8",
-              "grid-cols-[auto_1fr_auto]"
-            )}
+            className={cx("mx-auto grid max-w-7xl items-center px-5 md:px-8", "grid-cols-[auto_1fr_auto]")}
             style={{ height: `${hMobile}px` } as any}
           >
             {/* LEFT */}
