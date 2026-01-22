@@ -165,13 +165,16 @@ export function HeroSection(props: {
   const [loadedCount, setLoadedCount] = useState(0);
   const loadedAOnce = useRef(false);
   const loadedBOnce = useRef(false);
-  const refreshedOnce = useRef(false);
 
   const prevProgressRef = useRef(0);
+
+  // ✅ crucial: only build ScrollTrigger AFTER images are loaded (prevents “refresh pop”)
+  const mediaReady = reducedMotion || loadedCount >= 2;
 
   useGSAP(
     () => {
       if (reducedMotion) return;
+      if (!mediaReady) return;
 
       ScrollTrigger.config({ ignoreMobileResize: true });
 
@@ -219,7 +222,7 @@ export function HeroSection(props: {
 
       gsap.set(pinEl, { willChange: "transform", force3D: true });
 
-      // Keep container stable (avoid animating borderRadius — that can repaint & stutter)
+      // Keep container stable (avoid animating borderRadius — repaints & stutters)
       gsap.set(media, {
         borderRadius: 0,
         scale: 1,
@@ -338,7 +341,10 @@ export function HeroSection(props: {
       ScrollTrigger.create({
         id: "hero-pin",
         trigger: section,
-        start: "top top",
+
+        // ✅ respect sticky header (prevents pin “snap”)
+        start: () => `top top+=${headerOffset}`,
+
         end: () => `+=${pinDistance}`,
         pin: pinEl,
         pinSpacing: true,
@@ -348,11 +354,14 @@ export function HeroSection(props: {
         // ✅ smoother + less “hang”
         scrub: 0.7,
 
-        // ✅ let ScrollTrigger drive the timeline (no manual progress writes)
+        // ✅ let ScrollTrigger drive the timeline
         animation: masterTL,
 
-        // ✅ stable in full-bleed layouts
-        pinType: "transform",
+        // ✅ helps on fast scroll/trackpad
+        fastScrollEnd: true,
+
+        // ✅ do NOT force transform pin unless you’re using scrollerProxy/Lenis
+        // pinType: "transform",
 
         // no reparenting (often causes jitter)
         pinReparent: false,
@@ -374,6 +383,13 @@ export function HeroSection(props: {
           prevProgressRef.current = p;
         },
 
+        // ✅ keep UI consistent after refresh (resize/orientation change)
+        onRefresh: (self) => {
+          const next = self.progress >= midTransition;
+          setInB(next);
+          prevProgressRef.current = self.progress;
+        },
+
         onRefreshInit: () => {
           gsap.set([media, artA, artB], { x: 0 });
         },
@@ -384,18 +400,8 @@ export function HeroSection(props: {
         ScrollTrigger.getById("hero-pin")?.kill(true);
       };
     },
-    { scope: rootRef, dependencies: [reducedMotion, pinDistance] }
+    { scope: rootRef, dependencies: [reducedMotion, pinDistance, mediaReady, headerOffset] }
   );
-
-  // refresh only once after both images load
-  useEffect(() => {
-    if (reducedMotion || loadedCount < 2 || refreshedOnce.current) return;
-    refreshedOnce.current = true;
-    requestAnimationFrame(() => {
-      ScrollTrigger.getById("hero-pin")?.refresh();
-      ScrollTrigger.refresh();
-    });
-  }, [loadedCount, reducedMotion]);
 
   const topPad = Math.max(0, headerOffset) + 24;
 
@@ -429,9 +435,6 @@ export function HeroSection(props: {
               "shadow-[0_40px_100px_rgba(0,0,0,0.75)]",
               "ring-1 ring-white/10"
             )}
-            style={{
-              transform: "translateZ(0)",
-            }}
           >
             <FloatingCursorSpotlight disabled={reducedMotion} />
 
@@ -676,7 +679,11 @@ export function HeroSection(props: {
                           Enter Archive
                         </Button>
                         {props.tourHref && (
-                          <Button variant="secondary" href={props.tourHref} iconRight={<IconArrowUpRight className="h-5 w-5" />}>
+                          <Button
+                            variant="secondary"
+                            href={props.tourHref}
+                            iconRight={<IconArrowUpRight className="h-5 w-5" />}
+                          >
                             Tour Feed
                           </Button>
                         )}
@@ -894,7 +901,12 @@ function RailCard({
     </div>
   );
 
-  if (href) return <a href={href} className="block">{inner}</a>;
+  if (href)
+    return (
+      <a href={href} className="block">
+        {inner}
+      </a>
+    );
   if (onClick)
     return (
       <button type="button" onClick={onClick} className="block w-full text-left">
@@ -949,7 +961,12 @@ function FeatureCard({
     </div>
   );
 
-  if (href) return <a href={href} className="block">{card}</a>;
+  if (href)
+    return (
+      <a href={href} className="block">
+        {card}
+      </a>
+    );
   if (onClick)
     return (
       <button type="button" onClick={onClick} className="block w-full text-left">
