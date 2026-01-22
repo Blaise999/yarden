@@ -9,6 +9,7 @@ import { ScrollTrigger } from "gsap/ScrollTrigger";
 import {
   Badge,
   Button,
+  Card,
   IconArrowUpRight,
   IconClose,
   IconPlay,
@@ -251,7 +252,12 @@ function useLockBodyScroll(locked: boolean) {
 
 function IconExpand(props: { className?: string }) {
   return (
-    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" className={props.className}>
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      aria-hidden="true"
+      className={props.className}
+    >
       <path
         d="M9 4H5a1 1 0 0 0-1 1v4m0 6v4a1 1 0 0 0 1 1h4m6-16h4a1 1 0 0 1 1 1v4m0 6v4a1 1 0 0 1-1 1h-4"
         stroke="currentColor"
@@ -314,13 +320,7 @@ function SmartThumbFitStack(props: {
   return (
     <div className="absolute inset-0">
       <div className="absolute inset-0 scale-[1.08] blur-[18px] opacity-[0.55]">
-        <SmartThumb
-          candidates={props.candidates}
-          fallback={props.fallback}
-          alt={props.alt}
-          priority={props.priority}
-          fit="cover"
-        />
+        <SmartThumb candidates={props.candidates} fallback={props.fallback} alt={props.alt} priority={props.priority} fit="cover" />
       </div>
       <div className="absolute inset-0">
         <SmartThumb
@@ -434,7 +434,9 @@ function WatchOverlay(props: {
         <div
           className={cx(
             "relative w-full overflow-hidden ring-1 ring-white/10 bg-[#0B0F14]",
-            isMobile ? "h-full" : "max-w-5xl rounded-[28px] shadow-[0_35px_110px_rgba(0,0,0,0.75)]"
+            isMobile
+              ? "h-full"
+              : "max-w-5xl rounded-[28px] shadow-[0_35px_110px_rgba(0,0,0,0.75)]"
           )}
         >
           {/* top bar */}
@@ -487,20 +489,23 @@ function WatchOverlay(props: {
           <div ref={shellRef} className={cx("relative w-full bg-black", isMobile ? "flex-1" : "")}>
             <div className={cx("relative w-full", isMobile ? "h-full" : "aspect-video")}>
               <div className={cx("absolute inset-0 transition-opacity", iframeReady ? "opacity-0" : "opacity-100")}>
-                <SmartThumbFitStack candidates={props.item.thumbs} fallback={props.item.fallback} alt={props.item.title} />
+                <SmartThumbFitStack
+                  candidates={props.item.thumbs}
+                  fallback={props.item.fallback}
+                  alt={props.item.title}
+                />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/65 via-black/20 to-transparent" />
               </div>
 
               {props.embedSrc ? (
                 <iframe
                   ref={iframeRef}
-                  src={
-                    props.embedSrc.includes("?")
-                      ? `${props.embedSrc}&autoplay=${autoplay}`
-                      : `${props.embedSrc}?autoplay=${autoplay}`
-                  }
+                  src={props.embedSrc.includes("?") ? `${props.embedSrc}&autoplay=${autoplay}` : `${props.embedSrc}?autoplay=${autoplay}`}
                   title={props.item.title}
-                  className={cx("absolute inset-0 h-full w-full transition-opacity", iframeReady ? "opacity-100" : "opacity-0")}
+                  className={cx(
+                    "absolute inset-0 h-full w-full transition-opacity",
+                    iframeReady ? "opacity-100" : "opacity-0"
+                  )}
                   onLoad={() => setIframeReady(true)}
                   allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share; fullscreen"
                   allowFullScreen
@@ -601,6 +606,7 @@ export function VisualsSection(props?: {
   const [active, setActive] = useState<ResolvedItem | null>(null);
 
   const [spotIdx, setSpotIdx] = useState(0);
+
   const [heroPreviewReady, setHeroPreviewReady] = useState(false);
 
   const pauseAutoRef = useRef<(() => void) | null>(null);
@@ -793,27 +799,28 @@ export function VisualsSection(props?: {
 
             {/* ✅ smaller padding on mobile so the hero looks bigger */}
             <div className="relative z-[2] p-4 sm:p-5 md:p-7">
-              <div className="grid gap-5 lg:grid-cols-12 lg:items-start">
+              <div className="grid gap-5 lg:grid-cols-12 lg:items-stretch">
                 {/* HERO */}
                 <button
                   type="button"
                   onClick={() => openPlayer(spotlight)}
                   className={cx(
-                    "group relative overflow-hidden rounded-[26px] bg-white/[0.03] ring-1 ring-white/12 text-left",
+                    "group relative overflow-hidden rounded-[26px] bg-white/[0.035] ring-1 ring-white/12 text-left",
                     "shadow-[0_18px_55px_rgba(0,0,0,0.55)]",
                     "outline-none focus-visible:ring-2 focus-visible:ring-white/30",
-                    "lg:col-span-8"
+                    "lg:col-span-8 lg:h-full"
                   )}
                   data-hero="1"
                 >
                   <div className="relative h-full">
-                    {/* ✅ Changed to 16:9 on mobile/tablet for much less vertical height, square only on desktop */}
+                    {/* ✅ bigger mobile viewing area */}
                     <div
                       ref={heroMediaRef}
                       className={cx(
                         "relative overflow-hidden bg-black",
-                        "aspect-video lg:aspect-square",
-                        "w-full max-w-xl mx-auto lg:w-full lg:max-w-[640px] lg:mx-auto"
+                        "aspect-[16/9]",
+                        "sm:aspect-video",
+                        "lg:aspect-auto lg:h-full"
                       )}
                     >
                       {/* ✅ Mobile: show full thumbnail (contain), Desktop: cover */}
@@ -868,7 +875,8 @@ export function VisualsSection(props?: {
                         ref={heroGlowRef}
                         className="pointer-events-none absolute inset-0 opacity-0"
                         style={{
-                          background: "radial-gradient(circle at 30% 20%, rgba(255,255,255,0.16), rgba(255,255,255,0.00) 60%)",
+                          background:
+                            "radial-gradient(circle at 30% 20%, rgba(255,255,255,0.16), rgba(255,255,255,0.00) 60%)",
                         }}
                       />
 
@@ -893,24 +901,22 @@ export function VisualsSection(props?: {
                       </div>
                     </div>
 
-                    {/* meta BELOW the media (aligned to same max width) */}
+                    {/* meta BELOW the visual (clean + compact) */}
                     <div className="px-4 pb-4 pt-4">
-                      <div className="mx-auto max-w-xl lg:mx-auto lg:max-w-[640px]">
-                        <div className="flex items-start justify-between gap-3">
-                          <div className="min-w-0">
-                            <div className="truncate text-[18px] font-semibold text-white">{spotlight.title}</div>
-                            <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-white/55">
-                              <span>{spotlight.kind}</span>
-                              <span className="opacity-60">•</span>
-                              <span>{spotlight.year}</span>
-                            </div>
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <div className="truncate text-[18px] font-semibold text-white">{spotlight.title}</div>
+                          <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-white/55">
+                            <span>{spotlight.kind}</span>
+                            <span className="opacity-60">•</span>
+                            <span>{spotlight.year}</span>
                           </div>
+                        </div>
 
-                          <div className="shrink-0">
-                            <div className="inline-flex items-center gap-2 rounded-full bg-white/[0.05] px-3 py-2 text-xs text-white/80 ring-1 ring-white/10">
-                              Watch
-                              <IconArrowUpRight className="h-4 w-4 opacity-80" />
-                            </div>
+                        <div className="shrink-0">
+                          <div className="inline-flex items-center gap-2 rounded-full bg-white/[0.05] px-3 py-2 text-xs text-white/80 ring-1 ring-white/10">
+                            Watch
+                            <IconArrowUpRight className="h-4 w-4 opacity-80" />
                           </div>
                         </div>
                       </div>
@@ -919,7 +925,7 @@ export function VisualsSection(props?: {
                 </button>
 
                 {/* RIGHT COLUMN (desktop) */}
-                <div className="hidden lg:block lg:col-span-4">
+                <div className="hidden lg:block lg:col-span-4 lg:h-full">
                   <div className="flex items-center justify-between">
                     <div className="text-sm font-semibold text-white">Up next</div>
                     <div className="text-xs text-white/45">Auto-rotates</div>
@@ -943,8 +949,7 @@ export function VisualsSection(props?: {
                           "hover:bg-white/[0.05] transition"
                         )}
                       >
-                        {/* ✅ square thumb */}
-                        <div className="relative h-16 w-16 overflow-hidden rounded-xl ring-1 ring-white/10 bg-black">
+                        <div className="relative h-16 w-24 overflow-hidden rounded-xl ring-1 ring-white/10 bg-black">
                           <SmartThumb candidates={v.thumbs} fallback={v.fallback} alt={`Yarden — ${v.title}`} fit="cover" />
                           <div className="absolute inset-0 bg-gradient-to-t from-black/55 via-transparent to-transparent" />
                         </div>
@@ -985,8 +990,7 @@ export function VisualsSection(props?: {
                           "hover:bg-white/[0.05] transition"
                         )}
                       >
-                        {/* ✅ square mini tiles */}
-                        <div className="relative aspect-square bg-black">
+                        <div className="relative aspect-[16/10] bg-black">
                           <SmartThumb candidates={v.thumbs} fallback={v.fallback} alt={`Yarden — ${v.title}`} fit="cover" />
                           <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent" />
                           <div className="absolute left-3 top-3">
@@ -1007,14 +1011,14 @@ export function VisualsSection(props?: {
                   </div>
                 </div>
 
-                {/* ✅ MOBILE: Up next becomes horizontal scroll */}
+                {/* ✅ MOBILE: Up next becomes horizontal scroll (saves vertical space, hero looks bigger) */}
                 <div className="lg:hidden">
                   <div className="mt-2 flex items-center justify-between px-1">
                     <div className="text-sm font-semibold text-white">Up next</div>
                     <div className="text-xs text-white/45">On rotation</div>
                   </div>
 
-                  <div className="mt-3 flex gap-3 overflow-x-auto pb-4 pl-4 pr-12 snap-x [-webkit-overflow-scrolling:touch]">
+                  <div className="mt-3 flex gap-3 overflow-x-auto pb-1 [-webkit-overflow-scrolling:touch]">
                     {upNext.map((v) => (
                       <button
                         key={`${v._key}-m`}
@@ -1028,12 +1032,11 @@ export function VisualsSection(props?: {
                           }
                         }}
                         className={cx(
-                          "shrink-0 w-[300px] snap-start rounded-2xl bg-white/[0.03] ring-1 ring-white/10 text-left",
+                          "shrink-0 w-[260px] rounded-2xl bg-white/[0.03] ring-1 ring-white/10 text-left",
                           "hover:bg-white/[0.05] transition"
                         )}
                       >
-                        {/* ✅ Changed to 16:9 for consistency with spotlight on mobile */}
-                        <div className="relative aspect-video overflow-hidden rounded-t-2xl bg-black">
+                        <div className="relative aspect-[16/9] overflow-hidden rounded-t-2xl bg-black">
                           <SmartThumb candidates={v.thumbs} fallback={v.fallback} alt={`Yarden — ${v.title}`} fit="cover" />
                           <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent" />
                           <div className="absolute left-3 top-3">
@@ -1069,7 +1072,7 @@ export function VisualsSection(props?: {
       <WatchOverlay
         open={open}
         item={active}
-        embedSrc={embedSrc}
+        embedSrc={active?.yt ? buildEmbedSrc(active.yt, reducedMotion ? 0 : 1) : null}
         onClose={() => {
           setOpen(false);
           setActive(null);
