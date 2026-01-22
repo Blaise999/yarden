@@ -1,17 +1,16 @@
 // src/components/landing/VisualsSection.tsx
 "use client";
 
-import React, { useLayoutEffect, useMemo, useRef, useState } from "react";
-
+import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 
 import {
   Button,
+  Card,
   IconArrowUpRight,
   IconClose,
   IconPlay,
-  Modal,
   Pill,
   SectionHeader,
   cx,
@@ -74,7 +73,6 @@ const DEFAULT_ITEMS: VisualItem[] = [
 
 type YTTarget = { kind: "video"; id: string } | { kind: "playlist"; id: string };
 
-// ⚠️ removed “live/<id>” handling (as requested)
 function getYTTarget(url: string): YTTarget | null {
   try {
     const u = new URL(url);
@@ -128,7 +126,6 @@ function getYTVideoIdForThumb(url: string): string | null {
   }
 }
 
-// inline fallback so it ALWAYS works (no local images needed)
 function svgFallbackDataUrl(label: string) {
   const safe = (label || "YARDEN").toUpperCase().slice(0, 18);
   const svg = `
@@ -142,20 +139,11 @@ function svgFallbackDataUrl(label: string) {
         <stop offset="0" stop-color="rgba(255,255,255,.14)"/>
         <stop offset="1" stop-color="rgba(255,255,255,0)"/>
       </radialGradient>
-      <filter id="grain">
-        <feTurbulence type="fractalNoise" baseFrequency=".8" numOctaves="3" stitchTiles="stitch"/>
-        <feColorMatrix type="matrix" values="
-          1 0 0 0 0
-          0 1 0 0 0
-          0 0 1 0 0
-          0 0 0 .18 0"/>
-      </filter>
     </defs>
     <rect width="1200" height="675" fill="url(#g)"/>
     <rect width="1200" height="675" fill="url(#r)"/>
-    <rect width="1200" height="675" filter="url(#grain)" opacity=".18"/>
     <g opacity=".9">
-      <path d="M520 290 L520 385 L615 337.5 Z" fill="rgba(255,255,255,.85)"/>
+      <path d="M520 290 L520 385 L615 337.5 Z" fill="rgba(255,255,255,.9)"/>
     </g>
     <text x="60" y="600" font-family="ui-sans-serif, system-ui" font-size="42" fill="rgba(255,255,255,.72)" letter-spacing="6">
       ${safe}
@@ -222,13 +210,14 @@ type ResolvedItem = VisualItem & {
 };
 
 function buildEmbedSrc(t: YTTarget, autoplay: 0 | 1) {
+  // NOTE: autoplay may still be blocked by some mobile browsers unless muted.
+  // But because the open happens on a user click, this works in many cases.
   if (t.kind === "video") {
     return `https://www.youtube-nocookie.com/embed/${t.id}?autoplay=${autoplay}&rel=0&modestbranding=1&playsinline=1`;
   }
   return `https://www.youtube-nocookie.com/embed/videoseries?list=${t.id}&autoplay=${autoplay}&rel=0&modestbranding=1&playsinline=1`;
 }
 
-// desktop-only spotlight preview (muted, no controls, loops)
 function buildPreviewSrc(t: YTTarget | null) {
   if (!t || t.kind !== "video") return null;
   const id = t.id;
@@ -249,6 +238,239 @@ function buildPreviewSrc(t: YTTarget | null) {
   return `https://www.youtube-nocookie.com/embed/${id}?${params.toString()}`;
 }
 
+function IconExpand(props: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" className={props.className} aria-hidden="true">
+      <path
+        d="M9 4H4v5M15 4h5v5M9 20H4v-5M15 20h5v-5"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function useIsMobile(breakpointPx = 1024) {
+  const [isMobile, setIsMobile] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia(`(max-width:${breakpointPx - 1}px)`);
+    const apply = () => setIsMobile(mq.matches);
+    apply();
+    mq.addEventListener?.("change", apply);
+    return () => mq.removeEventListener?.("change", apply);
+  }, [breakpointPx]);
+  return isMobile;
+}
+
+function useLockBodyScroll(locked: boolean) {
+  useEffect(() => {
+    if (!locked) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, [locked]);
+}
+
+function WatchOverlay(props: {
+  open: boolean;
+  item: ResolvedItem | null;
+  embedSrc: string | null;
+  onClose: () => void;
+}) {
+  const reducedMotion = usePrefersReducedMotion();
+  const isMobile = useIsMobile(1024);
+
+  const [iframeReady, setIframeReady] = useState(false);
+  const shellRef = useRef<HTMLDivElement | null>(null);
+
+  useLockBodyScroll(props.open);
+
+  // reset iframe fade whenever item changes
+  useEffect(() => {
+    setIframeReady(false);
+  }, [props.item?._key]);
+
+  // ESC closes
+  useEffect(() => {
+    if (!props.open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") props.onClose();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [props.open, props.onClose]);
+
+  if (!props.open || !props.item) return null;
+
+  const requestFullscreen = async () => {
+    const el = shellRef.current;
+    if (!el) return;
+
+    try {
+      // exit if already fullscreen
+      if (document.fullscreenElement) {
+        await document.exitFullscreen();
+        return;
+      }
+
+      // standard + webkit fallback
+      const anyEl = el as any;
+      const req = el.requestFullscreen?.bind(el) || anyEl.webkitRequestFullscreen?.bind(el);
+      if (req) await req();
+    } catch {
+      // ignore (some browsers block/deny)
+    }
+  };
+
+  const showAutoplay: 0 | 1 = !reducedMotion ? 1 : 0;
+
+  return (
+    <div className="fixed inset-0 z-[100]">
+      {/* backdrop */}
+      <button
+        type="button"
+        aria-label="Close"
+        onClick={props.onClose}
+        className="absolute inset-0 bg-black/60 backdrop-blur-xl"
+      />
+
+      {/* container */}
+      <div
+        className={cx(
+          "absolute inset-0",
+          "flex",
+          isMobile ? "flex-col" : "items-center justify-center p-6"
+        )}
+      >
+        <div
+          className={cx(
+            "relative w-full overflow-hidden ring-1 ring-white/10 bg-[#0B0F14]",
+            isMobile ? "h-full" : "max-w-5xl rounded-[28px] shadow-[0_35px_110px_rgba(0,0,0,0.75)]"
+          )}
+        >
+          {/* top bar */}
+          <div
+            className={cx(
+              "relative z-[2] flex items-center justify-between gap-3",
+              "px-4 py-3",
+              "bg-black/35 ring-1 ring-white/10 backdrop-blur-xl"
+            )}
+          >
+            <div className="min-w-0">
+              <div className="truncate text-sm font-semibold text-white">{props.item.title}</div>
+              <div className="mt-0.5 flex flex-wrap items-center gap-2 text-xs text-white/55">
+                <span>{props.item.kind}</span>
+                <span className="opacity-50">•</span>
+                <span>{props.item.year}</span>
+                {props.item.tag ? (
+                  <>
+                    <span className="opacity-50">•</span>
+                    <span className="text-white/75">{props.item.tag}</span>
+                  </>
+                ) : null}
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={requestFullscreen}
+                className={cx(
+                  "inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-xs",
+                  "bg-white/[0.06] text-white/80 ring-1 ring-white/12",
+                  "hover:bg-white/[0.10] hover:text-white transition"
+                )}
+              >
+                <IconExpand className="h-4 w-4" />
+                Full screen
+              </button>
+
+              <button
+                type="button"
+                onClick={props.onClose}
+                className={cx(
+                  "inline-flex items-center justify-center rounded-full p-2",
+                  "bg-white/[0.06] text-white/80 ring-1 ring-white/12",
+                  "hover:bg-white/[0.10] hover:text-white transition"
+                )}
+                aria-label="Close"
+              >
+                <IconClose className="h-5 w-5" />
+              </button>
+            </div>
+          </div>
+
+          {/* video shell */}
+          <div ref={shellRef} className={cx("relative w-full bg-black", isMobile ? "flex-1" : "")}>
+            <div className={cx("relative w-full", isMobile ? "h-full" : "aspect-video")}>
+              {/* placeholder thumb while iframe loads */}
+              <div
+                className={cx(
+                  "absolute inset-0 transition-opacity",
+                  iframeReady ? "opacity-0" : "opacity-100"
+                )}
+              >
+                <SmartThumb
+                  candidates={props.item.thumbs}
+                  fallback={props.item.fallback}
+                  alt={props.item.title}
+                  className="opacity-90"
+                  priority
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/65 via-black/20 to-transparent" />
+              </div>
+
+              {props.embedSrc ? (
+                <iframe
+                  src={props.embedSrc.replace("autoplay=0", `autoplay=${showAutoplay}`)}
+                  title={props.item.title}
+                  className={cx("absolute inset-0 h-full w-full transition-opacity", iframeReady ? "opacity-100" : "opacity-0")}
+                  onLoad={() => setIframeReady(true)}
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                  allowFullScreen
+                />
+              ) : (
+                <div className="grid h-full w-full place-items-center p-6 text-sm text-white/70">
+                  This link can’t be embedded. Use “Open on YouTube”.
+                </div>
+              )}
+            </div>
+
+            {/* bottom actions (mobile sticky) */}
+            <div
+              className={cx(
+                "relative z-[2] flex flex-wrap items-center gap-2",
+                "px-4 py-4",
+                "bg-black/35 ring-1 ring-white/10 backdrop-blur-xl",
+                isMobile ? "sticky bottom-0" : ""
+              )}
+            >
+              {props.item.href ? (
+                <Button
+                  variant="secondary"
+                  href={props.item.href}
+                  target="_blank"
+                  iconRight={<IconArrowUpRight className="h-4 w-4" />}
+                >
+                  Open on YouTube
+                </Button>
+              ) : null}
+
+              <Button variant="ghost" onClick={props.onClose}>
+                Close
+              </Button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 gsap.registerPlugin(ScrollTrigger);
 
 export function VisualsSection(props?: {
@@ -267,6 +489,7 @@ export function VisualsSection(props?: {
   maxItems?: number;
 }) {
   const reducedMotion = usePrefersReducedMotion();
+  const isMobile = useIsMobile(1024);
 
   const id = props?.id ?? "watch";
 
@@ -289,9 +512,8 @@ export function VisualsSection(props?: {
 
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState<ResolvedItem | null>(null);
-  const [iframeReady, setIframeReady] = useState(false);
-
   const [spotIdx, setSpotIdx] = useState(0);
+
   const [heroPreviewReady, setHeroPreviewReady] = useState(false);
 
   const items = useMemo<ResolvedItem[]>(() => {
@@ -311,6 +533,7 @@ export function VisualsSection(props?: {
 
   const safeSpotIdx = Math.min(spotIdx, Math.max(0, items.length - 1));
   const spotlight = items[safeSpotIdx] ?? items[0];
+  const upNext = items.filter((_, i) => i !== safeSpotIdx);
 
   const openPlayer = (item: ResolvedItem) => {
     if (!item?.yt) {
@@ -318,16 +541,14 @@ export function VisualsSection(props?: {
       return;
     }
     setActive(item);
-    setIframeReady(false);
     setOpen(true);
   };
 
-  // reset desktop preview readiness each time spotlight changes
   useLayoutEffect(() => {
     setHeroPreviewReady(false);
   }, [spotIdx]);
 
-  // spotlight transition (scan + punchy but clean)
+  // spotlight transition (scan + clean punch)
   useLayoutEffect(() => {
     if (reducedMotion) return;
 
@@ -339,15 +560,18 @@ export function VisualsSection(props?: {
     const tl = gsap.timeline({ defaults: { ease: "power3.out" } });
 
     tl.set(scan, { opacity: 0, xPercent: -140 });
-    tl.to(glow, { opacity: 1, duration: 0.2 }, 0);
-    tl.to(media, { scale: 1.015, duration: 0.28 }, 0);
-    tl.to(scan, { opacity: 1, duration: 0.06, ease: "power1.out" }, 0.05);
+    tl.to(glow, { opacity: 1, duration: 0.22 }, 0);
+    tl.to(media, { scale: 1.02, duration: 0.32 }, 0);
+    tl.to(scan, { opacity: 1, duration: 0.06, ease: "power1.out" }, 0.06);
     tl.to(scan, { xPercent: 140, duration: 0.42, ease: "power2.out" }, 0.08);
-    tl.to(scan, { opacity: 0, duration: 0.18 }, 0.3);
-    tl.to(media, { scale: 1.0, duration: 0.5 }, 0.16);
-    tl.to(glow, { opacity: 0.55, duration: 0.6 }, 0.2);
+    tl.to(scan, { opacity: 0, duration: 0.2 }, 0.32);
+    tl.to(media, { scale: 1.0, duration: 0.5, ease: "power3.out" }, 0.18);
+    tl.to(glow, { opacity: 0.55, duration: 0.6 }, 0.22);
 
-    return () => tl.kill();
+    // ✅ IMPORTANT: cleanup must return void (fixes ts(2345))
+    return () => {
+      tl.kill(); // block body => void
+    };
   }, [spotIdx, reducedMotion]);
 
   // enter reveal + auto-cycle while in view
@@ -361,20 +585,16 @@ export function VisualsSection(props?: {
     const ctx = gsap.context(() => {
       const hero = stage.querySelector<HTMLElement>("[data-hero='1']");
       const railItems = Array.from(stage.querySelectorAll<HTMLElement>("[data-rail-item='1']"));
-      const mobileCards = Array.from(stage.querySelectorAll<HTMLElement>("[data-mobile-card='1']"));
 
       if (!hero) return;
 
-      gsap.set(hero, { opacity: 0, y: 22, scale: 1.015, filter: "blur(10px)" });
-      gsap.set(railItems, { opacity: 0, x: 16, rotateY: -10, filter: "blur(8px)" });
-      gsap.set(mobileCards, { opacity: 0, y: 14, filter: "blur(8px)" });
+      gsap.set(hero, { opacity: 0, y: 24, scale: 1.02, filter: "blur(10px)" });
+      gsap.set(railItems, { opacity: 0, x: 18, rotateY: -12, filter: "blur(8px)" });
 
       const tl = gsap.timeline({ paused: true, defaults: { ease: "power3.out" } });
-
       tl.to(hero, { opacity: 1, y: 0, scale: 1, filter: "blur(0px)", duration: 0.75 });
       tl.to({}, { duration: 0.25 });
-      tl.to(railItems, { opacity: 1, x: 0, rotateY: 0, filter: "blur(0px)", duration: 0.55, stagger: 0.05 }, "-=0.1");
-      tl.to(mobileCards, { opacity: 1, y: 0, filter: "blur(0px)", duration: 0.55, stagger: 0.05 }, "-=0.35");
+      tl.to(railItems, { opacity: 1, x: 0, rotateY: 0, filter: "blur(0px)", duration: 0.6, stagger: 0.06 }, "-=0.1");
 
       ScrollTrigger.create({
         trigger: stage,
@@ -383,7 +603,6 @@ export function VisualsSection(props?: {
         onEnter: () => tl.play(),
       });
 
-      // auto-cycle start/stop in viewport
       let timer: number | null = null;
 
       const start = () => {
@@ -409,7 +628,6 @@ export function VisualsSection(props?: {
         onLeaveBack: stop,
       });
 
-      // pause auto briefly after user actions
       let userPause: number | null = null;
       const pauseAutoBriefly = () => {
         stop();
@@ -429,10 +647,13 @@ export function VisualsSection(props?: {
       };
     }, rootRef);
 
-    return () => ctx.revert();
+    // ✅ IMPORTANT: cleanup must return void
+    return () => {
+      ctx.revert();
+    };
   }, [reducedMotion, items.length, cycleMs]);
 
-  const autoplay: 0 | 1 = reducedMotion ? 0 : 1;
+  const autoplay: 0 | 1 = !reducedMotion && open ? 1 : 0;
   const embedSrc = active?.yt ? buildEmbedSrc(active.yt, autoplay) : null;
 
   const previewSrc = buildPreviewSrc(spotlight?.yt ?? null);
@@ -440,58 +661,66 @@ export function VisualsSection(props?: {
 
   return (
     <section id={id} className="relative py-20 md:py-24">
-      {/* split padding: header stays padded, stage can go edge-to-edge on mobile */}
-      <div ref={rootRef} className="mx-auto max-w-7xl">
-        <div className="px-5 md:px-8">
-          <SectionHeader
-            eyebrow={props?.eyebrow ?? "Watch"}
-            title={props?.title ?? "Visuals"}
-            desc={props?.desc ?? "Featured first. Then the queue — tap any clip to play right here."}
-            right={
-              <div className="flex flex-wrap gap-2">
-                <Button variant="secondary" href={channelHref} target="_blank" iconRight={<IconArrowUpRight className="h-4 w-4" />}>
-                  YouTube
-                </Button>
-                <Button variant="ghost" href={videosHref} target="_blank" iconRight={<IconArrowUpRight className="h-4 w-4" />}>
-                  All videos
-                </Button>
-                <Button variant="ghost" href={playlistsHref} target="_blank" iconRight={<IconArrowUpRight className="h-4 w-4" />}>
-                  Playlists
-                </Button>
-              </div>
-            }
-          />
-        </div>
+      <div ref={rootRef} className="mx-auto max-w-7xl px-5 md:px-8">
+        <SectionHeader
+          eyebrow={props?.eyebrow ?? "Visuals"}
+          title={props?.title ?? "Watch the visuals."}
+          desc={props?.desc ?? "Spotlight first — then the queue. Tap to play instantly, or open full screen."}
+          right={
+            <div className="flex flex-wrap gap-2">
+              <Button
+                variant="secondary"
+                href={channelHref}
+                target="_blank"
+                iconRight={<IconArrowUpRight className="h-4 w-4" />}
+              >
+                YouTube
+              </Button>
+              <Button
+                variant="ghost"
+                href={videosHref}
+                target="_blank"
+                iconRight={<IconArrowUpRight className="h-4 w-4" />}
+              >
+                Videos
+              </Button>
+              <Button
+                variant="ghost"
+                href={playlistsHref}
+                target="_blank"
+                iconRight={<IconArrowUpRight className="h-4 w-4" />}
+              >
+                Playlists
+              </Button>
+            </div>
+          }
+        />
 
-        {/* STAGE (edge-to-edge on mobile, framed from md+) */}
-        <div ref={stageRef} className="mt-8 md:mt-10 md:px-8">
+        {/* STAGE (full-bleed on mobile so hero feels BIG) */}
+        <div ref={stageRef} className="mt-10">
           <div
             className={cx(
-              "relative overflow-hidden",
-              "rounded-none md:rounded-[36px]",
-              "bg-transparent md:bg-white/[0.03]",
-              "md:ring-1 md:ring-white/10",
-              "shadow-none md:shadow-[0_24px_70px_rgba(0,0,0,0.55)]"
+              "relative overflow-hidden bg-white/[0.03] ring-1 ring-white/10",
+              "shadow-[0_24px_70px_rgba(0,0,0,0.55)]",
+              "-mx-5 sm:mx-0",
+              "rounded-[26px] sm:rounded-[32px] md:rounded-[36px]"
             )}
           >
-            {/* subtle atmosphere (desktop mostly) */}
-            <div className="pointer-events-none absolute inset-0 hidden md:block bg-[radial-gradient(circle_at_30%_10%,rgba(255,255,255,0.10),rgba(0,0,0,0)_60%)]" />
-            <div className="pointer-events-none absolute inset-0 hidden md:block bg-gradient-to-r from-black/45 via-transparent to-black/45" />
+            <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_30%_10%,rgba(255,255,255,0.10),rgba(0,0,0,0)_60%)]" />
+            <div className="pointer-events-none absolute inset-0 bg-gradient-to-r from-black/40 via-transparent to-black/40" />
 
-            <div className="relative z-[2] p-0 md:p-7">
-              <div className="grid gap-0 lg:grid-cols-12 lg:gap-6 lg:items-stretch">
-                {/* HERO (go big on mobile) */}
+            <div className="relative z-[2] p-3 sm:p-5 md:p-7">
+              <div className="grid gap-5 lg:grid-cols-12 lg:items-stretch">
+                {/* HERO */}
                 <button
                   type="button"
                   onClick={() => openPlayer(spotlight)}
                   className={cx(
-                    "group relative w-full overflow-hidden text-left",
-                    // remove the “card-in-card” feeling on mobile
-                    "rounded-none lg:rounded-[28px]",
-                    "bg-black/10 lg:bg-white/[0.035]",
-                    "ring-0 lg:ring-1 lg:ring-white/12",
-                    "shadow-none lg:shadow-[0_18px_55px_rgba(0,0,0,0.55)]",
+                    "group relative overflow-hidden text-left",
+                    "bg-white/[0.035] ring-1 ring-white/12",
+                    "shadow-[0_18px_55px_rgba(0,0,0,0.55)]",
                     "outline-none focus-visible:ring-2 focus-visible:ring-white/30",
+                    "rounded-[22px] sm:rounded-[26px] md:rounded-[28px]",
                     "lg:col-span-8 lg:h-full"
                   )}
                   data-hero="1"
@@ -501,30 +730,20 @@ export function VisualsSection(props?: {
                       ref={heroMediaRef}
                       className={cx(
                         "relative overflow-hidden",
-                        // BIG viewing area on mobile
-                        "h-[52svh] min-h-[320px] max-h-[560px]",
-                        // keep classic shape on tablets
-                        "md:h-auto md:aspect-video",
-                        // fill on desktop grid
+                        // ✅ bigger on mobile: tall “poster” feel, still cinematic on larger screens
+                        "aspect-[4/5] sm:aspect-video",
                         "lg:aspect-auto lg:h-full"
                       )}
                     >
-                      {/* base thumbnail */}
                       <SmartThumb
                         candidates={spotlight.thumbs}
                         fallback={spotlight.fallback}
                         alt={`Yarden — ${spotlight.title}`}
                         priority
                         onSettled={() => (ScrollTrigger as any)?.refresh?.()}
-                        className="scale-[1.02]"
                       />
 
-                      {/* unify chaotic thumbs (subtle matte + vignette) */}
-                      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_25%,rgba(255,255,255,0.12),rgba(0,0,0,0.00)_55%)]" />
-                      <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/70 via-black/12 to-black/0" />
-                      <div className="pointer-events-none absolute inset-0 bg-gradient-to-r from-black/18 via-transparent to-black/18" />
-
-                      {/* desktop premiere preview */}
+                      {/* desktop premiere preview (muted) */}
                       {showDesktopPreview ? (
                         <div
                           className={cx(
@@ -542,13 +761,12 @@ export function VisualsSection(props?: {
                         </div>
                       ) : null}
 
-                      {/* scan + glow accent (light) */}
                       <div
                         ref={heroScanRef}
                         className="pointer-events-none absolute inset-0 opacity-0"
                         style={{
                           background:
-                            "linear-gradient(90deg, rgba(255,255,255,0.00) 0%, rgba(255,255,255,0.16) 45%, rgba(255,255,255,0.00) 70%)",
+                            "linear-gradient(90deg, rgba(255,255,255,0.00) 0%, rgba(255,255,255,0.18) 45%, rgba(255,255,255,0.00) 70%)",
                           mixBlendMode: "screen",
                         }}
                       />
@@ -556,307 +774,197 @@ export function VisualsSection(props?: {
                         ref={heroGlowRef}
                         className="pointer-events-none absolute inset-0 opacity-0"
                         style={{
-                          background: "radial-gradient(circle at 30% 20%, rgba(255,255,255,0.14), rgba(255,255,255,0.00) 60%)",
+                          background:
+                            "radial-gradient(circle at 30% 20%, rgba(255,255,255,0.16), rgba(255,255,255,0.00) 60%)",
                         }}
                       />
 
-                      {/* mobile/desktop play badge (center) */}
-                      <div className="pointer-events-none absolute inset-0 grid place-items-center">
-                        <div
-                          className={cx(
-                            "rounded-full px-4 py-3 backdrop-blur-xl",
-                            "bg-black/45 ring-1 ring-white/12",
-                            "text-white/90",
-                            "shadow-[0_20px_60px_rgba(0,0,0,0.55)]"
-                          )}
-                        >
-                          <div className="flex items-center gap-2 text-sm font-semibold">
-                            <IconPlay className="h-4 w-4" />
-                            Watch
-                          </div>
-                        </div>
-                      </div>
+                      {/* cinematic overlay */}
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/18 to-transparent" />
 
-                      {/* desktop top pills only (don’t steal mobile space) */}
-                      <div className="absolute left-5 top-5 hidden md:flex items-center gap-2">
+                      {/* top pills */}
+                      <div className="absolute left-4 top-4 flex flex-wrap items-center gap-2 sm:left-5 sm:top-5">
                         <Pill tone="brand" className="gap-2">
                           <IconPlay className="h-4 w-4" />
-                          Featured
+                          Watch
                         </Pill>
                         <Pill tone="muted">{spotlight.kind}</Pill>
                         <Pill tone="muted">{spotlight.year}</Pill>
                         {spotlight.tag ? <Pill tone="ghost">{spotlight.tag}</Pill> : null}
                       </div>
 
-                      {/* desktop glass label (kept clean) */}
-                      <div className="absolute bottom-5 left-5 hidden lg:block">
-                        <div className="rounded-2xl bg-black/40 px-4 py-3 ring-1 ring-white/12 backdrop-blur-xl">
+                      {/* center play button (mobile feel) */}
+                      <div className="pointer-events-none absolute inset-0 grid place-items-center lg:hidden">
+                        <div className="rounded-full bg-black/35 p-4 ring-1 ring-white/15 backdrop-blur-xl">
+                          <IconPlay className="h-7 w-7 text-white/90" />
+                        </div>
+                      </div>
+
+                      {/* bottom label */}
+                      <div className="absolute bottom-4 left-4 right-4 sm:bottom-5 sm:left-5 sm:right-5">
+                        <div className="rounded-2xl bg-black/38 px-4 py-3 ring-1 ring-white/12 backdrop-blur-xl">
                           <div className="text-[11px] uppercase tracking-widest text-white/60">@thisisyarden</div>
-                          <div className="mt-1 text-[20px] font-semibold text-white">{spotlight.title}</div>
+                          <div className="mt-1 truncate text-[18px] sm:text-[20px] font-semibold text-white">
+                            {spotlight.title}
+                          </div>
                           <div className="mt-2 flex items-center gap-2 text-sm text-white/60">
-                            <span>Play</span>
+                            <span>Tap to play</span>
+                            <span className="opacity-50">•</span>
+                            <span>Full screen inside</span>
                             <IconArrowUpRight className="h-4 w-4 transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
                           </div>
                         </div>
                       </div>
                     </div>
-
-                    {/* mobile meta BELOW (clean + roomy) */}
-                    <div className="lg:hidden px-5 pb-5 pt-4">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <Pill tone="brand" className="gap-2">
-                          <IconPlay className="h-4 w-4" />
-                          Featured
-                        </Pill>
-                        <Pill tone="muted">{spotlight.kind}</Pill>
-                        <Pill tone="muted">{spotlight.year}</Pill>
-                        {spotlight.tag ? <Pill tone="ghost">{spotlight.tag}</Pill> : null}
-                      </div>
-
-                      <div className="mt-3 text-[20px] font-semibold text-white">{spotlight.title}</div>
-                      <div className="mt-2 text-sm text-white/60">
-                        <span className="text-white/70">@thisisyarden</span>
-                        <span className="mx-2 opacity-60">•</span>
-                        <span>Tap to watch</span>
-                      </div>
-                    </div>
                   </div>
                 </button>
 
-                {/* DESKTOP QUEUE (right column) */}
+                {/* RIGHT COLUMN (desktop) */}
                 <div className="hidden lg:block lg:col-span-4 lg:h-full">
                   <div className="flex items-center justify-between">
-                    <div className="text-sm font-semibold text-white">On deck</div>
-                    <div className="text-xs text-white/50">Rotating</div>
+                    <div className="text-sm font-semibold text-white">Next up</div>
+                    <div className="text-xs text-white/45">Rotates while in view</div>
                   </div>
 
                   <div className="mt-4 grid gap-3">
-                    {items.slice(0, 6).map((v, i) => {
-                      const isNow = v._key === spotlight._key;
+                    {upNext.slice(0, 5).map((v, i) => (
+                      <button
+                        key={v._key}
+                        type="button"
+                        data-rail-item="1"
+                        onClick={() => {
+                          const idx = items.findIndex((x) => x._key === v._key);
+                          if (idx !== -1) {
+                            setSpotIdx(idx);
+                            (rootRef.current as any)?.__pauseAuto?.();
+                          }
+                        }}
+                        className={cx(
+                          "group flex items-center gap-3 rounded-2xl bg-white/[0.03] p-3 ring-1 ring-white/10 text-left",
+                          "hover:bg-white/[0.05] transition"
+                        )}
+                      >
+                        <div className="relative h-16 w-24 overflow-hidden rounded-xl ring-1 ring-white/10">
+                          <SmartThumb candidates={v.thumbs} fallback={v.fallback} alt={`Yarden — ${v.title}`} />
+                          <div className="absolute inset-0 bg-gradient-to-t from-black/55 via-transparent to-transparent" />
+                        </div>
 
-                      return (
-                        <button
-                          key={v._key}
-                          type="button"
-                          data-rail-item="1"
-                          onClick={() => {
-                            const idx = items.findIndex((x) => x._key === v._key);
-                            if (idx !== -1) {
-                              setSpotIdx(idx);
-                              (rootRef.current as any)?.__pauseAuto?.();
-                            }
-                          }}
-                          className={cx(
-                            "group relative flex items-center gap-3 rounded-2xl p-3 text-left transition",
-                            "ring-1",
-                            isNow ? "bg-white/[0.06] ring-white/20" : "bg-white/[0.03] ring-white/10 hover:bg-white/[0.05]"
-                          )}
-                        >
-                          {/* active edge */}
-                          <div
-                            className={cx(
-                              "absolute left-0 top-1/2 h-10 w-[3px] -translate-y-1/2 rounded-full transition-opacity",
-                              isNow ? "opacity-100" : "opacity-0 group-hover:opacity-60"
-                            )}
-                            style={{
-                              background: "linear-gradient(180deg, rgba(255,255,255,0.70), rgba(255,255,255,0.10))",
-                            }}
-                          />
-
-                          <div className="relative h-16 w-24 overflow-hidden rounded-xl ring-1 ring-white/10">
-                            <SmartThumb candidates={v.thumbs} fallback={v.fallback} alt={`Yarden — ${v.title}`} />
-                            <div className="absolute inset-0 bg-gradient-to-t from-black/55 via-transparent to-transparent" />
-                            {isNow ? (
-                              <div className="absolute left-2 top-2 rounded-full bg-black/55 px-2 py-1 text-[10px] font-semibold text-white/90 ring-1 ring-white/12 backdrop-blur">
-                                NOW
-                              </div>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2">
+                            <div className="text-xs text-white/45 tabular-nums">{String(i + 1).padStart(2, "0")}</div>
+                            <div className="truncate text-sm font-semibold text-white">{v.title}</div>
+                          </div>
+                          <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-white/55">
+                            <span>{v.kind}</span>
+                            <span className="opacity-60">•</span>
+                            <span>{v.year}</span>
+                            {v.tag ? (
+                              <>
+                                <span className="opacity-60">•</span>
+                                <span className="text-white/70">{v.tag}</span>
+                              </>
                             ) : null}
                           </div>
+                        </div>
 
-                          <div className="min-w-0 flex-1">
-                            <div className="flex items-center gap-2">
-                              <div className="text-xs text-white/45 tabular-nums">{String(i + 1).padStart(2, "0")}</div>
-                              <div className="truncate text-sm font-semibold text-white">{v.title}</div>
-                            </div>
-                            <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-white/55">
-                              <span>{v.kind}</span>
-                              <span className="opacity-60">•</span>
-                              <span>{v.year}</span>
-                              {v.tag ? (
-                                <>
-                                  <span className="opacity-60">•</span>
-                                  <span className="text-white/70">{v.tag}</span>
-                                </>
-                              ) : null}
-                            </div>
-                          </div>
-
-                          <div className="shrink-0 text-white/35 group-hover:text-white/70 transition">
-                            <IconArrowUpRight className="h-4 w-4" />
-                          </div>
-                        </button>
-                      );
-                    })}
-                  </div>
-
-                  <div className="mt-4 flex gap-2">
-                    <Button variant="secondary" href={videosHref} target="_blank" iconRight={<IconArrowUpRight className="h-4 w-4" />}>
-                      See all
-                    </Button>
-                    <Button variant="ghost" href={playlistsHref} target="_blank" iconRight={<IconArrowUpRight className="h-4 w-4" />}>
-                      Playlists
-                    </Button>
+                        <div className="shrink-0 text-white/40 group-hover:text-white/70 transition">
+                          <IconArrowUpRight className="h-4 w-4" />
+                        </div>
+                      </button>
+                    ))}
                   </div>
                 </div>
               </div>
 
-              {/* MOBILE QUEUE (horizontal, big tap targets, snap) */}
-              <div className="lg:hidden px-5 pb-6">
-                <div className="mt-4 flex items-center justify-between">
-                  <div className="text-sm font-semibold text-white">On deck</div>
-                  <div className="text-xs text-white/50">Swipe</div>
+              {/* MOBILE QUEUE (big cards, horizontal, feels premium + tappable) */}
+              <div className="mt-5 lg:hidden">
+                <div className="flex items-end justify-between px-1">
+                  <div className="text-sm font-semibold text-white">Next up</div>
+                  <div className="text-xs text-white/45">Auto rotation</div>
                 </div>
 
-                <div className="mt-3 -mx-5 overflow-x-auto px-5 pb-2">
-                  <div className="flex gap-3 snap-x snap-mandatory">
-                    {items.map((v) => {
-                      const isNow = v._key === spotlight._key;
+                <div
+                  className={cx(
+                    "mt-3 flex gap-3 overflow-x-auto pb-2",
+                    "snap-x snap-mandatory",
+                    "[scrollbar-width:none] [-ms-overflow-style:none]"
+                  )}
+                  style={{ WebkitOverflowScrolling: "touch" }}
+                >
+                  <style>{`
+                    /* hide scrollbar (webkit) */
+                    #${id} .hide-scroll::-webkit-scrollbar { display: none; }
+                  `}</style>
 
-                      return (
-                        <button
-                          key={`${v._key}-mobile`}
-                          type="button"
-                          data-mobile-card="1"
-                          onClick={() => {
-                            const idx = items.findIndex((x) => x._key === v._key);
-                            if (idx !== -1) {
-                              setSpotIdx(idx);
-                              (rootRef.current as any)?.__pauseAuto?.();
-                            }
-                          }}
-                          className={cx(
-                            "snap-start shrink-0 text-left",
-                            "w-[78%] min-w-[280px] max-w-[360px]",
-                            "rounded-3xl overflow-hidden",
-                            "bg-white/[0.03] ring-1 transition",
-                            isNow ? "ring-white/20" : "ring-white/10"
-                          )}
-                        >
-                          <div className="relative aspect-[16/10] overflow-hidden">
-                            <SmartThumb candidates={v.thumbs} fallback={v.fallback} alt={`Yarden — ${v.title}`} />
-                            <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/10 to-transparent" />
-
-                            <div className="absolute left-3 top-3 flex items-center gap-2">
-                              <Pill tone="muted" className="gap-2">
-                                <IconPlay className="h-4 w-4" />
-                                Play
-                              </Pill>
-                              {isNow ? <Pill tone="brand">Now</Pill> : null}
-                            </div>
-
-                            <div className="absolute bottom-3 left-3 right-3">
-                              <div className="truncate text-sm font-semibold text-white">{v.title}</div>
-                              <div className="mt-1 text-xs text-white/55">
-                                {v.kind} • {v.year}
-                                {v.tag ? <span className="text-white/70"> • {v.tag}</span> : null}
-                              </div>
-                            </div>
+                  {upNext.slice(0, 8).map((v) => (
+                    <button
+                      key={`${v._key}-m`}
+                      type="button"
+                      data-rail-item="1"
+                      onClick={() => {
+                        const idx = items.findIndex((x) => x._key === v._key);
+                        if (idx !== -1) {
+                          setSpotIdx(idx);
+                          (rootRef.current as any)?.__pauseAuto?.();
+                        }
+                      }}
+                      className={cx(
+                        "snap-start shrink-0 w-[78%] sm:w-[58%]",
+                        "rounded-2xl bg-white/[0.03] ring-1 ring-white/10 overflow-hidden text-left",
+                        "hover:bg-white/[0.05] transition"
+                      )}
+                    >
+                      <div className="relative aspect-video">
+                        <SmartThumb candidates={v.thumbs} fallback={v.fallback} alt={`Yarden — ${v.title}`} />
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/10 to-transparent" />
+                        <div className="absolute left-3 top-3">
+                          <Pill tone="muted" className="gap-2">
+                            <IconPlay className="h-4 w-4" />
+                            Queue
+                          </Pill>
+                        </div>
+                        <div className="absolute bottom-3 left-3 right-3">
+                          <div className="truncate text-sm font-semibold text-white">{v.title}</div>
+                          <div className="mt-1 text-xs text-white/55">
+                            {v.kind} • {v.year}
+                            {v.tag ? <span className="text-white/70"> • {v.tag}</span> : null}
                           </div>
-                        </button>
-                      );
-                    })}
-                  </div>
+                        </div>
+                      </div>
+                    </button>
+                  ))}
                 </div>
+              </div>
 
-                <div className="mt-4 flex flex-wrap gap-2">
-                  <Button variant="secondary" href={videosHref} target="_blank" iconRight={<IconArrowUpRight className="h-4 w-4" />}>
-                    All videos
+              {/* clean footer actions (no “dev tips”) */}
+              <div className="mt-6 flex flex-wrap items-center justify-between gap-3">
+                <div className="text-sm text-white/55">
+                  <span className="text-white/80 font-semibold">{items.length}</span> visuals in rotation.
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <Button variant="ghost" href={videosHref} target="_blank" iconRight={<IconArrowUpRight className="h-4 w-4" />}>
+                    Browse all videos
                   </Button>
-                  <Button variant="ghost" href={playlistsHref} target="_blank" iconRight={<IconArrowUpRight className="h-4 w-4" />}>
-                    Playlists
+                  <Button variant="secondary" href={channelHref} target="_blank" iconRight={<IconArrowUpRight className="h-4 w-4" />}>
+                    Open channel
                   </Button>
                 </div>
               </div>
             </div>
           </div>
         </div>
+
+        {/* Full-screen overlay watch experience */}
+        <WatchOverlay
+          open={open}
+          item={active}
+          embedSrc={embedSrc}
+          onClose={() => {
+            setOpen(false);
+            setActive(null);
+          }}
+        />
       </div>
-
-      {/* Modal player */}
-      <Modal
-        open={open}
-        onClose={() => {
-          setOpen(false);
-          setActive(null);
-          setIframeReady(false);
-        }}
-        title={active ? `${active.title}` : "Watch"}
-      >
-        <div className="grid gap-4">
-          <div className="relative overflow-hidden rounded-2xl bg-black ring-1 ring-white/10">
-            <div className="aspect-video">
-              <div className={cx("absolute inset-0 transition-opacity", iframeReady ? "opacity-0" : "opacity-100")}>
-                {active ? (
-                  <SmartThumb candidates={active.thumbs} fallback={active.fallback} alt={active.title} className="opacity-95" priority />
-                ) : null}
-                <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/15 to-transparent" />
-              </div>
-
-              {embedSrc ? (
-                <iframe
-                  src={embedSrc}
-                  title={active?.title ?? "Video"}
-                  className={cx("h-full w-full transition-opacity", iframeReady ? "opacity-100" : "opacity-0")}
-                  onLoad={() => setIframeReady(true)}
-                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                  allowFullScreen
-                />
-              ) : (
-                <div className="grid h-full w-full place-items-center p-6 text-sm text-white/70">
-                  This link can’t be embedded. Use “Open on YouTube”.
-                </div>
-              )}
-            </div>
-
-            {/* bigger, cleaner close target */}
-            <button
-              onClick={() => {
-                setOpen(false);
-                setActive(null);
-                setIframeReady(false);
-              }}
-              className={cx(
-                "absolute right-3 top-3 rounded-full",
-                "bg-black/65 p-2.5 text-white/85 ring-1 ring-white/12 backdrop-blur",
-                "hover:bg-black/80 hover:text-white transition",
-                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/30"
-              )}
-              aria-label="Close"
-              type="button"
-            >
-              <IconClose className="h-5 w-5" />
-            </button>
-          </div>
-
-          <div className="flex flex-wrap gap-2">
-            {active?.href ? (
-              <Button variant="secondary" href={active.href} target="_blank" iconRight={<IconArrowUpRight className="h-4 w-4" />}>
-                Open on YouTube
-              </Button>
-            ) : null}
-            <Button
-              variant="ghost"
-              onClick={() => {
-                setOpen(false);
-                setActive(null);
-                setIframeReady(false);
-              }}
-            >
-              Done
-            </Button>
-          </div>
-        </div>
-      </Modal>
     </section>
   );
 }
