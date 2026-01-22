@@ -53,23 +53,7 @@ export type NewsletterPayload = {
 
 const STORAGE_KEY = "yarden:newsletter:draft:v1";
 
-/**
- * ✅ Updated:
- * - Added BellaNaija (major outlet)
- * - Swapped Pulse image to a confirmed working URL
- * - Kept TurnTable image, but note: can fail to hotlink on some servers
- */
 const DEFAULT_PRESS: PressItem[] = [
-  {
-    id: "bellanaija-juice-ep",
-    title: "All the Juice on Yarden’s New EP ‘The One Who Descends’ + new single ‘Time’",
-    outlet: "BellaNaija",
-    date: "Dec 2023",
-    href: "https://www.bellanaija.com/2023/12/yarden-the-one-who-descends-ep/",
-    image: "https://www.bellanaija.com/wp-content/uploads/2023/12/Yarden-The-One-Who-Descends-EP-Cover-Art.jpg",
-    tag: "Press",
-    excerpt: "A mainstream write-up that’s easy to share for new listeners.",
-  },
   {
     id: "wonderland-interview",
     title: 'Yarden talks debut EP “The One Who Descends”',
@@ -99,8 +83,7 @@ const DEFAULT_PRESS: PressItem[] = [
     href: "https://www.turntablecharts.com/news/1175",
     image: "https://ttcfilestorage.blob.core.windows.net/files-2022/TTC_638373737052040596.jpeg",
     tag: "Feature",
-    excerpt:
-      "A clean intro for new listeners — what to play first. (If this image ever fails, replace with a working press image or host locally.)",
+    excerpt: "A clean intro for new listeners — what to play first.",
   },
   {
     id: "pulse-press",
@@ -109,31 +92,20 @@ const DEFAULT_PRESS: PressItem[] = [
     date: "Dec 4, 2023",
     href: "https://www.pulse.ng/story/yarden-drops-the-one-who-descends-ep-alongside-the-new-single-time-2024072621214515034",
     image:
-      "https://image.api.sportal365.com/process/smp-images-production/pulse.ng/26072024/8fbde703-9a86-4aca-aff0-49d90c576d96?operations=fit%281024%3A1024%29",
+      "https://image.api.sportal365.com/process/smp-images-production/pulse.ng/26072024/8fbde703-9a86-4aca-aff0-49d90c576d96",
     tag: "Press",
     excerpt: "Quick coverage that’s easy to share when people ask “who’s that?”",
   },
-
-  // ✅ Official “owned” placements (not blogs) — uses stable YouTube thumbnails
   {
-    id: "yt-wetin-thumb",
-    title: "Wetin (Official Video)",
+    id: "youtube-channel",
+    title: "Official YouTube channel (videos + releases)",
     outlet: "YouTube",
     date: "Official",
-    href: "https://www.youtube.com/watch?v=9lT3tKmYLO8",
-    image: "https://i.ytimg.com/vi/9lT3tKmYLO8/hqdefault.jpg",
+    href: "https://www.youtube.com/@thisisyarden",
+    image:
+      "https://www.gstatic.com/marketing-cms/assets/images/08/25/fffdc76145f28be3a1ca63859c4a/external-logo-core-1.png=n-w1860-h1047-fcrop64=1,00000000ffffffff-rw",
     tag: "Watch",
-    excerpt: "Official video thumbnail (stable + fast).",
-  },
-  {
-    id: "yt-time-thumb",
-    title: "Time (Visual / Film)",
-    outlet: "YouTube",
-    date: "Official",
-    href: "https://www.youtube.com/watch?v=pNcM1elCxTA",
-    image: "https://i.ytimg.com/vi/pNcM1elCxTA/hqdefault.jpg",
-    tag: "Watch",
-    excerpt: "Official visual thumbnail (stable + fast).",
+    excerpt: "All official videos in one place.",
   },
 ];
 
@@ -248,6 +220,7 @@ export function NewsletterSection(props: {
     backgroundImage: string;
   }) => Promise<void> | void;
 }) {
+  // ✅ FIX: normalize boolean|null -> boolean
   const reduced = useReducedMotion() ?? false;
 
   const rootRef = useRef<HTMLElement | null>(null);
