@@ -312,15 +312,12 @@ export default function LandingHeader(props: LandingHeaderProps) {
 
   const scrim = 0.14 + 0.56 * t;
   const blurPx = 8 + 12 * t;
-  const shadowA = 0.10 + 0.24 * t;
+  const shadowA = 0.1 + 0.24 * t;
 
   // ✅ decide "dark mode" for logo selection
   const heroZone = t < 0.22;
   const heroIsLight = luminance(raw) > 0.58;
-
-  // if hero is light near top, use the normal logo; otherwise use yard2.png
   const useLightLogo = heroZone && heroIsLight;
-
   const logoSrc = useLightLogo ? LOGO_LIGHT : LOGO_DARK;
 
   // if src changes, reset error state so it can try the other file
@@ -336,6 +333,9 @@ export default function LandingHeader(props: LandingHeaderProps) {
     useBlendInk && "mix-blend-difference",
     "[text-shadow:0_1px_12px_rgba(0,0,0,.35)]"
   );
+
+  // ✅ Hide the normal header logo while the mobile menu is open (prevents double logo)
+  const showHeaderLogo = !menuOpen;
 
   return (
     <>
@@ -362,28 +362,35 @@ export default function LandingHeader(props: LandingHeaderProps) {
 
         <div className="relative z-10 pt-[env(safe-area-inset-top)]">
           {/* LEFT GROUP (logo + nav) / RIGHT GROUP (actions) */}
-          <div className={cx("mx-auto flex max-w-7xl items-center justify-between px-5 md:px-8", "h-[74px] md:h-[82px]")}>
+          <div
+            className={cx("mx-auto flex max-w-7xl items-center justify-between px-5 md:px-8", "h-[74px] md:h-[82px]")}
+          >
             {/* LEFT GROUP */}
             <div className="flex items-center gap-6">
-              {/* Logo */}
-              <button type="button" onClick={onLogo} aria-label="Go to top" className="block">
-                {logoOk ? (
-                  <NextImage
-                    src={logoSrc}
-                    alt={`${brandName} logo`}
-                    width={140}
-                    height={56}
-                    priority
-                    draggable={false}
-                    onError={() => setLogoOk(false)}
-                    className="h-11 w-auto object-contain"
-                  />
-                ) : (
-                  <span className="text-lg font-semibold tracking-tight text-white [text-shadow:0_1px_18px_rgba(0,0,0,.55)]">
-                    {brandName}
-                  </span>
-                )}
-              </button>
+              {/* Logo (hidden when menu is open) */}
+              {showHeaderLogo ? (
+                <button type="button" onClick={onLogo} aria-label="Go to top" className="block">
+                  {logoOk ? (
+                    <NextImage
+                      src={logoSrc}
+                      alt={`${brandName} logo`}
+                      width={128}
+                      height={52}
+                      priority
+                      draggable={false}
+                      onError={() => setLogoOk(false)}
+                      className="h-10 w-auto object-contain"
+                    />
+                  ) : (
+                    <span className="text-lg font-semibold tracking-tight text-white [text-shadow:0_1px_18px_rgba(0,0,0,.55)]">
+                      {brandName}
+                    </span>
+                  )}
+                </button>
+              ) : (
+                // keep layout stable when logo is hidden (optional)
+                <div className="h-10 w-[128px]" aria-hidden="true" />
+              )}
 
               {/* Desktop Nav */}
               <nav className={cx("hidden md:flex items-center", inkText)}>
@@ -465,14 +472,13 @@ export default function LandingHeader(props: LandingHeaderProps) {
               <div className="flex items-center justify-between border-b border-white/10 px-5 py-4">
                 {logoOk ? (
                   <NextImage
-                    // ✅ mobile menu is always dark, so always use yard2.png
                     src={LOGO_DARK}
                     alt={`${brandName} logo`}
-                    width={96}
-                    height={96}
+                    width={88}
+                    height={88}
                     priority
                     onError={() => setLogoOk(false)}
-                    className="h-[72px] w-auto object-contain"
+                    className="h-[64px] w-auto object-contain"
                   />
                 ) : (
                   <div className="text-lg font-semibold tracking-tight text-white">{brandName}</div>
