@@ -44,9 +44,12 @@ export type TourConfig = {
 
   ticketPortalHref?: string;
 
-  notifyCtaLabel?: string; // e.g. "Get alerts"
-  ticketPortalLabel?: string; // e.g. "Ticket portal"
-  passCtaLabel?: string; // e.g. "Pass perks"
+  notifyCtaLabel?: string;
+  ticketPortalLabel?: string;
+  passCtaLabel?: string;
+
+  // ✅ back-compat for app/page.tsx
+  providerHint?: "Bandsintown" | "Seated" | "Custom" | (string & {});
 
   // poster copy
   posterKicker?: string;
@@ -58,7 +61,7 @@ export type TourConfig = {
   emptyTitle?: string;
   emptyBody?: string;
 
-  footerLine?: string; // small line under list (optional)
+  footerLine?: string;
 };
 
 gsap.registerPlugin(ScrollTrigger);
