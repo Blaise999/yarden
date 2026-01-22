@@ -58,6 +58,9 @@ export function HeroSection(props: {
   statsA?: Array<{ label: string; value: string; hint?: string }>;
   statsB?: Array<{ label: string; value: string; hint?: string }>;
 
+  // ✅ NEW: accept eraLabel to match usage (eraLabel="Muse")
+  eraLabel?: string;
+
   // optional “pro musician site” extras
   tourHref?: string;
   shopHref?: string;
@@ -126,6 +129,9 @@ export function HeroSection(props: {
       venue: "City drops + ticket links",
       href: props.tourHref,
     } as NextShow);
+
+  // ✅ NEW: local value for rendering
+  const eraLabel = props.eraLabel?.trim();
 
   // newsletter (optional)
   const [email, setEmail] = useState("");
@@ -226,8 +232,22 @@ export function HeroSection(props: {
       });
 
       // Reduced initial zoom for smoother feel and better “full screen” coverage
-      gsap.set(artA, { opacity: 1, visibility: "visible", scale: 1, y: 0, x: 0, force3D: true });
-      gsap.set(artB, { opacity: 0, visibility: "visible", scale: 1.15, y: 60, x: 0, force3D: true });
+      gsap.set(artA, {
+        opacity: 1,
+        visibility: "visible",
+        scale: 1,
+        y: 0,
+        x: 0,
+        force3D: true,
+      });
+      gsap.set(artB, {
+        opacity: 0,
+        visibility: "visible",
+        scale: 1.15,
+        y: 60,
+        x: 0,
+        force3D: true,
+      });
 
       if (pattern) gsap.set(pattern, { opacity: 0.18, scale: 1, force3D: true });
       if (glowFx) gsap.set(glowFx, { opacity: 0, scale: 0.92, force3D: true });
@@ -253,12 +273,24 @@ export function HeroSection(props: {
       masterTL.to(media, { scale: 0.99, borderRadius: 32, duration: 1, ease: "none" }, 0);
 
       // Image morph (smoother, less extreme movement)
-      masterTL.to(artA, { opacity: 0, scale: 1.2, y: -60, duration: transitionDuration, ease: "expo.inOut" }, transitionStart);
-      masterTL.to(artB, { opacity: 1, scale: 1, y: 0, duration: transitionDuration, ease: "expo.inOut" }, transitionStart);
+      masterTL.to(
+        artA,
+        { opacity: 0, scale: 1.2, y: -60, duration: transitionDuration, ease: "expo.inOut" },
+        transitionStart
+      );
+      masterTL.to(
+        artB,
+        { opacity: 1, scale: 1, y: 0, duration: transitionDuration, ease: "expo.inOut" },
+        transitionStart
+      );
 
       // Pattern
       if (pattern) {
-        masterTL.to(pattern, { opacity: 0.34, scale: 1.1, duration: 0.85 * sf, ease: "expo.out" }, transitionStart + 0.05 * sf);
+        masterTL.to(
+          pattern,
+          { opacity: 0.34, scale: 1.1, duration: 0.85 * sf, ease: "expo.out" },
+          transitionStart + 0.05 * sf
+        );
       }
 
       // Glow flash (triggered on crossing mid-transition)
@@ -490,7 +522,12 @@ export function HeroSection(props: {
                     )}
                   </div>
 
-                  <Button variant="primary" href={props.nowPlaying.href} target="_blank" iconLeft={<IconPlay className="h-5 w-5" />}>
+                  <Button
+                    variant="primary"
+                    href={props.nowPlaying.href}
+                    target="_blank"
+                    iconLeft={<IconPlay className="h-5 w-5" />}
+                  >
                     Play Now
                   </Button>
                 </div>
@@ -507,6 +544,13 @@ export function HeroSection(props: {
                   <Pill tone="brand" className="uppercase tracking-wider">
                     <IconAnkh className="h-4 w-4" />
                     <span>Yarden</span>
+
+                    {/* ✅ NEW: show eraLabel if provided */}
+                    {eraLabel ? (
+                      <span className="ml-2 inline-flex items-center rounded-full bg-white/10 px-2 py-1 text-[10px] font-semibold tracking-normal text-white/75 ring-1 ring-white/10">
+                        {eraLabel}
+                      </span>
+                    ) : null}
                   </Pill>
 
                   <div className="relative mt-8 min-h-[360px]">
@@ -520,10 +564,20 @@ export function HeroSection(props: {
                       </p>
 
                       <div className="mt-8 flex flex-wrap items-center gap-4">
-                        <Button variant="primary" href={props.listenHref} target="_blank" iconRight={<IconArrowUpRight className="h-5 w-5" />}>
+                        <Button
+                          variant="primary"
+                          href={props.listenHref}
+                          target="_blank"
+                          iconRight={<IconArrowUpRight className="h-5 w-5" />}
+                        >
                           Listen
                         </Button>
-                        <Button variant="secondary" href={props.followHref} target="_blank" iconRight={<IconArrowUpRight className="h-5 w-5" />}>
+                        <Button
+                          variant="secondary"
+                          href={props.followHref}
+                          target="_blank"
+                          iconRight={<IconArrowUpRight className="h-5 w-5" />}
+                        >
                           Follow
                         </Button>
                         <Button variant="ghost" onClick={props.onOpenPass} iconLeft={<IconSpark className="h-5 w-5" />}>
@@ -623,7 +677,9 @@ export function HeroSection(props: {
                             onClick={joinNewsletter}
                             className={cx(
                               "h-11 shrink-0 rounded-2xl px-4 text-[13px] font-semibold ring-1 transition",
-                              joinState === "ok" ? "bg-white text-black ring-white/0" : "bg-white/12 text-white ring-white/12 hover:bg-white/16"
+                              joinState === "ok"
+                                ? "bg-white text-black ring-white/0"
+                                : "bg-white/12 text-white ring-white/12 hover:bg-white/16"
                             )}
                           >
                             {joinState === "ok" ? "Joined" : "Join"}
@@ -695,7 +751,13 @@ export function HeroSection(props: {
                             <div className="text-[11px] uppercase tracking-[0.28em] text-white/65">Socials</div>
                             <div className="mt-2 flex flex-wrap gap-2">
                               {socials.map((s) => (
-                                <Button key={s.href} variant="ghost" href={s.href} target="_blank" iconRight={<IconArrowUpRight className="h-4 w-4" />}>
+                                <Button
+                                  key={s.href}
+                                  variant="ghost"
+                                  href={s.href}
+                                  target="_blank"
+                                  iconRight={<IconArrowUpRight className="h-4 w-4" />}
+                                >
                                   {s.label}
                                 </Button>
                               ))}
@@ -708,7 +770,10 @@ export function HeroSection(props: {
                             <div className="mt-4 text-[11px] uppercase tracking-[0.28em] text-white/65">Featured in</div>
                             <div className="mt-2 flex flex-wrap gap-2">
                               {press.map((p) => (
-                                <span key={p} className="rounded-full bg-white/8 px-3 py-1.5 text-[12px] font-semibold text-white/70 ring-1 ring-white/10">
+                                <span
+                                  key={p}
+                                  className="rounded-full bg-white/8 px-3 py-1.5 text-[12px] font-semibold text-white/70 ring-1 ring-white/10"
+                                >
                                   {p}
                                 </span>
                               ))}

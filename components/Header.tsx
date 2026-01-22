@@ -72,7 +72,9 @@ function sampleAverageRGBBoth(img: HTMLImageElement) {
   };
 }
 
-async function getTintFromSrc(src: string): Promise<{ raw: { r: number; g: number; b: number }; tint: { r: number; g: number; b: number } }> {
+async function getTintFromSrc(
+  src: string
+): Promise<{ raw: { r: number; g: number; b: number }; tint: { r: number; g: number; b: number } }> {
   return new Promise((resolve) => {
     const ImgCtor = (globalThis as any).Image as typeof Image | undefined;
     if (!ImgCtor) {
@@ -226,7 +228,9 @@ type LandingHeaderProps = {
   listenHref?: string;
 };
 
-const LOGO_SRC = "/Pictures/yard.png";
+// ✅ two logo assets
+const LOGO_LIGHT = "/Pictures/yard.png";
+const LOGO_DARK = "/Pictures/yard2.png";
 
 export default function LandingHeader(props: LandingHeaderProps) {
   const brandName = props.brandName ?? "Yarden";
@@ -310,32 +314,20 @@ export default function LandingHeader(props: LandingHeaderProps) {
   const blurPx = 8 + 12 * t;
   const shadowA = 0.10 + 0.24 * t;
 
-  // ✅ Logo rule you want:
-  // - light hero: keep logo NORMAL (no matte filter)
-  // - dark hero: make logo WHITE
+  // ✅ decide "dark mode" for logo selection
   const heroZone = t < 0.22;
   const heroIsLight = luminance(raw) > 0.58;
-  const logoUseNormal = heroZone && heroIsLight;
 
-  const logoFilter = logoUseNormal
-    ? "none"
-    : "brightness(0) invert(1) drop-shadow(0 14px 28px rgba(0,0,0,.55))";
+  // if hero is light near top, use the normal logo; otherwise use yard2.png
+  const useLightLogo = heroZone && heroIsLight;
 
+  const logoSrc = useLightLogo ? LOGO_LIGHT : LOGO_DARK;
+
+  // if src changes, reset error state so it can try the other file
   const [logoOk, setLogoOk] = useState(true);
-
   useEffect(() => {
-    let alive = true;
-    fetch(LOGO_SRC, { method: "HEAD" })
-      .then((r) => {
-        if (alive && !r.ok) setLogoOk(false);
-      })
-      .catch(() => {
-        if (alive) setLogoOk(false);
-      });
-    return () => {
-      alive = false;
-    };
-  }, []);
+    setLogoOk(true);
+  }, [logoSrc]);
 
   const topImg = props.heroBgSrc ?? props.tintSources?.top;
   const useBlendInk = t < 0.16 && !!topImg;
@@ -369,7 +361,7 @@ export default function LandingHeader(props: LandingHeaderProps) {
         </div>
 
         <div className="relative z-10 pt-[env(safe-area-inset-top)]">
-          {/* ✅ Layout changed: LEFT GROUP (logo + nav) / RIGHT GROUP (actions) */}
+          {/* LEFT GROUP (logo + nav) / RIGHT GROUP (actions) */}
           <div className={cx("mx-auto flex max-w-7xl items-center justify-between px-5 md:px-8", "h-[74px] md:h-[82px]")}>
             {/* LEFT GROUP */}
             <div className="flex items-center gap-6">
@@ -377,29 +369,23 @@ export default function LandingHeader(props: LandingHeaderProps) {
               <button type="button" onClick={onLogo} aria-label="Go to top" className="block">
                 {logoOk ? (
                   <NextImage
-                    src={LOGO_SRC}
+                    src={logoSrc}
                     alt={`${brandName} logo`}
-                    width={120}
+                    width={140}
                     height={56}
                     priority
                     draggable={false}
                     onError={() => setLogoOk(false)}
                     className="h-11 w-auto object-contain"
-                    style={{ filter: logoFilter }}
                   />
                 ) : (
-                  <span
-                    className={cx(
-                      "text-lg font-semibold tracking-tight",
-                      logoUseNormal ? "text-black" : "text-white"
-                    )}
-                  >
+                  <span className="text-lg font-semibold tracking-tight text-white [text-shadow:0_1px_18px_rgba(0,0,0,.55)]">
                     {brandName}
                   </span>
                 )}
               </button>
 
-              {/* Desktop Nav (NOW on logo side) */}
+              {/* Desktop Nav */}
               <nav className={cx("hidden md:flex items-center", inkText)}>
                 <div className="flex items-center gap-6">
                   {props.nav.slice(1).map((n) => {
@@ -479,14 +465,14 @@ export default function LandingHeader(props: LandingHeaderProps) {
               <div className="flex items-center justify-between border-b border-white/10 px-5 py-4">
                 {logoOk ? (
                   <NextImage
-                    src={LOGO_SRC}
+                    // ✅ mobile menu is always dark, so always use yard2.png
+                    src={LOGO_DARK}
                     alt={`${brandName} logo`}
-                    width={84}
-                    height={84}
+                    width={96}
+                    height={96}
                     priority
                     onError={() => setLogoOk(false)}
                     className="h-[72px] w-auto object-contain"
-                    style={{ filter: "brightness(0) invert(1)" }}
                   />
                 ) : (
                   <div className="text-lg font-semibold tracking-tight text-white">{brandName}</div>
