@@ -1,7 +1,7 @@
-// HeroSection.tsx (FULL EDIT — simplified)
+// HeroSection.tsx (FULL EDIT — layout-safe + Safari/GSAP stability)
 "use client";
 
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
@@ -129,7 +129,7 @@ export function HeroSection(props: {
   const [pinDistance, setPinDistance] = useState<number>(() => {
     if (typeof props.pinDistance === "number") return props.pinDistance;
     if (typeof window === "undefined") return 1400;
-    return window.innerWidth < 768 ? 920 : 1500;
+    return window.innerWidth < 768 ? 980 : 1550;
   });
 
   useEffect(() => {
@@ -139,19 +139,20 @@ export function HeroSection(props: {
     }
     let raf = 0;
     const onResize = () => {
-      const next = window.innerWidth < 768 ? 920 : 1500;
-      if (pinDistance !== next) {
-        setPinDistance(next);
+      const next = window.innerWidth < 768 ? 980 : 1550;
+      setPinDistance((prev) => {
+        if (prev === next) return prev;
         cancelAnimationFrame(raf);
         raf = requestAnimationFrame(() => ScrollTrigger.refresh());
-      }
+        return next;
+      });
     };
     window.addEventListener("resize", onResize, { passive: true });
     return () => {
       cancelAnimationFrame(raf);
       window.removeEventListener("resize", onResize);
     };
-  }, [props.pinDistance, pinDistance]);
+  }, [props.pinDistance]);
 
   // Copy (short)
   const headlineA = props.headlineA ?? "Yarden";
@@ -171,7 +172,7 @@ export function HeroSection(props: {
 
   const eraLabel = props.eraLabel?.trim();
 
-  // load tracking
+  // load tracking (we only refresh after both images load once)
   const [loadedCount, setLoadedCount] = useState(0);
   const loadedAOnce = useRef(false);
   const loadedBOnce = useRef(false);
@@ -180,6 +181,7 @@ export function HeroSection(props: {
 
   useGSAP(
     () => {
+      // If reduced motion, keep Scene A as default and don't create ScrollTrigger.
       if (reducedMotion) return;
 
       ScrollTrigger.config({
@@ -220,50 +222,58 @@ export function HeroSection(props: {
         return;
       }
 
+      // Kill old trigger cleanly (hot reload / re-mount)
       ScrollTrigger.getById("hero-pin")?.kill(true);
 
+      // Hard reset: ensures we never start with overlapping states
+      gsap.set([artA], { opacity: 1, visibility: "visible", scale: 1, y: 0, x: 0 });
+      gsap.set([artB], { opacity: 0, visibility: "visible", scale: 1.12, y: 60, x: 0 });
+      gsap.set(sceneA, { opacity: 1, y: 0 });
+      gsap.set(sceneB, { opacity: 0, y: 12 });
+      gsap.set(railA, { opacity: 1, y: 0 });
+      gsap.set(railB, { opacity: 0, y: 12 });
+      gsap.set(nowA, { opacity: 1, y: 0 });
+      gsap.set(nowB, { opacity: 0, y: 8 });
+
+      if (pattern) gsap.set(pattern, { opacity: 0.16, scale: 1 });
+      if (glowFx) gsap.set(glowFx, { opacity: 0, scale: 0.92 });
+
+      // Safari stability flags (avoid heavy 3D where it glitches)
       gsap.set([media, artA, artB, pattern, glowFx].filter(Boolean), {
         backfaceVisibility: "hidden",
         webkitBackfaceVisibility: "hidden",
         transformStyle: isSafari ? "flat" : "preserve-3d",
       });
 
-      gsap.set(pinEl, { willChange: "transform", force3D: isSafari ? false : true });
-      if (isSafari) gsap.set([artA, artB], { z: 0.01 });
-
+      gsap.set(pinEl, { willChange: "transform" });
       gsap.set(media, {
         borderRadius: 0,
         scale: 1,
         y: 0,
         x: 0,
         willChange: "transform, opacity",
-        force3D: isSafari ? false : true,
         transformOrigin: "50% 50%",
+        force3D: isSafari ? false : true,
       });
 
-      gsap.set(artA, { opacity: 1, visibility: "visible", scale: 1, y: 0, x: 0, force3D: isSafari ? false : true });
-      gsap.set(artB, { opacity: 0, visibility: "visible", scale: 1.12, y: 60, x: 0, force3D: isSafari ? false : true });
+      if (isSafari) {
+        gsap.set([artA, artB], { z: 0.01, force3D: false });
+      } else {
+        gsap.set([artA, artB], { force3D: true });
+      }
 
-      if (pattern) gsap.set(pattern, { opacity: 0.16, scale: 1, force3D: isSafari ? false : true });
-      if (glowFx) gsap.set(glowFx, { opacity: 0, scale: 0.92, force3D: isSafari ? false : true });
-
-      gsap.set(sceneA, { opacity: 1, y: 0 });
-      gsap.set(sceneB, { opacity: 0, y: 12 });
-
-      gsap.set(railA, { opacity: 1, y: 0 });
-      gsap.set(railB, { opacity: 0, y: 12 });
-
-      gsap.set(nowA, { opacity: 1, y: 0 });
-      gsap.set(nowB, { opacity: 0, y: 8 });
-
+      // Pointer events switching (prevents ghost clicks)
       let inB = false;
       const setInB = (next: boolean) => {
         if (inB === next) return;
         inB = next;
         sceneA.style.pointerEvents = next ? "none" : "auto";
         railA.style.pointerEvents = next ? "none" : "auto";
+        nowA.style.pointerEvents = next ? "none" : "auto";
+
         sceneB.style.pointerEvents = next ? "auto" : "none";
         railB.style.pointerEvents = next ? "auto" : "none";
+        nowB.style.pointerEvents = next ? "auto" : "none";
       };
       setInB(false);
 
@@ -323,19 +333,23 @@ export function HeroSection(props: {
         gsap.to(glowFx, { opacity: 0, duration: 0.35, ease: "power2.in", delay: 0.08 });
       };
 
+      const startStr = headerOffset ? `top top+=${headerOffset}` : "top top";
+
       ScrollTrigger.create({
         id: "hero-pin",
         trigger: section,
-        start: "top top",
+        start: startStr,
         end: () => `+=${pinDistance}`,
         pin: pinEl,
         pinSpacing: true,
         anticipatePin: 1,
         invalidateOnRefresh: true,
-        scrub: isSafari ? 0.55 : 0.7,
+        scrub: isSafari ? 0.65 : 0.8,
         animation: masterTL,
+
+        // Safari: fixed pin + reparent helps avoid “blank” / compositing bugs
         pinType: isSafari ? "fixed" : "transform",
-        pinReparent: false,
+        pinReparent: isSafari,
         onUpdate: (self) => {
           const p = self.progress;
           const next = p >= midTransition;
@@ -360,9 +374,10 @@ export function HeroSection(props: {
         ScrollTrigger.getById("hero-pin")?.kill(true);
       };
     },
-    { scope: rootRef, dependencies: [reducedMotion, pinDistance, isSafari] }
+    { scope: rootRef, dependencies: [reducedMotion, pinDistance, isSafari, headerOffset] }
   );
 
+  // Refresh after both images load (prevents wrong pin start/end + overlap on first paint)
   useEffect(() => {
     if (reducedMotion || loadedCount < 2 || refreshedOnce.current) return;
     refreshedOnce.current = true;
@@ -372,16 +387,24 @@ export function HeroSection(props: {
     });
   }, [loadedCount, reducedMotion]);
 
-  const topPad = Math.max(0, headerOffset) + 24;
+  const topPad = Math.max(0, headerOffset) + 22;
+
+  // Safari filters can cause flicker while pinned; keep it simple.
   const imageFilter = isSafari ? "none" : "contrast(1.14) saturate(1.22) brightness(1.06)";
 
+  // Safe bottom space so the “Now / Featured” card never sits on top of text/rail.
+  // (Also accounts for iOS safe area).
+  const safeBottomStyle: React.CSSProperties = {
+    paddingBottom: "max(18rem, calc(15rem + env(safe-area-inset-bottom)))",
+  };
+
   return (
-    <div ref={rootRef}>
+    <div ref={rootRef} className="overflow-x-clip">
       <section
         ref={sectionRef as any}
         className={cx(
-          "relative overflow-hidden",
-          fullBleed && "w-screen ml-[calc(50%-50vw)] mr-[calc(50%-50vw)]"
+          "relative overflow-x-clip overflow-y-visible",
+          fullBleed && "relative left-1/2 right-1/2 w-[100vw] -ml-[50vw] -mr-[50vw]"
         )}
         style={{ isolation: "isolate" }}
       >
@@ -436,8 +459,8 @@ export function HeroSection(props: {
               }}
             />
 
-            {/* HERO A */}
-            <div ref={artARef} className="absolute inset-0">
+            {/* HERO A (default visible even if GSAP is off) */}
+            <div ref={artARef} className="absolute inset-0 opacity-100">
               <Image
                 src={props.heroA.src}
                 alt={props.heroA.alt}
@@ -457,8 +480,8 @@ export function HeroSection(props: {
               <div className="absolute inset-0 bg-gradient-to-r from-black/58 via-black/06 to-transparent" />
             </div>
 
-            {/* HERO B */}
-            <div ref={artBRef} className="absolute inset-0">
+            {/* HERO B (default hidden; GSAP fades it in) */}
+            <div ref={artBRef} className="absolute inset-0 opacity-0">
               <Image
                 src={props.heroB.src}
                 alt={props.heroB.alt}
@@ -479,28 +502,30 @@ export function HeroSection(props: {
 
             {/* Bottom Now / Featured */}
             <div className="absolute bottom-4 left-4 right-4 sm:bottom-5 sm:left-5 sm:right-5 md:bottom-8 md:left-8 md:right-8">
-              <div className="rounded-3xl bg-black/38 p-5 ring-1 ring-white/10 backdrop-blur-xl">
+              <div className="rounded-3xl bg-black/40 p-4 ring-1 ring-white/10 backdrop-blur-2xl sm:p-5">
                 <div className="relative">
-                  <div ref={nowARef}>
-                    <div className="text-[11px] uppercase tracking-[0.32em] text-white/70">Now</div>
-                    <div className="mt-1.5 truncate text-xl font-semibold text-white md:text-2xl">
+                  <div ref={nowARef} className="opacity-100">
+                    <div className="text-[10px] uppercase tracking-[0.32em] text-white/70">Now</div>
+                    <div className="mt-1.5 truncate text-lg font-semibold text-white sm:text-xl md:text-2xl">
                       {props.nowPlaying.title}
                     </div>
-                    <div className="mt-1 text-sm text-white/65">{props.nowPlaying.hint ?? "Streaming everywhere"}</div>
+                    <div className="mt-1 text-[13px] text-white/65 sm:text-sm">
+                      {props.nowPlaying.hint ?? "Streaming everywhere"}
+                    </div>
                   </div>
 
-                  <div ref={nowBRef} className="absolute inset-0" aria-hidden>
-                    <div className="text-[11px] uppercase tracking-[0.32em] text-white/70">Featured</div>
-                    <div className="mt-1.5 truncate text-xl font-semibold text-white md:text-2xl">
+                  <div ref={nowBRef} className="absolute inset-0 opacity-0" aria-hidden>
+                    <div className="text-[10px] uppercase tracking-[0.32em] text-white/70">Featured</div>
+                    <div className="mt-1.5 truncate text-lg font-semibold text-white sm:text-xl md:text-2xl">
                       {props.nowPlaying.title}
                     </div>
-                    <div className="mt-1 text-sm text-white/65">
+                    <div className="mt-1 text-[13px] text-white/65 sm:text-sm">
                       {props.nowPlaying.hintB ?? "Watch the latest visual"}
                     </div>
                   </div>
                 </div>
 
-                <div className="mt-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                <div className="mt-3 flex flex-col gap-3 md:mt-4 md:flex-row md:items-center md:justify-between">
                   <div className="flex flex-wrap gap-2">
                     {props.nowPlaying.official?.spotify && (
                       <Button variant="ghost" href={props.nowPlaying.official.spotify} target="_blank">
@@ -533,8 +558,12 @@ export function HeroSection(props: {
           </div>
 
           {/* FOREGROUND */}
-          <div className="relative z-10 mx-auto max-w-7xl px-4 sm:px-5 md:px-8" style={{ paddingTop: topPad }}>
-            <div className="pb-44">
+          <div
+            className="relative z-10 mx-auto max-w-7xl px-4 sm:px-5 md:px-8"
+            style={{ paddingTop: topPad, ...safeBottomStyle }}
+          >
+            {/* Important: padding bottom is handled via safeBottomStyle so nothing collides with the Now card */}
+            <div className="pt-2">
               <div className="grid gap-10 md:grid-cols-[1.2fr_0.8fr] md:items-start">
                 {/* LEFT */}
                 <div>
@@ -548,15 +577,18 @@ export function HeroSection(props: {
                     ) : null}
                   </Pill>
 
-                  <div className="relative mt-8 min-h-[300px]">
+                  {/* Scene stack: big enough on mobile so content never runs under itself */}
+                  <div className="relative mt-7 min-h-[420px] sm:min-h-[380px] md:min-h-[320px]">
                     {/* Scene A */}
-                    <div ref={sceneARef}>
-                      <h1 className="text-balance text-5xl font-semibold tracking-tighter text-white md:text-7xl">
+                    <div ref={sceneARef} className="opacity-100">
+                      <h1 className="text-balance text-4xl font-semibold tracking-tighter text-white sm:text-5xl md:text-7xl">
                         {headlineA}
                       </h1>
-                      <p className="mt-5 text-pretty text-lg leading-relaxed text-white/75 md:text-xl">{subheadA}</p>
+                      <p className="mt-4 text-pretty text-base leading-relaxed text-white/75 sm:text-lg md:mt-5 md:text-xl">
+                        {subheadA}
+                      </p>
 
-                      <div className="mt-7 flex flex-wrap items-center gap-3">
+                      <div className="mt-6 flex flex-wrap items-center gap-3 sm:mt-7">
                         <Button
                           variant="primary"
                           href={props.listenHref}
@@ -577,7 +609,11 @@ export function HeroSection(props: {
                           Pass
                         </Button>
                         {props.videosHref ? (
-                          <Button variant="ghost" href={props.videosHref} iconRight={<IconArrowUpRight className="h-5 w-5" />}>
+                          <Button
+                            variant="ghost"
+                            href={props.videosHref}
+                            iconRight={<IconArrowUpRight className="h-5 w-5" />}
+                          >
                             Visuals
                           </Button>
                         ) : null}
@@ -585,13 +621,15 @@ export function HeroSection(props: {
                     </div>
 
                     {/* Scene B */}
-                    <div ref={sceneBRef} className="absolute inset-0" aria-hidden>
-                      <h2 className="text-balance text-5xl font-semibold tracking-tighter text-white md:text-7xl">
+                    <div ref={sceneBRef} className="absolute inset-0 opacity-0" aria-hidden>
+                      <h2 className="text-balance text-4xl font-semibold tracking-tighter text-white sm:text-5xl md:text-7xl">
                         {headlineB}
                       </h2>
-                      <p className="mt-5 text-pretty text-lg leading-relaxed text-white/75 md:text-xl">{subheadB}</p>
+                      <p className="mt-4 text-pretty text-base leading-relaxed text-white/75 sm:text-lg md:mt-5 md:text-xl">
+                        {subheadB}
+                      </p>
 
-                      <div className="mt-7 flex flex-wrap items-center gap-3">
+                      <div className="mt-6 flex flex-wrap items-center gap-3 sm:mt-7">
                         <Button
                           variant="primary"
                           href={props.videosHref ?? props.followHref}
@@ -601,7 +639,11 @@ export function HeroSection(props: {
                           Watch
                         </Button>
                         {props.tourHref ? (
-                          <Button variant="secondary" href={props.tourHref} iconRight={<IconArrowUpRight className="h-5 w-5" />}>
+                          <Button
+                            variant="secondary"
+                            href={props.tourHref}
+                            iconRight={<IconArrowUpRight className="h-5 w-5" />}
+                          >
                             Tour
                           </Button>
                         ) : null}
@@ -614,9 +656,9 @@ export function HeroSection(props: {
                 </div>
 
                 {/* RIGHT RAIL */}
-                <div className="relative">
+                <div className="relative min-h-[340px] sm:min-h-[320px] md:min-h-[300px]">
                   {/* Rail A */}
-                  <div ref={railARef}>
+                  <div ref={railARef} className="opacity-100">
                     <RailCard
                       label="Next"
                       title={`${nextShow.dateLabel} · ${nextShow.city}`}
@@ -624,7 +666,7 @@ export function HeroSection(props: {
                       href={nextShow.href ?? props.tourHref}
                       cta={nextShow.href || props.tourHref ? "Tickets" : undefined}
                     />
-                    {(props.shopHref || props.videosHref) ? (
+                    {props.shopHref || props.videosHref ? (
                       <div className="mt-4 grid grid-cols-1 gap-3">
                         {props.videosHref ? (
                           <RailCard
@@ -636,35 +678,17 @@ export function HeroSection(props: {
                           />
                         ) : null}
                         {props.shopHref ? (
-                          <RailCard
-                            label="Shop"
-                            title="Merch"
-                            body="Limited pieces and vault items."
-                            href={props.shopHref}
-                            cta="View"
-                          />
+                          <RailCard label="Shop" title="Merch" body="Limited pieces and vault items." href={props.shopHref} cta="View" />
                         ) : null}
                       </div>
                     ) : null}
                   </div>
 
                   {/* Rail B */}
-                  <div ref={railBRef} className="absolute inset-0" aria-hidden>
-                    <RailCard
-                      label="Archive"
-                      title="Visual world"
-                      body="Watch the catalog."
-                      href={props.videosHref ?? props.followHref}
-                      cta="Enter"
-                    />
+                  <div ref={railBRef} className="absolute inset-0 opacity-0" aria-hidden>
+                    <RailCard label="Archive" title="Visual world" body="Watch the catalog." href={props.videosHref ?? props.followHref} cta="Enter" />
                     <div className="mt-4 grid grid-cols-1 gap-3">
-                      <RailCard
-                        label="Listen"
-                        title="Streaming"
-                        body="Go to the latest release."
-                        href={props.listenHref}
-                        cta="Open"
-                      />
+                      <RailCard label="Listen" title="Streaming" body="Go to the latest release." href={props.listenHref} cta="Open" />
                       {props.tourHref ? (
                         <RailCard label="Tour" title="Dates" body="Updates + ticket links." href={props.tourHref} cta="View" />
                       ) : null}

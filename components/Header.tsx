@@ -1,4 +1,4 @@
-// LandingHeader.tsx (FULL EDIT) — nav centered on desktop
+// LandingHeader.tsx (FULL EDIT) — overlap-safe on scroll (more solid + border + shrink)
 "use client";
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
@@ -29,7 +29,10 @@ function detectSafari() {
 }
 
 function useSafariInfo() {
-  const [info, setInfo] = useState<{ isSafari: boolean; isIOS: boolean }>({ isSafari: false, isIOS: false });
+  const [info, setInfo] = useState<{ isSafari: boolean; isIOS: boolean }>({
+    isSafari: false,
+    isIOS: false,
+  });
   useEffect(() => setInfo(detectSafari()), []);
   return info;
 }
@@ -286,6 +289,9 @@ export default function LandingHeader(props: LandingHeaderProps) {
 
   const t = clamp((scrollY - 24) / 520, 0, 1);
 
+  // Extra solid-ification once we’re actually into content
+  const solid = clamp((scrollY - 110) / 220, 0, 1);
+
   // Tint
   const [tint, setTint] = useState({ r: 180, g: 180, b: 200 });
   const [raw, setRaw] = useState({ r: 180, g: 180, b: 200 });
@@ -329,9 +335,27 @@ export default function LandingHeader(props: LandingHeaderProps) {
     [tint]
   );
 
-  const scrim = 0.14 + 0.56 * t;
+  // ✅ Make the header feel “separated” from content as you scroll:
+  // - more opaque scrim
+  // - subtle hairline border
+  // - slightly stronger shadow
+  // - shrink height a bit
   const blurPx = isSafari ? 0 : 8 + 12 * t;
-  const shadowA = 0.1 + 0.24 * t;
+  const shadowA = 0.14 + 0.26 * t + 0.16 * solid;
+
+  // overlay opacity ramps up HARDER so you don't see text/images under it
+  const scrim = clamp(0.18 + 0.62 * t + 0.22 * solid, 0, 0.98);
+
+  // gradient endpoints also get darker (reduces “overlap” look)
+  const topA = clamp(0.84 + 0.12 * t + 0.08 * solid, 0, 0.98);
+  const midA = clamp(0.56 + 0.22 * t + 0.12 * solid, 0, 0.95);
+  const botA = clamp(0.14 + 0.18 * t + 0.10 * solid, 0, 0.7);
+
+  const borderA = clamp(0.06 + 0.10 * t + 0.08 * solid, 0, 0.22);
+
+  // header height shrink (prevents “overlapping slab” feeling)
+  const hMobile = Math.round(74 - 10 * t); // 74 → 64
+  const hDesktop = Math.round(82 - 12 * t); // 82 → 70
 
   // logo selection
   const heroZone = t < 0.22;
@@ -343,7 +367,9 @@ export default function LandingHeader(props: LandingHeaderProps) {
   useEffect(() => setLogoOk(true), [logoSrc]);
 
   const topImg = props.heroBgSrc ?? props.tintSources?.top;
-  const useBlendInk = t < 0.16 && !!topImg;
+  // only allow blend-difference very near the top so it doesn’t “fight” content later
+  const useBlendInk = t < 0.1 && !!topImg && solid < 0.15;
+
   const inkText = cx(
     "text-white",
     !isSafari && useBlendInk && "mix-blend-difference",
@@ -359,7 +385,7 @@ export default function LandingHeader(props: LandingHeaderProps) {
         className="fixed top-0 left-0 right-0 z-[2147483647] overflow-visible"
         style={{
           ...cssVars,
-          borderBottom: "none",
+          borderBottom: `1px solid rgba(255,255,255,${borderA})`,
           boxShadow: `0 10px 30px rgba(0,0,0,${shadowA})`,
           transform: isSafari ? undefined : "translate3d(0,0,0)",
           willChange: isSafari ? undefined : "transform",
@@ -372,21 +398,39 @@ export default function LandingHeader(props: LandingHeaderProps) {
             className="absolute inset-0"
             style={{
               opacity: scrim,
-              background:
-                "linear-gradient(to bottom, rgba(7,7,10,0.90), rgba(7,7,10,0.56) 55%, rgba(7,7,10,0.16))",
+              background: `linear-gradient(to bottom,
+                rgba(7,7,10,${topA}),
+                rgba(7,7,10,${midA}) 55%,
+                rgba(7,7,10,${botA})
+              )`,
               ...(blurPx > 0
                 ? {
-                    backdropFilter: `blur(${blurPx}px) saturate(${1.05 + 0.15 * t})`,
-                    WebkitBackdropFilter: `blur(${blurPx}px) saturate(${1.05 + 0.15 * t})`,
+                    backdropFilter: `blur(${blurPx}px) saturate(${1.08 + 0.12 * t})`,
+                    WebkitBackdropFilter: `blur(${blurPx}px) saturate(${1.08 + 0.12 * t})`,
                   }
                 : {}),
+            }}
+          />
+
+          {/* tiny tint line that helps separation without looking “boxy” */}
+          <div
+            className="absolute left-0 right-0 bottom-0 h-[2px]"
+            style={{
+              opacity: 0.24 + 0.38 * t,
+              background: "linear-gradient(90deg, transparent, rgb(var(--tint) / 0.65), transparent)",
             }}
           />
         </div>
 
         <div className="relative z-10 pt-[env(safe-area-inset-top)]">
           {/* ✅ 3-column layout: left logo, centered nav, right actions */}
-          <div className={cx("mx-auto grid max-w-7xl items-center px-5 md:px-8", "h-[74px] md:h-[82px]", "grid-cols-[auto_1fr_auto]")}>
+          <div
+            className={cx(
+              "mx-auto grid max-w-7xl items-center px-5 md:px-8",
+              "grid-cols-[auto_1fr_auto]"
+            )}
+            style={{ height: `${hMobile}px` } as any}
+          >
             {/* LEFT */}
             <div className="flex items-center">
               {showHeaderLogo ? (
@@ -469,6 +513,15 @@ export default function LandingHeader(props: LandingHeaderProps) {
               </div>
             </div>
           </div>
+
+          {/* Desktop height override */}
+          <style jsx>{`
+            @media (min-width: 768px) {
+              header > div.relative > div.mx-auto {
+                height: ${hDesktop}px !important;
+              }
+            }
+          `}</style>
         </div>
       </header>
 
