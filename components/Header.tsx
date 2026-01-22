@@ -411,7 +411,10 @@ export default function LandingHeader(props: LandingHeaderProps) {
   const showHeaderLogo = !menuOpen;
 
   const barH = compact ? "h-[66px] md:h-[70px]" : "h-[74px] md:h-[82px]";
-  const logoH = compact ? "h-8 md:h-9" : "h-10 md:h-10";
+
+  // ✅ reduced logo size (header stays the same)
+  const logoH = compact ? "h-7 md:h-8" : "h-8 md:h-9";
+  const logoSlotW = "w-[120px]"; // placeholder width to keep layout stable when logo hides
 
   return (
     <>
@@ -470,8 +473,8 @@ export default function LandingHeader(props: LandingHeaderProps) {
                     <NextImage
                       src={logoSrc}
                       alt={`${brandName} logo`}
-                      width={140}
-                      height={56}
+                      width={120}
+                      height={48}
                       priority
                       draggable={false}
                       onError={() => setLogoOk(false)}
@@ -484,7 +487,7 @@ export default function LandingHeader(props: LandingHeaderProps) {
                   )}
                 </button>
               ) : (
-                <div className={cx("w-[140px]", logoH)} aria-hidden="true" />
+                <div className={cx(logoSlotW, logoH)} aria-hidden="true" />
               )}
             </div>
 
@@ -571,11 +574,11 @@ export default function LandingHeader(props: LandingHeaderProps) {
                   <NextImage
                     src={LOGO_DARK}
                     alt={`${brandName} logo`}
-                    width={88}
-                    height={88}
+                    width={76}
+                    height={76}
                     priority
                     onError={() => setLogoOk(false)}
-                    className="h-[64px] w-auto object-contain"
+                    className="h-[54px] w-auto object-contain"
                   />
                 ) : (
                   <div className="text-lg font-semibold tracking-tight text-white">{brandName}</div>

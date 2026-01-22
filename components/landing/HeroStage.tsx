@@ -1,4 +1,5 @@
-// HeroSection.tsx (FULL EDIT — header sync via CSS var + hero-stage event)
+// HeroSection.tsx (FULL EDIT — fixes “hero disappears” via pin layer + overflow fix,
+// keeps hero-header event sync intact)
 "use client";
 
 import React, { useEffect, useRef, useState } from "react";
@@ -46,7 +47,10 @@ function detectSafari() {
 }
 
 function useSafariInfo() {
-  const [info, setInfo] = useState<{ isSafari: boolean; isIOS: boolean }>({ isSafari: false, isIOS: false });
+  const [info, setInfo] = useState<{ isSafari: boolean; isIOS: boolean }>({
+    isSafari: false,
+    isIOS: false,
+  });
   useEffect(() => setInfo(detectSafari()), []);
   return info;
 }
@@ -235,9 +239,30 @@ export function HeroSection(props: {
       const nowA = nowARef.current;
       const nowB = nowBRef.current;
 
-      if (!section || !pinEl || !media || !artA || !artB || !sceneA || !sceneB || !railA || !railB || !nowA || !nowB) {
+      if (
+        !section ||
+        !pinEl ||
+        !media ||
+        !artA ||
+        !artB ||
+        !sceneA ||
+        !sceneB ||
+        !railA ||
+        !railB ||
+        !nowA ||
+        !nowB
+      ) {
         return;
       }
+
+      // --- ✅ Fix for “hero disappears” ---
+      // Keep pinned hero above the rest of the page while ScrollTrigger is active.
+      const PIN_Z = 40;
+      const setPinnedLayer = (pinned: boolean) => {
+        // section is relative already; pinEl becomes fixed/transform depending on pinType
+        gsap.set(section, { zIndex: pinned ? PIN_Z : 0 });
+        gsap.set(pinEl, { zIndex: pinned ? PIN_Z : 0 });
+      };
 
       // Kill old trigger cleanly (hot reload / re-mount)
       ScrollTrigger.getById("hero-pin")?.kill(true);
@@ -262,6 +287,7 @@ export function HeroSection(props: {
         transformStyle: isSafari ? "flat" : "preserve-3d",
       });
 
+      // Ensure the pinned block always keeps a stable composited layer
       gsap.set(pinEl, { willChange: "transform" });
       gsap.set(media, {
         borderRadius: 0,
@@ -270,7 +296,7 @@ export function HeroSection(props: {
         x: 0,
         willChange: "transform, opacity",
         transformOrigin: "50% 50%",
-        force3D: isSafari ? false : true,
+        force3D: !isSafari, // Safari: keep lighter
       });
 
       if (isSafari) {
@@ -302,11 +328,23 @@ export function HeroSection(props: {
 
       masterTL.to(media, { scale: 0.995, duration: 1, ease: "none" }, 0);
 
-      masterTL.to(artA, { opacity: 0, scale: 1.2, y: -60, duration: transitionDuration, ease: "expo.inOut" }, transitionStart);
-      masterTL.to(artB, { opacity: 1, scale: 1, y: 0, duration: transitionDuration, ease: "expo.inOut" }, transitionStart);
+      masterTL.to(
+        artA,
+        { opacity: 0, scale: 1.2, y: -60, duration: transitionDuration, ease: "expo.inOut" },
+        transitionStart
+      );
+      masterTL.to(
+        artB,
+        { opacity: 1, scale: 1, y: 0, duration: transitionDuration, ease: "expo.inOut" },
+        transitionStart
+      );
 
       if (pattern) {
-        masterTL.to(pattern, { opacity: 0.32, scale: 1.08, duration: 0.85 * sf, ease: "expo.out" }, transitionStart + 0.05 * sf);
+        masterTL.to(
+          pattern,
+          { opacity: 0.32, scale: 1.08, duration: 0.85 * sf, ease: "expo.out" },
+          transitionStart + 0.05 * sf
+        );
       }
 
       const switchDur = 0.6 * sf;
@@ -325,14 +363,22 @@ export function HeroSection(props: {
       masterTL.to(nowA, { opacity: 0, y: -6, duration: nowDur, ease: "power2.out" }, nowAStart);
       masterTL.to(nowB, { opacity: 1, y: 0, duration: nowDur, ease: "power2.out" }, nowBStart);
 
+      // threshold used only for header vibe + pointer-events swap
       const midTransition = transitionStart + transitionDuration / 2;
 
       const flash = () => {
         if (!glowFx) return;
         gsap.killTweensOf(glowFx);
-        gsap.fromTo(glowFx, { opacity: 0, scale: 0.92 }, { opacity: 0.22, scale: 1.12, duration: 0.22, ease: "power2.out" });
+        gsap.fromTo(
+          glowFx,
+          { opacity: 0, scale: 0.92 },
+          { opacity: 0.22, scale: 1.12, duration: 0.22, ease: "power2.out" }
+        );
         gsap.to(glowFx, { opacity: 0, duration: 0.35, ease: "power2.in", delay: 0.08 });
       };
+
+      // Ensure initial layer state
+      setPinnedLayer(false);
 
       ScrollTrigger.create({
         id: "hero-pin",
@@ -346,14 +392,27 @@ export function HeroSection(props: {
         scrub: isSafari ? 0.65 : 0.8,
         animation: masterTL,
 
-        // Safari: fixed pin + reparent helps avoid compositing bugs
+        // Safari: fixed pin + reparent can be stable; we keep it.
+        // The “disappearing hero” issue is typically z-index / overlap, fixed by setPinnedLayer().
         pinType: isSafari ? "fixed" : "transform",
         pinReparent: isSafari,
 
-        onEnter: (self) => scheduleEmit({ stage: self.progress >= midTransition ? "B" : "A", progress: self.progress, inHero: true }),
-        onEnterBack: (self) => scheduleEmit({ stage: self.progress >= midTransition ? "B" : "A", progress: self.progress, inHero: true }),
-        onLeave: (self) => scheduleEmit({ stage: "B", progress: 1, inHero: false }),
-        onLeaveBack: (self) => scheduleEmit({ stage: "A", progress: 0, inHero: false }),
+        onEnter: (self) => {
+          setPinnedLayer(true);
+          scheduleEmit({ stage: self.progress >= midTransition ? "B" : "A", progress: self.progress, inHero: true });
+        },
+        onEnterBack: (self) => {
+          setPinnedLayer(true);
+          scheduleEmit({ stage: self.progress >= midTransition ? "B" : "A", progress: self.progress, inHero: true });
+        },
+        onLeave: (self) => {
+          setPinnedLayer(false);
+          scheduleEmit({ stage: "B", progress: 1, inHero: false });
+        },
+        onLeaveBack: (self) => {
+          setPinnedLayer(false);
+          scheduleEmit({ stage: "A", progress: 0, inHero: false });
+        },
 
         onUpdate: (self) => {
           const p = self.progress;
@@ -372,14 +431,26 @@ export function HeroSection(props: {
 
           prevProgressRef.current = p;
         },
+
         onRefreshInit: () => {
+          // keep pinned layer correct during refresh passes
+          const st = ScrollTrigger.getById("hero-pin");
+          const pinned = !!st && st.isActive;
+          setPinnedLayer(pinned);
+
           gsap.set([media, artA, artB], { x: 0 });
+        },
+        onRefresh: () => {
+          const st = ScrollTrigger.getById("hero-pin");
+          const pinned = !!st && st.isActive;
+          setPinnedLayer(pinned);
         },
       });
 
       return () => {
         masterTL.kill();
         ScrollTrigger.getById("hero-pin")?.kill(true);
+        setPinnedLayer(false);
         scheduleEmit({ stage: "A", progress: 0, inHero: false });
       };
     },
@@ -410,11 +481,11 @@ export function HeroSection(props: {
   };
 
   return (
-    <div ref={rootRef} className="overflow-x-clip">
+    <div ref={rootRef} className="overflow-x-hidden">
       <section
         ref={sectionRef as any}
         className={cx(
-          "relative overflow-x-clip overflow-y-visible",
+          "relative overflow-x-hidden overflow-y-visible",
           fullBleed && "relative left-1/2 right-1/2 w-[100vw] -ml-[50vw] -mr-[50vw]"
         )}
         style={{ isolation: "isolate" }}
@@ -437,13 +508,13 @@ export function HeroSection(props: {
           <div
             ref={mediaRef}
             className={cx(
-              "absolute inset-0 z-0 overflow-hidden",
+              "absolute inset-0 z-0 overflow-hidden bg-black", // ✅ keep a real bg (no white flash)
               "shadow-[0_40px_100px_rgba(0,0,0,0.75)]",
               "ring-1 ring-white/10"
             )}
             style={{ willChange: "transform" }}
           >
-            <FloatingCursorSpotlight disabled={reducedMotion} />
+            <FloatingCursorSpotlight disabled={reducedMotion || isSafari} />
 
             <div
               ref={glowFxRef}
@@ -555,7 +626,12 @@ export function HeroSection(props: {
                     )}
                   </div>
 
-                  <Button variant="primary" href={props.nowPlaying.href} target="_blank" iconLeft={<IconPlay className="h-5 w-5" />}>
+                  <Button
+                    variant="primary"
+                    href={props.nowPlaying.href}
+                    target="_blank"
+                    iconLeft={<IconPlay className="h-5 w-5" />}
+                  >
                     Play
                   </Button>
                 </div>
@@ -590,10 +666,20 @@ export function HeroSection(props: {
                       </p>
 
                       <div className="mt-6 flex flex-wrap items-center gap-3 sm:mt-7">
-                        <Button variant="primary" href={props.listenHref} target="_blank" iconRight={<IconArrowUpRight className="h-5 w-5" />}>
+                        <Button
+                          variant="primary"
+                          href={props.listenHref}
+                          target="_blank"
+                          iconRight={<IconArrowUpRight className="h-5 w-5" />}
+                        >
                           Listen
                         </Button>
-                        <Button variant="secondary" href={props.followHref} target="_blank" iconRight={<IconArrowUpRight className="h-5 w-5" />}>
+                        <Button
+                          variant="secondary"
+                          href={props.followHref}
+                          target="_blank"
+                          iconRight={<IconArrowUpRight className="h-5 w-5" />}
+                        >
                           Follow
                         </Button>
                         <Button variant="ghost" onClick={props.onOpenPass} iconLeft={<IconSpark className="h-5 w-5" />}>
@@ -649,6 +735,7 @@ export function HeroSection(props: {
                       href={nextShow.href ?? props.tourHref}
                       cta={nextShow.href || props.tourHref ? "Tickets" : undefined}
                     />
+
                     {props.shopHref || props.videosHref ? (
                       <div className="mt-4 grid grid-cols-1 gap-3">
                         {props.videosHref ? (
@@ -673,7 +760,9 @@ export function HeroSection(props: {
               </div>
             </div>
           </div>
+          {/* /FOREGROUND */}
         </div>
+        {/* /PIN WRAPPER */}
       </section>
     </div>
   );
@@ -716,11 +805,13 @@ function RailCard({
         {inner}
       </a>
     );
+
   if (onClick)
     return (
       <button type="button" onClick={onClick} className="block w-full text-left">
         {inner}
       </button>
     );
+
   return inner;
 }
