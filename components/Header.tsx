@@ -1,4 +1,4 @@
-// LandingHeader.tsx (FULL EDIT)
+// LandingHeader.tsx (FULL EDIT) — nav centered on desktop
 "use client";
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
@@ -329,29 +329,23 @@ export default function LandingHeader(props: LandingHeaderProps) {
     [tint]
   );
 
-  // Safari: backdrop-filter + heavy pinned animations can sometimes stutter/flicker.
-  // Keep the glass look everywhere else, soften it on Safari.
   const scrim = 0.14 + 0.56 * t;
   const blurPx = isSafari ? 0 : 8 + 12 * t;
   const shadowA = 0.1 + 0.24 * t;
 
-  // decide "dark mode" for logo selection
+  // logo selection
   const heroZone = t < 0.22;
   const heroIsLight = luminance(raw) > 0.58;
   const useLightLogo = heroZone && heroIsLight;
   const logoSrc = useLightLogo ? LOGO_LIGHT : LOGO_DARK;
 
-  // if src changes, reset error state so it can try the other file
   const [logoOk, setLogoOk] = useState(true);
-  useEffect(() => {
-    setLogoOk(true);
-  }, [logoSrc]);
+  useEffect(() => setLogoOk(true), [logoSrc]);
 
   const topImg = props.heroBgSrc ?? props.tintSources?.top;
   const useBlendInk = t < 0.16 && !!topImg;
   const inkText = cx(
     "text-white",
-    // Safari + blend modes can be weird over pinned layers; keep it simple there
     !isSafari && useBlendInk && "mix-blend-difference",
     "[text-shadow:0_1px_12px_rgba(0,0,0,.35)]"
   );
@@ -367,8 +361,6 @@ export default function LandingHeader(props: LandingHeaderProps) {
           ...cssVars,
           borderBottom: "none",
           boxShadow: `0 10px 30px rgba(0,0,0,${shadowA})`,
-
-          // Safari: avoid forcing a transformed fixed layer (can jitter on scroll)
           transform: isSafari ? undefined : "translate3d(0,0,0)",
           willChange: isSafari ? undefined : "transform",
           backfaceVisibility: "hidden",
@@ -393,12 +385,10 @@ export default function LandingHeader(props: LandingHeaderProps) {
         </div>
 
         <div className="relative z-10 pt-[env(safe-area-inset-top)]">
-          <div
-            className={cx("mx-auto flex max-w-7xl items-center justify-between px-5 md:px-8", "h-[74px] md:h-[82px]")}
-          >
-            {/* LEFT GROUP */}
-            <div className="flex items-center gap-6">
-              {/* Logo (hidden when menu is open) */}
+          {/* ✅ 3-column layout: left logo, centered nav, right actions */}
+          <div className={cx("mx-auto grid max-w-7xl items-center px-5 md:px-8", "h-[74px] md:h-[82px]", "grid-cols-[auto_1fr_auto]")}>
+            {/* LEFT */}
+            <div className="flex items-center">
               {showHeaderLogo ? (
                 <button type="button" onClick={onLogo} aria-label="Go to top" className="block">
                   {logoOk ? (
@@ -421,10 +411,12 @@ export default function LandingHeader(props: LandingHeaderProps) {
               ) : (
                 <div className="h-10 w-[128px]" aria-hidden="true" />
               )}
+            </div>
 
-              {/* Desktop Nav */}
-              <nav className={cx("hidden md:flex items-center", inkText)}>
-                <div className="flex items-center gap-6">
+            {/* CENTER (Desktop Nav) */}
+            <div className="hidden md:flex items-center justify-center">
+              <nav className={cx("flex items-center", inkText)}>
+                <div className="flex items-center gap-7">
                   {props.nav.slice(1).map((n) => {
                     const active = props.activeId === n.id;
                     return (
@@ -451,8 +443,8 @@ export default function LandingHeader(props: LandingHeaderProps) {
               </nav>
             </div>
 
-            {/* RIGHT GROUP */}
-            <div className="flex items-center gap-3">
+            {/* RIGHT */}
+            <div className="flex items-center justify-end gap-3">
               {props.listenHref && (
                 <div className={cx("hidden md:block", inkText)}>
                   <Link

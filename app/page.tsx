@@ -88,7 +88,7 @@ export default function Page() {
 
   // ✅ hero images (public paths)
   const heroA: HeroImageShape = { src: "/Pictures/hero.jpg", alt: "Yarden cover — clean" };
-  const heroB: HeroImageShape = { src: "/Pictures/hero2.jpg", alt: "Yarden cover — detailed" };
+  const heroB: HeroImageShape = { src: "/Pictures/hero3.jpg", alt: "Yarden cover — detailed" };
 
   // ---- DATA ----
   const releases: ReleaseItem[] = [
