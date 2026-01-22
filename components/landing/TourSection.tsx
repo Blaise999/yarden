@@ -875,7 +875,7 @@ export function TourSection(props: {
                         setDraftConfig(next);
                         persistDraft(draftShows, next);
                       }}
-                      placeholder="/images/tour-poster.jpg"
+                      placeholder="/Pictures/yarden4.png"
                       className={cx(
                         "mt-2 w-full rounded-2xl bg-white/[0.04] px-4 py-3 text-sm text-white placeholder:text-white/35",
                         "ring-1 ring-white/10 outline-none focus:ring-2 focus:ring-white/30"

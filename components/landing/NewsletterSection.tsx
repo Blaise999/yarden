@@ -53,7 +53,60 @@ export type NewsletterPayload = {
 
 const STORAGE_KEY = "yarden:newsletter:draft:v1";
 
+/**
+ * ✅ Bigger, “official sources only” press list:
+ * - Recognized publishers + chart outlets + major platforms
+ * - Includes older coverage (2020 signing, etc.)
+ *
+ * NOTE: Some outlets block hotlinking their featured image.
+ * For those entries, we reuse a stable press photo so UI doesn’t break.
+ */
 const DEFAULT_PRESS: PressItem[] = [
+  {
+    id: "bellanaija-ep-feature",
+    title: "All the Juice on Yarden’s new EP ‘The One Who Descends’ + single ‘Time’",
+    outlet: "BellaNaija",
+    date: "Dec 2023",
+    href: "https://www.bellanaija.com/2023/12/yardens-new-ep/",
+    // BellaNaija sometimes blocks direct image hotlinking → use stable press image
+    image: "https://i0.wp.com/culturecustodian.com/wp-content/uploads/2023/12/yard2-scaled.jpg?fit=819%2C1024&ssl=1",
+    tag: "Feature",
+    excerpt: "Official music press recap of the debut project + rollout context.",
+  },
+  {
+    id: "vanguard-signing-2020",
+    title: "Etins Record signs new artist Yarden",
+    outlet: "Vanguard",
+    date: "Aug 2020",
+    href: "https://www.vanguardngr.com/2020/08/etins-record-signs-new-artist-yarden/",
+    image: "https://www.vanguardngr.com/wp-content/uploads/2020/08/YARDEN.jpg",
+    tag: "News",
+    excerpt: "Older / foundational post — the signing story.",
+  },
+  {
+    id: "guardian-audiomack-2023",
+    title: "5 Audiomack songs Nigerians should be listening to",
+    outlet: "The Guardian (Nigeria)",
+    date: "Jul 2023",
+    href: "https://guardian.ng/art-2/entertainment/5-audiomack-songs-nigerians-should-be-listening-to/",
+    // Guardian sometimes blocks image hotlinking → use stable press image
+    image: "https://media.wonderlandmagazine.com/uploads/2023/12/LEAD-yard6-scaled.jpg",
+    tag: "Feature",
+    excerpt: "A bigger mainstream mention — useful for credibility.",
+  },
+  {
+    id: "guardian-rising-2024",
+    title: "Top 10 rising musicians to watch in 2024",
+    outlet: "The Guardian (Nigeria)",
+    date: "2024",
+    href: "https://guardian.ng/saturday-magazine/cover/top-10-rising-musicians-to-watch-in-2024/",
+    // Some Guardian images return 403 → use stable press image
+    image: "https://image.api.sportal365.com/process/smp-images-production/pulse.ng/26072024/8fbde703-9a86-4aca-aff0-49d90c576d96",
+    tag: "List",
+    excerpt: "Older + mainstream list placement (works as ‘press proof’).",
+  },
+
+  // ——— Original ones (kept) ———
   {
     id: "wonderland-interview",
     title: 'Yarden talks debut EP “The One Who Descends”',
@@ -89,12 +142,35 @@ const DEFAULT_PRESS: PressItem[] = [
     id: "pulse-press",
     title: "EP drops alongside the single “Time”",
     outlet: "Pulse Nigeria",
-    date: "Dec 4, 2023",
+    date: "Dec 2023",
     href: "https://www.pulse.ng/story/yarden-drops-the-one-who-descends-ep-alongside-the-new-single-time-2024072621214515034",
     image:
       "https://image.api.sportal365.com/process/smp-images-production/pulse.ng/26072024/8fbde703-9a86-4aca-aff0-49d90c576d96",
     tag: "Press",
     excerpt: "Quick coverage that’s easy to share when people ask “who’s that?”",
+  },
+
+  // ——— Official platform pages (still “official sources”) ———
+  {
+    id: "apple-music-ep",
+    title: "The One Who Descends EP (official release page)",
+    outlet: "Apple Music",
+    date: "Official",
+    href: "https://music.apple.com/ng/album/the-one-who-descends-ep/1720801044",
+    // Use a stable brand image so card isn’t broken
+    image: "https://www.gstatic.com/marketing-cms/assets/images/08/25/fffdc76145f28be3a1ca63859c4a/external-logo-core-1.png=n-w1860-h1047-fcrop64=1,00000000ffffffff-rw",
+    tag: "Listen",
+    excerpt: "Official DSP listing for the project.",
+  },
+  {
+    id: "vanguard-tag",
+    title: "Vanguard archive: #Yarden",
+    outlet: "Vanguard",
+    date: "Archive",
+    href: "https://www.vanguardngr.com/tag/yarden/",
+    image: "https://www.vanguardngr.com/wp-content/uploads/2020/08/YARDEN.jpg",
+    tag: "Archive",
+    excerpt: "More official posts live here (no fan blogs).",
   },
   {
     id: "youtube-channel",
@@ -220,7 +296,6 @@ export function NewsletterSection(props: {
     backgroundImage: string;
   }) => Promise<void> | void;
 }) {
-  // ✅ FIX: normalize boolean|null -> boolean
   const reduced = useReducedMotion() ?? false;
 
   const rootRef = useRef<HTMLElement | null>(null);
