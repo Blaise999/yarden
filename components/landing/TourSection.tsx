@@ -32,7 +32,7 @@ export type ShowItem = {
   city: string;
   venue: string;
   href?: string;
-  status?: ShowStatus;
+  status?: ShowStatus; // "announce" for coming soon
 };
 
 export type TourConfig = {
@@ -44,26 +44,24 @@ export type TourConfig = {
 
   ticketPortalHref?: string;
 
-  // CTA labels
   notifyCtaLabel?: string; // e.g. "Get alerts"
   ticketPortalLabel?: string; // e.g. "Ticket portal"
   passCtaLabel?: string; // e.g. "Pass perks"
-
-  providerHint?: "Bandsintown" | "Seated" | "Custom";
 
   // poster copy
   posterKicker?: string;
   posterTitle?: string;
   posterBody?: string;
 
-  // empty state copy
+  // empty state copy (coming soon)
   emptyKicker?: string;
   emptyTitle?: string;
   emptyBody?: string;
 
-  // subtle footer line (optional)
-  footerLine?: string; // e.g. "More cities soon."
+  footerLine?: string; // small line under list (optional)
 };
+
+gsap.registerPlugin(ScrollTrigger);
 
 function safeUUID() {
   try {
@@ -71,6 +69,10 @@ function safeUUID() {
   } catch {
     return `show_${Math.random().toString(16).slice(2)}`;
   }
+}
+
+function clamp(n: number, a: number, b: number) {
+  return Math.max(a, Math.min(b, n));
 }
 
 function isEmptyRow(s: ShowItem) {
@@ -115,44 +117,49 @@ function formatShortDate(show: ShowItem) {
 }
 
 function statusPill(status?: ShowStatus) {
-  if (status === "soldout") return <Pill tone="muted">Sold out</Pill>;
-  if (status === "announce") return <Pill tone="ghost">Announcing</Pill>;
-  return <Pill tone="brand">Tickets</Pill>;
+  const s = (status ?? "announce") as ShowStatus;
+  if (s === "soldout") return <Pill tone="muted">Sold out</Pill>;
+  if (s === "tickets") return <Pill tone="brand">Tickets</Pill>;
+  return <Pill tone="ghost">Coming soon</Pill>;
 }
 
-function statusTone(status?: ShowStatus) {
-  if (status === "soldout") return "muted";
-  if (status === "announce") return "ghost";
-  return "brand";
+function hasLiveSignals(shows: ShowItem[]) {
+  return shows.some((s) => {
+    const st = (s.status ?? "announce") as ShowStatus;
+    const hasLink = Boolean((s.href ?? "").trim());
+    return st !== "announce" || hasLink;
+  });
 }
 
-function pickRowCta(status?: ShowStatus) {
-  if (status === "soldout") return { label: "Sold out", disabled: true };
-  if (status === "announce") return { label: "Notify", disabled: false };
-  return { label: "Tickets", disabled: false };
+function uniqCities(shows: ShowItem[]) {
+  const set = new Set<string>();
+  const out: string[] = [];
+  shows.forEach((s) => {
+    const c = (s.city ?? "").trim();
+    if (!c) return;
+    const key = c.toLowerCase();
+    if (set.has(key)) return;
+    set.add(key);
+    out.push(c);
+  });
+  return out;
 }
 
-function clamp(n: number, a: number, b: number) {
-  return Math.max(a, Math.min(b, n));
-}
+const STORAGE_KEY = "yarden:tour:draft:v5";
 
-const STORAGE_KEY = "yarden:tour:draft:v4";
-
+// Demo data used ONLY when editable and there is no incoming list.
+// All announce (coming soon), as requested.
 const DEMO_SHOWS: Omit<ShowItem, "id">[] = [
-  { dateISO: "2026-03-22", city: "Lagos", venue: "Eko Convention Centre", status: "tickets" },
+  { dateISO: "2026-03-22", city: "Lagos", venue: "Eko Convention Centre", status: "announce" },
   { dateISO: "2026-03-29", city: "Accra", venue: "AICC", status: "announce" },
-  { dateISO: "2026-04-12", city: "London", venue: "O2 Academy Brixton", status: "tickets" },
-  { dateISO: "2026-04-19", city: "Paris", venue: "L’Olympia", status: "soldout" },
-  { dateISO: "2026-04-26", city: "Amsterdam", venue: "AFAS Live", status: "tickets" },
-  { dateISO: "2026-05-10", city: "New York", venue: "Terminal 5", status: "announce" },
-  { dateISO: "2026-05-17", city: "Toronto", venue: "HISTORY", status: "tickets" },
-  { dateISO: "2026-05-31", city: "Dubai", venue: "Coca-Cola Arena", status: "tickets" },
+  { dateISO: "2026-04-12", city: "London", venue: "O2 Academy Brixton", status: "announce" },
+  { dateISO: "2026-04-19", city: "Paris", venue: "L’Olympia", status: "announce" },
+  { dateISO: "2026-04-26", city: "Amsterdam", venue: "AFAS Live", status: "announce" },
 ];
 
-function TourPreview(props: { config: TourConfig; shows: ShowItem[] }) {
+function LivePreviewCard(props: { config: TourConfig; shows: ShowItem[] }) {
   const cfg = props.config;
   const sorted = sortByDate(props.shows);
-  const next = sorted[0];
 
   const posterKicker = cfg.posterKicker ?? "TOUR";
   const posterTitle = cfg.posterTitle ?? "Coming soon.";
@@ -160,8 +167,15 @@ function TourPreview(props: { config: TourConfig; shows: ShowItem[] }) {
     cfg.posterBody ??
     "Tour announcements will live here — dates, cities, and ticket links the moment they drop.";
 
+  const emptyKicker = cfg.emptyKicker ?? "Coming soon";
+  const emptyTitle = cfg.emptyTitle ?? "No dates announced yet.";
+  const emptyBody =
+    cfg.emptyBody ?? "Join alerts to catch the first drop — cities, venues, and tickets.";
+
+  const cities = uniqCities(sorted).slice(0, 8);
+
   return (
-    <div className="rounded-3xl bg-white/[0.03] ring-1 ring-white/10 overflow-hidden">
+    <div className="overflow-hidden rounded-3xl bg-white/[0.03] ring-1 ring-white/10">
       <div className="relative aspect-[16/10]">
         {cfg.posterSrc?.trim() ? (
           <Image
@@ -179,54 +193,36 @@ function TourPreview(props: { config: TourConfig; shows: ShowItem[] }) {
         <div className="absolute bottom-4 left-4 right-4 rounded-3xl bg-black/40 p-4 ring-1 ring-white/10 backdrop-blur-xl">
           <div className="flex items-center justify-between gap-3">
             <div className="text-xs uppercase tracking-[0.28em] text-white/60">{posterKicker}</div>
-            {next ? statusPill(next.status) : <Pill tone="ghost">Soon</Pill>}
+            <Pill tone="ghost">Coming soon</Pill>
           </div>
           <div className="mt-2 text-base font-semibold text-white">{posterTitle}</div>
           <p className="mt-1 text-sm text-white/60">{posterBody}</p>
-
-          {next ? (
-            <div className="mt-3 rounded-2xl bg-white/[0.03] p-3 ring-1 ring-white/10">
-              <div className="text-xs uppercase tracking-widest text-white/55">Next stop</div>
-              <div className="mt-1 text-sm font-semibold text-white">
-                {next.city} <span className="text-white/45">•</span> {next.venue}
-              </div>
-            </div>
-          ) : null}
         </div>
       </div>
 
       <div className="p-4">
-        <div className="text-xs uppercase tracking-widest text-white/60">Preview list</div>
-        <div className="mt-3 grid gap-2">
-          {sorted.slice(0, 3).map((s) => {
-            const d = formatShortDate(s);
-            return (
-              <div
-                key={s.id}
-                className="flex items-center justify-between gap-3 rounded-2xl bg-white/[0.03] p-3 ring-1 ring-white/10"
-              >
-                <div className="flex items-center gap-3 min-w-0">
-                  <div className="grid h-11 w-11 place-items-center rounded-2xl bg-white/[0.04] ring-1 ring-white/10">
-                    <div className="text-center">
-                      <div className="text-[10px] font-semibold tracking-wide text-white/70">{d.month}</div>
-                      <div className="text-sm font-semibold text-white">{d.day}</div>
-                    </div>
-                  </div>
-                  <div className="min-w-0">
-                    <div className="truncate text-sm font-semibold text-white">{s.city || "—"}</div>
-                    <div className="truncate text-xs text-white/60">{s.venue || "Venue TBA"}</div>
-                  </div>
-                </div>
-                <Pill tone={statusTone(s.status) as any}>{pickRowCta(s.status).label}</Pill>
-              </div>
-            );
-          })}
-          {!sorted.length ? (
-            <div className="rounded-2xl bg-white/[0.03] p-4 ring-1 ring-white/10 text-sm text-white/70">
-              No dates yet — this is where they appear.
-            </div>
-          ) : null}
+        <div className="flex items-center gap-2">
+          <IconAnkh className="h-4 w-4 text-white/70" />
+          <div className="text-xs uppercase tracking-widest text-white/60">{emptyKicker}</div>
         </div>
+        <div className="mt-2 text-sm font-semibold text-white">{emptyTitle}</div>
+        <p className="mt-1 text-sm text-white/60">{emptyBody}</p>
+
+        {cities.length ? (
+          <div className="mt-4">
+            <div className="text-xs uppercase tracking-widest text-white/55">Cities in rotation</div>
+            <div className="mt-2 flex flex-wrap gap-2">
+              {cities.map((c) => (
+                <span
+                  key={c}
+                  className="inline-flex items-center rounded-full bg-white/[0.04] px-3 py-1.5 text-xs text-white/75 ring-1 ring-white/10"
+                >
+                  {c}
+                </span>
+              ))}
+            </div>
+          </div>
+        ) : null}
       </div>
     </div>
   );
@@ -256,13 +252,13 @@ export function TourSection(props: {
   const [draftConfig, setDraftConfig] = useState<TourConfig>(props.config);
   const [saving, setSaving] = useState(false);
 
-  // stable demo list (no random IDs on each render)
+  // stable demo list (no random IDs each render)
   const demoRef = useRef<ShowItem[] | null>(null);
   if (!demoRef.current) {
     demoRef.current = DEMO_SHOWS.map((s) => ({ ...s, id: safeUUID() }));
   }
 
-  // choose what to render for visitors
+  // pick what visitors see
   const effectiveShows = useMemo(() => {
     const incoming = props.shows ?? [];
     if (incoming.length) return incoming;
@@ -272,11 +268,15 @@ export function TourSection(props: {
 
   const sortedShows = useMemo(() => sortByDate(effectiveShows), [effectiveShows]);
 
+  // coming soon mode = no “live” signals yet
+  const comingSoonMode = useMemo(() => !hasLiveSignals(sortedShows), [sortedShows]);
+
+  // only used if/when it goes live later
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     return sortedShows.filter((s) => {
       const matchesQuery = !q || `${s.city} ${s.venue}`.toLowerCase().includes(q);
-      const st = (s.status ?? "tickets") as ShowStatus;
+      const st = (s.status ?? "announce") as ShowStatus;
       const matchesStatus = statusFilter === "all" || st === statusFilter;
       return matchesQuery && matchesStatus;
     });
@@ -332,15 +332,15 @@ export function TourSection(props: {
     persistDraft(updated, draftConfig);
   };
 
-  const moveShow = (id: string, dir: -1 | 1) => {
-    const i = draftShows.findIndex((s) => s.id === id);
+  const moveShow = (sid: string, dir: -1 | 1) => {
+    const i = draftShows.findIndex((s) => s.id === sid);
     if (i === -1) return;
     const j = clamp(i + dir, 0, draftShows.length - 1);
     if (i === j) return;
     const next = [...draftShows];
-    const temp = next[i];
+    const tmp = next[i];
     next[i] = next[j];
-    next[j] = temp;
+    next[j] = tmp;
     setDraftShows(next);
     persistDraft(next, draftConfig);
   };
@@ -357,7 +357,7 @@ export function TourSection(props: {
       const cleaned = sortByDate(
         draftShows
           .filter((s) => !isEmptyRow(s))
-          .map((s) => ({ ...s, status: (s.status ?? "tickets") as ShowStatus }))
+          .map((s) => ({ ...s, status: (s.status ?? "announce") as ShowStatus }))
       );
 
       const cfg: TourConfig = { ...draftConfig };
@@ -374,15 +374,13 @@ export function TourSection(props: {
   useLayoutEffect(() => {
     if (reducedMotion) return;
 
-    gsap.registerPlugin(ScrollTrigger);
-
     const ctx = gsap.context(() => {
       const root = rootRef.current;
       if (!root) return;
 
-      const rows = Array.from(root.querySelectorAll<HTMLElement>("[data-show-row='true']"));
-      const poster = root.querySelector<HTMLElement>("[data-tour-poster='true']");
       const shell = root.querySelector<HTMLElement>("[data-tour-shell='true']");
+      const poster = root.querySelector<HTMLElement>("[data-tour-poster='true']");
+      const rows = Array.from(root.querySelectorAll<HTMLElement>("[data-show-row='true']"));
 
       if (shell) {
         gsap.fromTo(
@@ -402,7 +400,7 @@ export function TourSection(props: {
       if (poster) {
         gsap.fromTo(
           poster,
-          { y: 18, opacity: 0, filter: "blur(10px)" },
+          { y: 16, opacity: 0, filter: "blur(10px)" },
           {
             y: 0,
             opacity: 1,
@@ -417,11 +415,11 @@ export function TourSection(props: {
       if (rows.length) {
         gsap.fromTo(
           rows,
-          { y: 12, opacity: 0 },
+          { y: 10, opacity: 0 },
           {
             y: 0,
             opacity: 1,
-            duration: 0.75,
+            duration: 0.7,
             ease: "power3.out",
             stagger: 0.06,
             scrollTrigger: { trigger: root, start: "top 70%", once: true },
@@ -436,16 +434,11 @@ export function TourSection(props: {
   const cfg = props.config;
 
   const total = sortedShows.length;
-  const ticketsCount = sortedShows.filter((s) => (s.status ?? "tickets") === "tickets").length;
-  const soldoutCount = sortedShows.filter((s) => (s.status ?? "tickets") === "soldout").length;
-  const announceCount = sortedShows.filter((s) => (s.status ?? "tickets") === "announce").length;
-
-  const nextShow = useMemo(() => {
-    if (!sortedShows.length) return null;
-    // prefer earliest dateISO; if none, just first row
-    const dated = sortedShows.filter((s) => !!parseDateISO(s.dateISO));
-    return (dated.length ? dated[0] : sortedShows[0]) ?? null;
-  }, [sortedShows]);
+  const cities = uniqCities(sortedShows);
+  const notifyLabel = cfg.notifyCtaLabel ?? "Get alerts";
+  const ticketPortalLabel = cfg.ticketPortalLabel ?? "Ticket portal";
+  const passLabel = cfg.passCtaLabel ?? "Pass perks";
+  const ticketPortalHref = (cfg.ticketPortalHref ?? "").trim();
 
   const posterKicker = cfg.posterKicker ?? "TOUR";
   const posterTitle = cfg.posterTitle ?? "Coming soon.";
@@ -454,20 +447,15 @@ export function TourSection(props: {
     "Tour announcements will live here — dates, cities, and ticket links the moment they drop.";
 
   const emptyKicker = cfg.emptyKicker ?? "Coming soon";
-  const emptyTitle = cfg.emptyTitle ?? "No dates announced yet.";
+  const emptyTitle = cfg.emptyTitle ?? "Tour dates aren’t announced yet.";
   const emptyBody =
-    cfg.emptyBody ?? "When the calendar opens, it updates instantly — one place for every city.";
-
-  const notifyLabel = cfg.notifyCtaLabel ?? "Get alerts";
-  const ticketPortalLabel = cfg.ticketPortalLabel ?? "Ticket portal";
-  const passLabel = cfg.passCtaLabel ?? "Pass perks";
+    cfg.emptyBody ??
+    "Join alerts for the first drop. Cities, venues, and tickets will post here as soon as they’re live.";
 
   const hasPoster = Boolean((cfg.posterSrc ?? "").trim());
-  const ticketPortalHref = (cfg.ticketPortalHref ?? "").trim();
 
   const onNotify = () => {
-    if (props.onNotify) props.onNotify();
-    // no noisy alerts by default
+    props.onNotify?.();
   };
 
   return (
@@ -480,8 +468,8 @@ export function TourSection(props: {
       <div ref={rootRef} className="mx-auto max-w-7xl px-5 md:px-8">
         <SectionHeader
           eyebrow="Tour"
-          title={cfg.headline ?? "Live, soon."}
-          desc={cfg.description ?? "Dates, cities, and ticket links — the official tour board."}
+          title={cfg.headline ?? "Coming soon."}
+          desc={cfg.description ?? "The official tour board — announcements post here first."}
           right={
             <div className="flex flex-wrap gap-2">
               {props.editable ? (
@@ -494,6 +482,7 @@ export function TourSection(props: {
                 {notifyLabel}
               </Button>
 
+              {/* Keep portal CTA available for later (admin can set link), but coming soon stays primary */}
               {ticketPortalHref ? (
                 <Button
                   variant="secondary"
@@ -503,220 +492,194 @@ export function TourSection(props: {
                 >
                   {ticketPortalLabel}
                 </Button>
-              ) : (
-                <Button variant="secondary" onClick={onNotify}>
-                  {ticketPortalLabel}
-                </Button>
-              )}
+              ) : null}
             </div>
           }
         />
 
-        {/* top metrics + search */}
         <div className="mb-6 grid gap-4 lg:grid-cols-[1fr_1fr_1.25fr]">
           <Stat
-            label="Dates"
-            value={String(total)}
-            hint={props.shows.length ? "Official list" : props.editable ? "Preview mode" : "Coming soon"}
+            label="Status"
+            value={comingSoonMode ? "Coming soon" : "Live"}
+            hint={comingSoonMode ? "Announcements pending" : "Tickets / sold-out"}
           />
           <Stat
-            label="Breakdown"
-            value={`${ticketsCount}/${soldoutCount}/${announceCount}`}
-            hint="Tickets / Sold out / Announcing"
+            label="Cities"
+            value={String(cities.length)}
+            hint={cities.length ? "In rotation" : "To be announced"}
           />
 
           <div className="rounded-2xl bg-white/[0.04] p-5 ring-1 ring-white/10">
-            <div className="flex items-center justify-between">
-              <div className="text-xs uppercase tracking-widest text-white/60">Find a show</div>
-              {nextShow ? (
-                <div className="text-xs text-white/55">
-                  Next:{" "}
-                  <span className="text-white/75">
-                    {nextShow.city}
-                    {nextShow.dateISO ? ` • ${nextShow.dateISO}` : ""}
-                  </span>
-                </div>
-              ) : null}
+            <div className="text-xs uppercase tracking-widest text-white/60">Stay updated</div>
+            <div className="mt-2 text-sm text-white/70">
+              Get notified when dates drop. No noise — only tour updates.
             </div>
-
-            <div className="mt-3 grid gap-3 sm:grid-cols-2">
-              <input
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                placeholder="City or venue…"
-                className={cx(
-                  "w-full rounded-2xl bg-white/[0.04] px-4 py-3 text-sm text-white placeholder:text-white/35",
-                  "ring-1 ring-white/10 outline-none focus:ring-2 focus:ring-white/30"
-                )}
-              />
-              <select
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value as any)}
-                className={cx(
-                  "w-full rounded-2xl bg-white/[0.04] px-4 py-3 text-sm text-white",
-                  "ring-1 ring-white/10 outline-none focus:ring-2 focus:ring-white/30"
-                )}
-              >
-                <option value="all" className="bg-[#0B0B10]">
-                  All statuses
-                </option>
-                <option value="tickets" className="bg-[#0B0B10]">
-                  Tickets
-                </option>
-                <option value="announce" className="bg-[#0B0B10]">
-                  Announcing
-                </option>
-                <option value="soldout" className="bg-[#0B0B10]">
-                  Sold out
-                </option>
-              </select>
+            <div className="mt-4 flex flex-wrap gap-2">
+              <Button variant="primary" onClick={onNotify}>
+                {notifyLabel}
+              </Button>
+              <Button variant="secondary" onClick={() => props.onOpenPass?.()}>
+                {passLabel}
+              </Button>
             </div>
           </div>
         </div>
 
-        {/* shell */}
         <Card className="overflow-hidden" data-tour-shell="true">
           <div className="grid lg:grid-cols-[1.2fr_.8fr]">
-            {/* LEFT: list */}
+            {/* LEFT */}
             <div className="p-6 md:p-8">
               <div className="flex flex-wrap items-center gap-2">
                 <Badge>Official tour board</Badge>
-                {cfg.providerHint ? <Badge>{cfg.providerHint}</Badge> : <Badge>Updates here first</Badge>}
-                {nextShow ? <Badge>Next: {nextShow.city}</Badge> : <Badge>Coming soon</Badge>}
+                <Badge>{comingSoonMode ? "Coming soon" : "Live"}</Badge>
+                {cities.length ? <Badge>{cities[0]}{cities.length > 1 ? ` +${cities.length - 1}` : ""}</Badge> : null}
               </div>
 
-              <div className="mt-6 divide-y divide-white/10">
-                {filtered.length ? (
-                  filtered.map((s) => {
-                    const d = formatShortDate(s);
-                    const status = (s.status ?? "tickets") as ShowStatus;
-                    const link = (s.href || ticketPortalHref || "").trim();
-                    const hasLink = Boolean(link);
-                    const cta = pickRowCta(status);
+              {/* COMING SOON LAYOUT (your request) */}
+              {comingSoonMode ? (
+                <div className="mt-6">
+                  <div className="rounded-3xl bg-white/[0.03] p-7 ring-1 ring-white/10">
+                    <div className="flex items-center gap-2 text-white/70">
+                      <IconAnkh className="h-5 w-5" />
+                      <div className="text-xs uppercase tracking-widest">{emptyKicker}</div>
+                    </div>
 
-                    const primaryLabel =
-                      status === "tickets" ? "Tickets" : status === "announce" ? "Notify" : "Sold out";
+                    <div className="mt-4 text-lg font-semibold text-white">{emptyTitle}</div>
+                    <p className="mt-2 text-sm leading-relaxed text-white/60">{emptyBody}</p>
 
-                    const rowPrimaryAction = () => {
-                      if (status === "announce") onNotify();
-                      // tickets opens link via href on Button below
-                    };
+                    {cities.length ? (
+                      <div className="mt-5">
+                        <div className="text-xs uppercase tracking-widest text-white/55">Cities in rotation</div>
+                        <div className="mt-2 flex flex-wrap gap-2">
+                          {cities.slice(0, 10).map((c) => (
+                            <span
+                              key={c}
+                              className="inline-flex items-center rounded-full bg-white/[0.04] px-3 py-2 text-xs text-white/75 ring-1 ring-white/10"
+                            >
+                              {c}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    ) : null}
 
-                    return (
-                      <div
-                        key={s.id}
-                        className="flex items-center justify-between gap-6 py-5"
-                        data-show-row="true"
-                      >
-                        <div className="flex items-center gap-5 min-w-0">
-                          <div className="grid h-14 w-14 place-items-center rounded-2xl bg-white/[0.04] ring-1 ring-white/10">
-                            <div className="text-center">
-                              <div className="text-xs font-semibold tracking-wide text-white/80">{d.month}</div>
-                              <div className="text-base font-semibold tracking-tight text-white">{d.day}</div>
+                    <div className="mt-6 flex flex-wrap gap-2">
+                      <Button variant="primary" onClick={onNotify}>
+                        {notifyLabel}
+                      </Button>
+                      <Button variant="secondary" onClick={() => props.onOpenPass?.()}>
+                        {passLabel}
+                      </Button>
+                      {ticketPortalHref ? (
+                        <Button
+                          variant="ghost"
+                          href={ticketPortalHref}
+                          target="_blank"
+                          iconRight={<IconArrowUpRight className="h-4 w-4" />}
+                        >
+                          {ticketPortalLabel}
+                        </Button>
+                      ) : null}
+                    </div>
+                  </div>
+
+                  <Divider />
+
+                  <div className="grid gap-4 md:grid-cols-3">
+                    <Card className="p-5">
+                      <div className="text-xs uppercase tracking-widest text-white/60">Announcements</div>
+                      <div className="mt-2 text-sm text-white/70">Dates post here first.</div>
+                    </Card>
+                    <Card className="p-5">
+                      <div className="text-xs uppercase tracking-widest text-white/60">Alerts</div>
+                      <div className="mt-2 text-sm text-white/70">Join once. Get tour-only updates.</div>
+                    </Card>
+                    <Card className="p-5">
+                      <div className="text-xs uppercase tracking-widest text-white/60">Tickets</div>
+                      <div className="mt-2 text-sm text-white/70">Links go live when confirmed.</div>
+                    </Card>
+                  </div>
+
+                  {cfg.footerLine ? <div className="mt-5 text-xs text-white/45">{cfg.footerLine}</div> : null}
+                </div>
+              ) : (
+                /* LIVE LAYOUT (kept for later: admin edits status/links and it automatically becomes live) */
+                <div className="mt-6">
+                  <div className="mb-5 grid gap-3 sm:grid-cols-2">
+                    <input
+                      value={query}
+                      onChange={(e) => setQuery(e.target.value)}
+                      placeholder="Search city or venue…"
+                      className={cx(
+                        "w-full rounded-2xl bg-white/[0.04] px-4 py-3 text-sm text-white placeholder:text-white/35",
+                        "ring-1 ring-white/10 outline-none focus:ring-2 focus:ring-white/30"
+                      )}
+                    />
+                    <select
+                      value={statusFilter}
+                      onChange={(e) => setStatusFilter(e.target.value as any)}
+                      className={cx(
+                        "w-full rounded-2xl bg-white/[0.04] px-4 py-3 text-sm text-white",
+                        "ring-1 ring-white/10 outline-none focus:ring-2 focus:ring-white/30"
+                      )}
+                    >
+                      <option value="all" className="bg-[#0B0B10]">
+                        All statuses
+                      </option>
+                      <option value="tickets" className="bg-[#0B0B10]">
+                        Tickets
+                      </option>
+                      <option value="announce" className="bg-[#0B0B10]">
+                        Coming soon
+                      </option>
+                      <option value="soldout" className="bg-[#0B0B10]">
+                        Sold out
+                      </option>
+                    </select>
+                  </div>
+
+                  <div className="divide-y divide-white/10">
+                    {filtered.map((s) => {
+                      const d = formatShortDate(s);
+                      const st = (s.status ?? "announce") as ShowStatus;
+                      const link = (s.href || ticketPortalHref || "").trim();
+                      const hasLink = Boolean(link);
+
+                      return (
+                        <div key={s.id} className="flex items-center justify-between gap-6 py-5" data-show-row="true">
+                          <div className="flex items-center gap-5 min-w-0">
+                            <div className="grid h-14 w-14 place-items-center rounded-2xl bg-white/[0.04] ring-1 ring-white/10">
+                              <div className="text-center">
+                                <div className="text-xs font-semibold tracking-wide text-white/80">{d.month}</div>
+                                <div className="text-base font-semibold tracking-tight text-white">{d.day}</div>
+                              </div>
+                            </div>
+
+                            <div className="min-w-0">
+                              <div className="truncate text-base font-semibold text-white">{s.city || "—"}</div>
+                              <div className="mt-0.5 truncate text-sm text-white/60">{s.venue || "Venue TBA"}</div>
                             </div>
                           </div>
 
-                          <div className="min-w-0">
-                            <div className="truncate text-base font-semibold text-white">{s.city || "—"}</div>
-                            <div className="mt-0.5 truncate text-sm text-white/60">{s.venue || "Venue TBA"}</div>
-                          </div>
-                        </div>
-
-                        <div className="flex items-center gap-3">
-                          {statusPill(status)}
-
-                          {status === "tickets" ? (
+                          <div className="flex items-center gap-3">
+                            {statusPill(st)}
                             <Button
-                              variant="primary"
+                              variant="ghost"
                               href={hasLink ? link : "#"}
                               target={hasLink ? "_blank" : undefined}
                               iconRight={<IconArrowUpRight className="h-4 w-4" />}
                               className="px-4 py-2"
                               disabled={!hasLink}
                             >
-                              {primaryLabel}
+                              Details
                             </Button>
-                          ) : (
-                            <Button
-                              variant={status === "soldout" ? "secondary" : "primary"}
-                              onClick={rowPrimaryAction}
-                              className="px-4 py-2"
-                              disabled={cta.disabled}
-                              iconRight={status === "announce" ? <IconChevron className="h-4 w-4" /> : undefined}
-                            >
-                              {primaryLabel}
-                            </Button>
-                          )}
-
-                          <Button
-                            variant="ghost"
-                            href={hasLink ? link : "#"}
-                            target={hasLink ? "_blank" : undefined}
-                            iconRight={<IconArrowUpRight className="h-4 w-4" />}
-                            className="px-4 py-2"
-                            disabled={!hasLink}
-                          >
-                            Details
-                          </Button>
+                          </div>
                         </div>
-                      </div>
-                    );
-                  })
-                ) : (
-                  <div className="py-10">
-                    <div className="rounded-3xl bg-white/[0.03] p-7 ring-1 ring-white/10">
-                      <div className="flex items-center gap-2 text-white/70">
-                        <IconAnkh className="h-5 w-5" />
-                        <div className="text-xs uppercase tracking-widest">{emptyKicker}</div>
-                      </div>
-
-                      <div className="mt-4 text-lg font-semibold text-white">{emptyTitle}</div>
-                      <p className="mt-2 text-sm leading-relaxed text-white/60">{emptyBody}</p>
-
-                      <div className="mt-5 flex flex-wrap gap-2">
-                        <Button variant="primary" onClick={onNotify}>
-                          {notifyLabel}
-                        </Button>
-                        <Button variant="secondary" onClick={() => props.onOpenPass?.()}>
-                          {passLabel}
-                        </Button>
-
-                        {ticketPortalHref ? (
-                          <Button
-                            variant="ghost"
-                            href={ticketPortalHref}
-                            target="_blank"
-                            iconRight={<IconArrowUpRight className="h-4 w-4" />}
-                          >
-                            {ticketPortalLabel}
-                          </Button>
-                        ) : null}
-                      </div>
-                    </div>
+                      );
+                    })}
                   </div>
-                )}
-              </div>
-
-              <Divider />
-
-              <div className="grid gap-4 md:grid-cols-3">
-                <Card className="p-5">
-                  <div className="text-xs uppercase tracking-widest text-white/60">Alerts</div>
-                  <div className="mt-2 text-sm text-white/70">Get a ping when dates go live.</div>
-                </Card>
-                <Card className="p-5">
-                  <div className="text-xs uppercase tracking-widest text-white/60">Cities</div>
-                  <div className="mt-2 text-sm text-white/70">Search by city or venue.</div>
-                </Card>
-                <Card className="p-5">
-                  <div className="text-xs uppercase tracking-widest text-white/60">Official links</div>
-                  <div className="mt-2 text-sm text-white/70">Tickets and details in one place.</div>
-                </Card>
-              </div>
-
-              {cfg.footerLine ? (
-                <div className="mt-5 text-xs text-white/45">{cfg.footerLine}</div>
-              ) : null}
+                </div>
+              )}
             </div>
 
             {/* RIGHT: poster */}
@@ -744,56 +707,29 @@ export function TourSection(props: {
                 <div className="rounded-3xl bg-black/40 p-5 ring-1 ring-white/10 backdrop-blur-xl">
                   <div className="flex items-center justify-between gap-3">
                     <div className="text-xs uppercase tracking-[0.28em] text-white/60">{posterKicker}</div>
-                    {nextShow ? statusPill(nextShow.status) : <Pill tone="ghost">Soon</Pill>}
+                    <Pill tone="ghost">Coming soon</Pill>
                   </div>
-
                   <div className="mt-2 text-lg font-semibold text-white">{posterTitle}</div>
                   <p className="mt-2 text-sm text-white/60">{posterBody}</p>
 
-                  {nextShow ? (
-                    <div className="mt-4 rounded-2xl bg-white/[0.03] p-4 ring-1 ring-white/10">
-                      <div className="text-xs uppercase tracking-widest text-white/55">Next stop</div>
-                      <div className="mt-1 text-sm font-semibold text-white">
-                        {nextShow.city} <span className="text-white/45">•</span> {nextShow.venue}
-                      </div>
-                      <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-white/60">
-                        {nextShow.dateISO ? <span>{nextShow.dateISO}</span> : null}
-                        {nextShow.dateISO ? <span className="opacity-60">•</span> : null}
-                        <span>{nextShow.status === "announce" ? "Announcement pending" : "Details live"}</span>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="mt-4 rounded-2xl bg-white/[0.03] p-4 ring-1 ring-white/10">
-                      <div className="text-xs uppercase tracking-widest text-white/55">Tour board</div>
-                      <div className="mt-2 text-sm text-white/70">
-                        {emptyBody}
-                      </div>
-                    </div>
-                  )}
-
                   <div className="mt-4 flex flex-wrap gap-2">
+                    <Button variant="primary" onClick={onNotify} iconRight={<IconChevron className="h-4 w-4" />}>
+                      {notifyLabel}
+                    </Button>
+                    <Button variant="secondary" onClick={() => props.onOpenPass?.()}>
+                      {passLabel}
+                    </Button>
+
                     {ticketPortalHref ? (
                       <Button
-                        variant="primary"
+                        variant="ghost"
                         href={ticketPortalHref}
                         target="_blank"
                         iconRight={<IconArrowUpRight className="h-4 w-4" />}
                       >
                         {ticketPortalLabel}
                       </Button>
-                    ) : (
-                      <Button variant="primary" onClick={onNotify}>
-                        {ticketPortalLabel}
-                      </Button>
-                    )}
-
-                    <Button variant="secondary" onClick={() => props.onOpenPass?.()}>
-                      {passLabel}
-                    </Button>
-
-                    <Button variant="ghost" onClick={onNotify} iconRight={<IconChevron className="h-4 w-4" />}>
-                      {notifyLabel}
-                    </Button>
+                    ) : null}
                   </div>
                 </div>
               </div>
@@ -801,20 +737,20 @@ export function TourSection(props: {
           </div>
         </Card>
 
-        {/* ADMIN CMS */}
+        {/* ADMIN CMS (kept + strong; edits instantly reflect in preview) */}
         <Modal open={!!props.editable && editOpen} onClose={() => setEditOpen(false)} title="Tour CMS">
           <div className="grid gap-6 lg:grid-cols-[1.05fr_.95fr]">
-            {/* Left: controls */}
+            {/* LEFT: controls */}
             <div className="grid gap-6">
               <Card className="p-5">
                 <div className="flex items-center justify-between gap-3">
                   <div>
                     <div className="text-xs uppercase tracking-widest text-white/60">Section copy</div>
-                    <div className="mt-1 text-sm text-white/70">Live preview updates as you type.</div>
+                    <div className="mt-1 text-sm text-white/70">Preview updates as you type.</div>
                   </div>
                   <div className="flex items-center gap-2">
                     <Badge>Draft</Badge>
-                    <Badge>{draftShows.filter((s) => !isEmptyRow(s)).length} dates</Badge>
+                    <Badge>{draftShows.filter((s) => !isEmptyRow(s)).length} items</Badge>
                   </div>
                 </div>
 
@@ -828,7 +764,7 @@ export function TourSection(props: {
                         setDraftConfig(next);
                         persistDraft(draftShows, next);
                       }}
-                      placeholder="Live, soon."
+                      placeholder="Coming soon."
                       className={cx(
                         "mt-2 w-full rounded-2xl bg-white/[0.04] px-4 py-3 text-sm text-white placeholder:text-white/35",
                         "ring-1 ring-white/10 outline-none focus:ring-2 focus:ring-white/30"
@@ -846,7 +782,7 @@ export function TourSection(props: {
                         persistDraft(draftShows, next);
                       }}
                       rows={3}
-                      placeholder="Dates, cities, and ticket links — the official tour board."
+                      placeholder="The official tour board — announcements post here first."
                       className={cx(
                         "mt-2 w-full resize-none rounded-2xl bg-white/[0.04] px-4 py-3 text-sm text-white placeholder:text-white/35",
                         "ring-1 ring-white/10 outline-none focus:ring-2 focus:ring-white/30"
@@ -908,7 +844,7 @@ export function TourSection(props: {
                   </div>
 
                   <label className="block">
-                    <span className="text-xs uppercase tracking-widest text-white/60">Ticket portal link</span>
+                    <span className="text-xs uppercase tracking-widest text-white/60">Ticket portal link (optional)</span>
                     <input
                       value={draftConfig.ticketPortalHref ?? ""}
                       onChange={(e) => {
@@ -1001,7 +937,7 @@ export function TourSection(props: {
                   </div>
 
                   <label className="block">
-                    <span className="text-xs uppercase tracking-widest text-white/60">Poster paragraph</span>
+                    <span className="text-xs uppercase tracking-widest text-white/60">Poster body</span>
                     <textarea
                       value={draftConfig.posterBody ?? ""}
                       onChange={(e) => {
@@ -1017,15 +953,69 @@ export function TourSection(props: {
                       )}
                     />
                   </label>
+
+                  <div className="grid gap-3 md:grid-cols-3">
+                    <label className="block md:col-span-1">
+                      <span className="text-xs uppercase tracking-widest text-white/60">Empty kicker</span>
+                      <input
+                        value={draftConfig.emptyKicker ?? ""}
+                        onChange={(e) => {
+                          const next = { ...draftConfig, emptyKicker: e.target.value };
+                          setDraftConfig(next);
+                          persistDraft(draftShows, next);
+                        }}
+                        placeholder="Coming soon"
+                        className={cx(
+                          "mt-2 w-full rounded-2xl bg-white/[0.04] px-4 py-3 text-sm text-white placeholder:text-white/35",
+                          "ring-1 ring-white/10 outline-none focus:ring-2 focus:ring-white/30"
+                        )}
+                      />
+                    </label>
+
+                    <label className="block md:col-span-2">
+                      <span className="text-xs uppercase tracking-widest text-white/60">Empty title</span>
+                      <input
+                        value={draftConfig.emptyTitle ?? ""}
+                        onChange={(e) => {
+                          const next = { ...draftConfig, emptyTitle: e.target.value };
+                          setDraftConfig(next);
+                          persistDraft(draftShows, next);
+                        }}
+                        placeholder="Tour dates aren’t announced yet."
+                        className={cx(
+                          "mt-2 w-full rounded-2xl bg-white/[0.04] px-4 py-3 text-sm text-white placeholder:text-white/35",
+                          "ring-1 ring-white/10 outline-none focus:ring-2 focus:ring-white/30"
+                        )}
+                      />
+                    </label>
+
+                    <label className="block md:col-span-3">
+                      <span className="text-xs uppercase tracking-widest text-white/60">Empty body</span>
+                      <textarea
+                        value={draftConfig.emptyBody ?? ""}
+                        onChange={(e) => {
+                          const next = { ...draftConfig, emptyBody: e.target.value };
+                          setDraftConfig(next);
+                          persistDraft(draftShows, next);
+                        }}
+                        rows={3}
+                        placeholder="Join alerts for the first drop. Cities, venues, and tickets will post here as soon as they’re live."
+                        className={cx(
+                          "mt-2 w-full resize-none rounded-2xl bg-white/[0.04] px-4 py-3 text-sm text-white placeholder:text-white/35",
+                          "ring-1 ring-white/10 outline-none focus:ring-2 focus:ring-white/30"
+                        )}
+                      />
+                    </label>
+                  </div>
                 </div>
               </Card>
 
               <Card className="p-5">
                 <div className="flex items-center justify-between gap-3">
-                  <div className="text-xs uppercase tracking-widest text-white/60">Dates</div>
+                  <div className="text-xs uppercase tracking-widest text-white/60">Shows (still “Coming soon”)</div>
                   <div className="flex flex-wrap gap-2">
                     <Button variant="secondary" onClick={addShow}>
-                      Add date
+                      Add show
                     </Button>
                     <Button
                       variant="ghost"
@@ -1047,8 +1037,8 @@ export function TourSection(props: {
                     <div key={s.id} className="rounded-2xl bg-white/[0.03] p-4 ring-1 ring-white/10">
                       <div className="flex items-start justify-between gap-3">
                         <div className="flex items-center gap-2">
+                          <Pill tone="ghost">Coming soon</Pill>
                           <Pill tone="muted">Show</Pill>
-                          {statusPill(s.status)}
                         </div>
 
                         <div className="flex items-center gap-1">
@@ -1131,7 +1121,9 @@ export function TourSection(props: {
                         </label>
 
                         <label className="block md:col-span-2">
-                          <span className="text-xs uppercase tracking-widest text-white/60">Details / ticket link</span>
+                          <span className="text-xs uppercase tracking-widest text-white/60">
+                            Ticket link (leave blank for “Coming soon”)
+                          </span>
                           <input
                             value={s.href ?? ""}
                             onChange={(e) => updateShow(s.id, { href: e.target.value })}
@@ -1143,21 +1135,22 @@ export function TourSection(props: {
                           />
                         </label>
 
+                        {/* keep status for later, but default announce */}
                         <label className="block">
                           <span className="text-xs uppercase tracking-widest text-white/60">Status</span>
                           <select
-                            value={(s.status ?? "tickets") as ShowStatus}
+                            value={(s.status ?? "announce") as ShowStatus}
                             onChange={(e) => updateShow(s.id, { status: e.target.value as ShowStatus })}
                             className={cx(
                               "mt-2 w-full rounded-2xl bg-white/[0.04] px-4 py-3 text-sm text-white",
                               "ring-1 ring-white/10 outline-none focus:ring-2 focus:ring-white/30"
                             )}
                           >
+                            <option value="announce" className="bg-[#0B0B10]">
+                              Coming soon
+                            </option>
                             <option value="tickets" className="bg-[#0B0B10]">
                               Tickets
-                            </option>
-                            <option value="announce" className="bg-[#0B0B10]">
-                              Announcing
                             </option>
                             <option value="soldout" className="bg-[#0B0B10]">
                               Sold out
@@ -1172,7 +1165,7 @@ export function TourSection(props: {
 
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div className="text-xs text-white/50">
-                  Your edits update the preview instantly. Hit Save to publish via your backend.
+                  Draft saves locally. Wire <span className="text-white/70">onSave()</span> to publish from your admin backend.
                 </div>
 
                 <div className="flex flex-wrap gap-2">
@@ -1182,7 +1175,9 @@ export function TourSection(props: {
                   <Button
                     variant="primary"
                     onClick={saveNow}
-                    iconRight={saving ? <span className="text-xs">Saving…</span> : <IconArrowUpRight className="h-4 w-4" />}
+                    iconRight={
+                      saving ? <span className="text-xs">Saving…</span> : <IconArrowUpRight className="h-4 w-4" />
+                    }
                   >
                     Save
                   </Button>
@@ -1190,17 +1185,15 @@ export function TourSection(props: {
               </div>
             </div>
 
-            {/* Right: LIVE PREVIEW */}
+            {/* RIGHT: live preview */}
             <div className="grid gap-4">
               <div className="flex items-center justify-between">
                 <div className="text-xs uppercase tracking-widest text-white/60">Live preview</div>
                 <Badge>Updates instantly</Badge>
               </div>
-              <TourPreview
-                config={{
-                  ...props.config,
-                  ...draftConfig,
-                }}
+
+              <LivePreviewCard
+                config={{ ...props.config, ...draftConfig }}
                 shows={draftShows.filter((s) => !isEmptyRow(s))}
               />
             </div>
