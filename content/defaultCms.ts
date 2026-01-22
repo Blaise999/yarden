@@ -79,7 +79,7 @@ export const DEFAULT_CMS: CmsData = {
       headline: "Shows that feel like chapters.",
       description: "Official tour dates, ticket links, and announcements.",
       posterSrc: "/media/yarden/tour-poster.jpg",
-      posterAlt: "Tour poster",
+      posterAlt: "ter",
       ticketPortalHref: "#",
       notifyCtaLabel: "Get alerts",
       providerHint: "Custom",

@@ -135,7 +135,7 @@ export default function Page() {
   ];
 
   const tourConfig: TourConfig = {
-    posterSrc: "/public/yarden4.png",
+    posterSrc: "/Pictures/yarden4.png",
     posterAlt: "Tour poster",
     headline: "Shows that feel like chapters.",
     description: "Right now it’s placeholders. Later, admin updates dates instantly — no redesign needed.",
