@@ -1,7 +1,7 @@
 // src/components/landing/StoreSection.tsx
 "use client";
 
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import Link from "next/link";
 
 import {
@@ -21,7 +21,7 @@ export type MerchLink = { label: string; href: string };
 export type MerchItem = {
   id: string;
   name: string;
-  price?: string;
+  price?: string; // kept (not rendered yet)
   images: string[];
   tag?: string;
   href?: string; // primary link
@@ -79,6 +79,7 @@ function ImgCover({
 
 function MerchCard({ item }: { item: MerchItem }) {
   const fallback = "/media/yarden/merch-tee.jpg";
+
   const safeImgs = useMemo(() => {
     const list = (item.images ?? []).map((s) => s.trim()).filter(Boolean);
     return list.length ? list : [fallback];
@@ -86,12 +87,11 @@ function MerchCard({ item }: { item: MerchItem }) {
 
   const [i, setI] = useState(0);
 
-  // keep index valid if array changes
   useEffect(() => {
     setI((prev) => Math.min(prev, Math.max(0, safeImgs.length - 1)));
   }, [safeImgs.length]);
 
-  // swipe
+  // swipe inside image only (keeps carousel scroll separate)
   const startX = useRef<number | null>(null);
   const lastX = useRef<number | null>(null);
 
@@ -107,6 +107,7 @@ function MerchCard({ item }: { item: MerchItem }) {
       <div
         className="relative aspect-[4/5] select-none overflow-hidden"
         onPointerDown={(e) => {
+          // only consider horizontal swipes if user starts on the image
           startX.current = e.clientX;
           lastX.current = e.clientX;
         }}
@@ -132,7 +133,6 @@ function MerchCard({ item }: { item: MerchItem }) {
           src={safeImgs[i]}
           alt={item.name}
           onError={() => {
-            // if an image is bad, move forward (but don’t loop forever)
             if (safeImgs.length > 1) next();
           }}
         />
@@ -163,14 +163,18 @@ function MerchCard({ item }: { item: MerchItem }) {
         <div className="absolute bottom-4 left-4 right-4">
           <div className="rounded-2xl bg-black/40 p-4 ring-1 ring-white/10 backdrop-blur-xl">
             <div className="text-sm font-semibold text-white">{item.name}</div>
-            <div className="mt-1 flex items-center justify-between gap-3">
-              <div className="text-sm text-white/60">{item.price || "—"}</div>
+
+            {/* no prices yet — ecommerce feel: show CTA only */}
+            <div className="mt-2 flex items-center justify-between gap-3">
+              <div className="text-xs text-white/55">
+                {item.available === false ? "Drop soon" : "Limited drop"}
+              </div>
 
               {canOpen ? (
                 <Link
                   href={primaryHref}
                   {...linkProps(primaryHref)}
-                  className="inline-flex items-center gap-2 text-sm font-medium text-white/80 hover:text-white"
+                  className="inline-flex items-center gap-2 text-sm font-medium text-white/85 hover:text-white"
                 >
                   <span>{primaryLabel}</span>
                   <IconArrowUpRight className="h-4 w-4 transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
@@ -261,7 +265,7 @@ export default function StoreSection(props: {
     const next: MerchItem = {
       id: uid("merch"),
       name: "New item",
-      price: "₦ —",
+      price: "", // not used yet
       images: ["/media/yarden/merch-tee.jpg"],
       tag: "Drop soon",
       available: false,
@@ -300,13 +304,44 @@ export default function StoreSection(props: {
   const merchToRender = props.editable ? draftMerch : props.merch;
   const cfgToRender = props.editable ? draftConfig : props.config;
 
+  // --- Ecommerce carousel rail ---
+  const railRef = useRef<HTMLDivElement | null>(null);
+  const [canLeft, setCanLeft] = useState(false);
+  const [canRight, setCanRight] = useState(false);
+
+  const recalcRail = useCallback(() => {
+    const el = railRef.current;
+    if (!el) return;
+    const max = el.scrollWidth - el.clientWidth;
+    setCanLeft(el.scrollLeft > 2);
+    setCanRight(el.scrollLeft < max - 2);
+  }, []);
+
+  useEffect(() => {
+    recalcRail();
+    const onResize = () => recalcRail();
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, [recalcRail]);
+
+  const scrollByOneCard = (dir: 1 | -1) => {
+    const el = railRef.current;
+    if (!el) return;
+
+    const first = el.querySelector<HTMLElement>("[data-merch-card='1']");
+    const gap = parseFloat(getComputedStyle(el).gap || "0");
+    const step = (first?.offsetWidth || Math.min(420, el.clientWidth * 0.82)) + gap;
+
+    el.scrollBy({ left: dir * step, behavior: "smooth" });
+  };
+
   return (
     <section id={id} className="relative py-20 md:py-24">
       <div className="mx-auto max-w-7xl px-5 md:px-8">
         <SectionHeader
           eyebrow={cfgToRender.eyebrow ?? "Store"}
           title={cfgToRender.title ?? "Merch that matches the era."}
-          desc={cfgToRender.desc ?? "Official drops and limited pieces."}
+          desc={cfgToRender.desc ?? "Swipe to browse the drop — each slide is the next piece."}
           right={
             <div className="flex flex-wrap gap-2">
               {props.editable ? (
@@ -327,10 +362,86 @@ export default function StoreSection(props: {
           }
         />
 
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-          {merchToRender.map((m) => (
-            <MerchCard key={m.id} item={m} />
-          ))}
+        {/* ECOMMERCE FEEL: Horizontal snap carousel */}
+        <div className="relative mt-8">
+          {/* edge fades */}
+          <div className="pointer-events-none absolute inset-y-0 left-0 w-10 bg-gradient-to-r from-black/40 to-transparent" />
+          <div className="pointer-events-none absolute inset-y-0 right-0 w-10 bg-gradient-to-l from-black/40 to-transparent" />
+
+          {/* arrows (desktop) */}
+          <div className="pointer-events-none absolute inset-y-0 left-0 hidden md:flex items-center">
+            <button
+              type="button"
+              onClick={() => scrollByOneCard(-1)}
+              disabled={!canLeft}
+              className={cx(
+                "pointer-events-auto ml-2 rounded-full p-2 ring-1 ring-white/10 backdrop-blur-xl",
+                "bg-white/[0.06] text-white/80 hover:bg-white/[0.10] hover:text-white",
+                !canLeft && "opacity-40 cursor-not-allowed"
+              )}
+              aria-label="Previous product"
+            >
+              <span className="sr-only">Previous</span>
+              {/* using existing IconArrowUpRight rotated to avoid adding new icon deps */}
+              <IconArrowUpRight className="h-5 w-5 rotate-180" />
+            </button>
+          </div>
+
+          <div className="pointer-events-none absolute inset-y-0 right-0 hidden md:flex items-center justify-end">
+            <button
+              type="button"
+              onClick={() => scrollByOneCard(1)}
+              disabled={!canRight}
+              className={cx(
+                "pointer-events-auto mr-2 rounded-full p-2 ring-1 ring-white/10 backdrop-blur-xl",
+                "bg-white/[0.06] text-white/80 hover:bg-white/[0.10] hover:text-white",
+                !canRight && "opacity-40 cursor-not-allowed"
+              )}
+              aria-label="Next product"
+            >
+              <span className="sr-only">Next</span>
+              <IconArrowUpRight className="h-5 w-5" />
+            </button>
+          </div>
+
+          {/* rail */}
+          <div
+            ref={railRef}
+            onScroll={recalcRail}
+            className={cx(
+              // full-bleed rail feel
+              "-mx-5 px-5 md:-mx-8 md:px-8",
+              "flex gap-6 overflow-x-auto pb-4 pt-2",
+              "snap-x snap-mandatory scroll-smooth",
+              // hide scrollbar (no plugin)
+              "[scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+            )}
+          >
+            {merchToRender.map((m, idx) => (
+              <div
+                key={m.id}
+                data-merch-card={idx === 0 ? "1" : undefined}
+                className={cx(
+                  "shrink-0 snap-start",
+                  // ecommerce sizing: one main card with a peek of next
+                  "w-[82vw] max-w-[420px]",
+                  "sm:w-[420px]"
+                )}
+              >
+                <MerchCard item={m} />
+              </div>
+            ))}
+
+            {/* little trailing spacer so last card can snap nicely */}
+            <div className="shrink-0 w-4 md:w-8" aria-hidden />
+          </div>
+
+          {/* tiny hint */}
+          <div className="mt-2 flex items-center justify-between text-xs text-white/45">
+            <span className="hidden sm:inline">Swipe / scroll to the next product</span>
+            <span className="sm:hidden">Swipe for next</span>
+            <span className="hidden md:inline">{canRight ? "More →" : "End"}</span>
+          </div>
         </div>
 
         <Modal open={!!props.editable && editOpen} onClose={() => setEditOpen(false)} title="Edit store">
@@ -416,7 +527,11 @@ export default function StoreSection(props: {
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex flex-wrap gap-2">
                       {m.tag ? <Pill tone="brand">{m.tag}</Pill> : <Pill tone="muted">Item</Pill>}
-                      {m.available === false ? <Pill tone="muted">Coming soon</Pill> : <Pill tone="brand">Live</Pill>}
+                      {m.available === false ? (
+                        <Pill tone="muted">Coming soon</Pill>
+                      ) : (
+                        <Pill tone="brand">Live</Pill>
+                      )}
                     </div>
 
                     <button
@@ -442,11 +557,14 @@ export default function StoreSection(props: {
                       />
                     </label>
 
+                    {/* price kept for later, still editable if you want, but optional:
+                        if you truly want to hide it from editor too, tell me and I’ll remove this field. */}
                     <label className="block">
-                      <span className="text-xs uppercase tracking-widest text-white/60">Price</span>
+                      <span className="text-xs uppercase tracking-widest text-white/60">Price (later)</span>
                       <input
                         value={m.price ?? ""}
                         onChange={(e) => updateItem(m.id, { price: e.target.value })}
+                        placeholder="—"
                         className={cx(
                           "mt-2 w-full rounded-2xl bg-white/[0.04] px-4 py-3 text-sm text-white",
                           "ring-1 ring-white/10 outline-none focus:ring-2 focus:ring-white/30"
