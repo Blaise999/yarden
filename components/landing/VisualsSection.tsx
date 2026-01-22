@@ -33,7 +33,7 @@ const YARDEN_CHANNEL = "https://www.youtube.com/@thisisyarden";
 const YARDEN_VIDEOS = "https://www.youtube.com/@thisisyarden/videos";
 const YARDEN_PLAYLISTS = "https://www.youtube.com/@thisisyarden/playlists";
 
-// ✅ Real titles from your exact links (arranged newest-ish first)
+// ✅ Real titles (newest-ish first)
 const DEFAULT_ITEMS: VisualItem[] = [
   {
     title: "ME & U (feat. Mellissa)",
@@ -221,6 +221,27 @@ function buildEmbedSrc(t: YTTarget, autoplay: 0 | 1) {
   return `https://www.youtube-nocookie.com/embed/videoseries?list=${t.id}&autoplay=${autoplay}&rel=0&modestbranding=1&playsinline=1`;
 }
 
+// desktop-only spotlight preview (muted, no controls, loops)
+function buildPreviewSrc(t: YTTarget | null) {
+  if (!t || t.kind !== "video") return null;
+  const id = t.id;
+  const params = new URLSearchParams({
+    autoplay: "1",
+    mute: "1",
+    controls: "0",
+    rel: "0",
+    modestbranding: "1",
+    playsinline: "1",
+    fs: "0",
+    disablekb: "1",
+    iv_load_policy: "3",
+    cc_load_policy: "0",
+    loop: "1",
+    playlist: id, // needed for loop
+  });
+  return `https://www.youtube-nocookie.com/embed/${id}?${params.toString()}`;
+}
+
 gsap.registerPlugin(ScrollTrigger);
 
 export function VisualsSection(props?: {
@@ -238,7 +259,7 @@ export function VisualsSection(props?: {
   // how often spotlight auto-switches (ms)
   cycleMs?: number;
 
-  // ✅ add back: limit how many items to show total
+  // limit how many items to show total
   maxItems?: number;
 }) {
   const reducedMotion = usePrefersReducedMotion();
@@ -268,6 +289,9 @@ export function VisualsSection(props?: {
 
   const [spotIdx, setSpotIdx] = useState(0);
 
+  // preview ready for the desktop hero iframe (so it fades in over the thumbnail)
+  const [heroPreviewReady, setHeroPreviewReady] = useState(false);
+
   const items = useMemo<ResolvedItem[]>(() => {
     return raw.map((v) => {
       const yt = getYTTarget(v.href);
@@ -283,8 +307,9 @@ export function VisualsSection(props?: {
     });
   }, [raw]);
 
-  const spotlight = items[Math.min(spotIdx, Math.max(0, items.length - 1))] ?? items[0];
-  const upNext = items.filter((_, i) => i !== spotIdx);
+  const safeSpotIdx = Math.min(spotIdx, Math.max(0, items.length - 1));
+  const spotlight = items[safeSpotIdx] ?? items[0];
+  const upNext = items.filter((_, i) => i !== safeSpotIdx);
 
   const openPlayer = (item: ResolvedItem) => {
     if (!item?.yt) {
@@ -296,30 +321,35 @@ export function VisualsSection(props?: {
     setOpen(true);
   };
 
+  // reset desktop preview readiness each time spotlight changes
+  useLayoutEffect(() => {
+    setHeroPreviewReady(false);
+  }, [spotIdx]);
+
   // spotlight transition (scan + punchy but clean)
   useLayoutEffect(() => {
-  if (reducedMotion) return;
+    if (reducedMotion) return;
 
-  const media = heroMediaRef.current;
-  const scan = heroScanRef.current;
-  const glow = heroGlowRef.current;
-  if (!media || !scan || !glow) return;
+    const media = heroMediaRef.current;
+    const scan = heroScanRef.current;
+    const glow = heroGlowRef.current;
+    if (!media || !scan || !glow) return;
 
-  const tl = gsap.timeline({ defaults: { ease: "power3.out" } });
+    const tl = gsap.timeline({ defaults: { ease: "power3.out" } });
 
-  tl.set(scan, { opacity: 0, xPercent: -140 });
-  tl.to(glow, { opacity: 1, duration: 0.25 }, 0);
-  tl.to(media, { scale: 1.02, duration: 0.32 }, 0);
-  tl.to(scan, { opacity: 1, duration: 0.06, ease: "power1.out" }, 0.06);
-  tl.to(scan, { xPercent: 140, duration: 0.42, ease: "power2.out" }, 0.08);
-  tl.to(scan, { opacity: 0, duration: 0.2 }, 0.32);
-  tl.to(media, { scale: 1.0, duration: 0.5, ease: "power3.out" }, 0.18);
-  tl.to(glow, { opacity: 0.55, duration: 0.6 }, 0.22);
+    tl.set(scan, { opacity: 0, xPercent: -140 });
+    tl.to(glow, { opacity: 1, duration: 0.22 }, 0);
+    tl.to(media, { scale: 1.02, duration: 0.32 }, 0);
+    tl.to(scan, { opacity: 1, duration: 0.06, ease: "power1.out" }, 0.06);
+    tl.to(scan, { xPercent: 140, duration: 0.42, ease: "power2.out" }, 0.08);
+    tl.to(scan, { opacity: 0, duration: 0.2 }, 0.32);
+    tl.to(media, { scale: 1.0, duration: 0.5, ease: "power3.out" }, 0.18);
+    tl.to(glow, { opacity: 0.55, duration: 0.6 }, 0.22);
 
-  return () => {
-    tl.kill(); // ✅ cleanup returns void
-  };
-}, [spotIdx, reducedMotion]);
+    return () => {
+      tl.kill();
+    };
+  }, [spotIdx, reducedMotion]);
 
   // enter reveal + auto-cycle while in view
   useLayoutEffect(() => {
@@ -348,7 +378,7 @@ export function VisualsSection(props?: {
       // pause beat (so it FEELS like spotlight)
       tl.to({}, { duration: 0.35 });
 
-      // then the “crazy” comes in (rail + minis)
+      // then the rest appears
       tl.to(railItems, { opacity: 1, x: 0, rotateY: 0, filter: "blur(0px)", duration: 0.6, stagger: 0.06 }, "-=0.15");
       tl.to(miniCards, { opacity: 1, y: 0, filter: "blur(0px)", duration: 0.65, stagger: 0.07 }, "-=0.35");
 
@@ -411,13 +441,19 @@ export function VisualsSection(props?: {
   const autoplay: 0 | 1 = reducedMotion ? 0 : 1;
   const embedSrc = active?.yt ? buildEmbedSrc(active.yt, autoplay) : null;
 
+  const previewSrc = buildPreviewSrc(spotlight?.yt ?? null);
+  const showDesktopPreview = Boolean(previewSrc) && !reducedMotion && !open;
+
   return (
     <section id={id} className="relative py-20 md:py-24">
       <div ref={rootRef} className="mx-auto max-w-7xl px-5 md:px-8">
         <SectionHeader
           eyebrow={props?.eyebrow ?? "Visuals"}
-          title={props?.title ?? "One visual. Full spotlight."}
-          desc={props?.desc ?? "Starts huge, then the wall comes alive. Click any video to watch inside the site."}
+          title={props?.title ?? "Spotlight visuals — on rotation."}
+          desc={
+            props?.desc ??
+            "A featured premiere view that takes the full frame. Then it cycles through the catalogue automatically."
+          }
           right={
             <div className="flex flex-wrap gap-2">
               <Button variant="secondary" href={channelHref} target="_blank" iconRight={<IconArrowUpRight className="h-4 w-4" />}>
@@ -426,7 +462,12 @@ export function VisualsSection(props?: {
               <Button variant="ghost" href={videosHref} target="_blank" iconRight={<IconArrowUpRight className="h-4 w-4" />}>
                 Videos
               </Button>
-              <Button variant="ghost" href={playlistsHref} target="_blank" iconRight={<IconArrowUpRight className="h-4 w-4" />}>
+              <Button
+                variant="ghost"
+                href={playlistsHref}
+                target="_blank"
+                iconRight={<IconArrowUpRight className="h-4 w-4" />}
+              >
                 Playlists
               </Button>
             </div>
@@ -445,7 +486,7 @@ export function VisualsSection(props?: {
             <div className="pointer-events-none absolute inset-0 bg-gradient-to-r from-black/45 via-transparent to-black/45" />
 
             <div className="relative z-[2] p-5 md:p-7">
-              <div className="grid gap-6 lg:grid-cols-12">
+              <div className="grid gap-6 lg:grid-cols-12 lg:items-stretch">
                 {/* HERO */}
                 <button
                   type="button"
@@ -454,12 +495,21 @@ export function VisualsSection(props?: {
                     "group relative overflow-hidden rounded-[28px] bg-white/[0.035] ring-1 ring-white/12 text-left",
                     "shadow-[0_18px_55px_rgba(0,0,0,0.55)]",
                     "outline-none focus-visible:ring-2 focus-visible:ring-white/30",
-                    "lg:col-span-8"
+                    "lg:col-span-8 lg:h-full"
                   )}
                   data-hero="1"
                 >
-                  <div className="relative">
-                    <div ref={heroMediaRef} className="relative aspect-video overflow-hidden">
+                  <div className="relative h-full">
+                    {/* This wrapper fills the hero card on desktop; stays aspect-video on mobile */}
+                    <div
+                      ref={heroMediaRef}
+                      className={cx(
+                        "relative overflow-hidden",
+                        "aspect-video",
+                        "lg:aspect-auto lg:h-full"
+                      )}
+                    >
+                      {/* base thumbnail (always) */}
                       <SmartThumb
                         candidates={spotlight.thumbs}
                         fallback={spotlight.fallback}
@@ -467,6 +517,24 @@ export function VisualsSection(props?: {
                         priority
                         onSettled={() => (ScrollTrigger as any)?.refresh?.()}
                       />
+
+                      {/* desktop premiere preview (muted autoplay, fades in over thumb) */}
+                      {showDesktopPreview ? (
+                        <div
+                          className={cx(
+                            "pointer-events-none absolute inset-0 hidden lg:block transition-opacity duration-500",
+                            heroPreviewReady ? "opacity-100" : "opacity-0"
+                          )}
+                        >
+                          <iframe
+                            src={previewSrc!}
+                            title={`Preview — ${spotlight.title}`}
+                            className="absolute inset-0 h-full w-full"
+                            onLoad={() => setHeroPreviewReady(true)}
+                            allow="autoplay; encrypted-media; picture-in-picture"
+                          />
+                        </div>
+                      ) : null}
 
                       <div
                         ref={heroScanRef}
@@ -487,8 +555,10 @@ export function VisualsSection(props?: {
                         }}
                       />
 
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/22 to-transparent" />
+                      {/* cinematic overlay */}
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/18 to-transparent" />
 
+                      {/* top pills */}
                       <div className="absolute left-5 top-5 flex items-center gap-2">
                         <Pill tone="brand" className="gap-2">
                           <IconPlay className="h-4 w-4" />
@@ -498,20 +568,44 @@ export function VisualsSection(props?: {
                         <Pill tone="muted">{spotlight.year}</Pill>
                       </div>
 
-                      <div className="absolute bottom-5 left-5 right-5 rounded-2xl bg-black/45 p-5 ring-1 ring-white/12 backdrop-blur-xl">
-                        <div className="text-xs uppercase tracking-widest text-white/60">@thisisyarden</div>
-                        <div className="mt-2 text-[20px] md:text-[22px] font-semibold text-white">{spotlight.title}</div>
-                        <div className="mt-3 flex items-center gap-2 text-sm text-white/60">
-                          <span>Play here</span>
-                          <IconArrowUpRight className="h-4 w-4 transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
+                      {/* desktop glass label (small, not blocking) */}
+                      <div className="absolute bottom-5 left-5 hidden lg:block">
+                        <div className="rounded-2xl bg-black/38 px-4 py-3 ring-1 ring-white/12 backdrop-blur-xl">
+                          <div className="text-[11px] uppercase tracking-widest text-white/60">@thisisyarden</div>
+                          <div className="mt-1 text-[20px] font-semibold text-white">{spotlight.title}</div>
+                          <div className="mt-2 flex items-center gap-2 text-sm text-white/60">
+                            <span>Play here</span>
+                            <IconArrowUpRight className="h-4 w-4 transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
+                          </div>
                         </div>
+                      </div>
+                    </div>
+
+                    {/* mobile meta BELOW the visual (no blocking) */}
+                    <div className="lg:hidden px-4 pb-4 pt-4">
+                      <div className="text-xs uppercase tracking-widest text-white/55">@thisisyarden</div>
+                      <div className="mt-2 text-[18px] font-semibold text-white">{spotlight.title}</div>
+                      <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-white/60">
+                        <span>{spotlight.kind}</span>
+                        <span className="opacity-60">•</span>
+                        <span>{spotlight.year}</span>
+                        {spotlight.tag ? (
+                          <>
+                            <span className="opacity-60">•</span>
+                            <span className="text-white/75">{spotlight.tag}</span>
+                          </>
+                        ) : null}
+                      </div>
+                      <div className="mt-3 inline-flex items-center gap-2 text-sm text-white/60">
+                        <span>Tap to watch</span>
+                        <IconArrowUpRight className="h-4 w-4" />
                       </div>
                     </div>
                   </div>
                 </button>
 
-                {/* UP NEXT */}
-                <div className="lg:col-span-4">
+                {/* RIGHT COLUMN */}
+                <div className="lg:col-span-4 lg:h-full">
                   <div className="flex items-center justify-between">
                     <div className="text-sm font-semibold text-white">Up next</div>
                     <div className="text-xs text-white/50">Auto-cycles</div>
@@ -606,38 +700,38 @@ export function VisualsSection(props?: {
                 </div>
               </div>
 
-              {/* info cards */}
+              {/* pro/cool cards (no “tips”) */}
               <div className="mt-8 grid gap-6 lg:grid-cols-3">
                 <Card className="p-6">
                   <div className="flex flex-wrap items-center gap-2">
-                    <Badge>Spotlight</Badge>
-                    <Badge>Auto-cycle</Badge>
+                    <Badge>Premiere view</Badge>
+                    <Badge>Full frame</Badge>
                   </div>
-                  <div className="mt-4 text-lg font-semibold">One main visual, on purpose.</div>
+                  <div className="mt-4 text-lg font-semibold">Spotlight mode.</div>
                   <p className="mt-2 text-sm leading-relaxed text-white/60">
-                    It leads with a hero so the section feels like a premiere, not a random grid.
+                    The featured visual takes the entire stage — built to feel like an opening scene, not a thumbnail wall.
                   </p>
                 </Card>
 
                 <Card className="p-6">
                   <div className="flex flex-wrap items-center gap-2">
-                    <Badge>Clean rail</Badge>
-                    <Badge>Up Next</Badge>
+                    <Badge>Rotation</Badge>
+                    <Badge>Curated queue</Badge>
                   </div>
-                  <div className="mt-4 text-lg font-semibold">Arranged properly.</div>
+                  <div className="mt-4 text-lg font-semibold">Always moving.</div>
                   <p className="mt-2 text-sm leading-relaxed text-white/60">
-                    Real song titles, clear type (video/visualizer), year, and click-to-spotlight.
+                    A clean “Up next” rail that cycles on intervals and respects user clicks — it pauses, then resumes.
                   </p>
                 </Card>
 
                 <Card className="p-6">
                   <div className="flex flex-wrap items-center gap-2">
-                    <Badge>No local thumbs</Badge>
-                    <Badge>Always works</Badge>
+                    <Badge>Official links</Badge>
+                    <Badge>Clean embeds</Badge>
                   </div>
-                  <div className="mt-4 text-lg font-semibold">Thumbnails handled.</div>
+                  <div className="mt-4 text-lg font-semibold">Built for release.</div>
                   <p className="mt-2 text-sm leading-relaxed text-white/60">
-                    Pulls maxres/hq from YouTube. If anything fails, it falls back to an inline placeholder.
+                    Official uploads, high-res thumbnails, and a native watch modal — everything stays inside the experience.
                   </p>
                 </Card>
               </div>
