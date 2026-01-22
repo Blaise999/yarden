@@ -1,4 +1,4 @@
-// LandingHeader.tsx (FULL EDIT) — chameleon preserved + overlap fixed *after* hero
+// LandingHeader.tsx (FULL EDIT) — nav centered on desktop
 "use client";
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
@@ -286,10 +286,6 @@ export default function LandingHeader(props: LandingHeaderProps) {
 
   const t = clamp((scrollY - 24) / 520, 0, 1);
 
-  // ✅ overlap lock starts later (after hero), so chameleon stays alive at top
-  const lockStart = 260; // push this up/down if your hero is taller/shorter
-  const lock = clamp((scrollY - lockStart) / 220, 0, 1);
-
   // Tint
   const [tint, setTint] = useState({ r: 180, g: 180, b: 200 });
   const [raw, setRaw] = useState({ r: 180, g: 180, b: 200 });
@@ -333,19 +329,9 @@ export default function LandingHeader(props: LandingHeaderProps) {
     [tint]
   );
 
-  // Chameleon glass stays; only becomes more “solid” after hero via lock
-  const baseScrim = 0.14 + 0.56 * t;
-  const scrim = clamp(baseScrim + 0.22 * lock, 0, 0.92);
-
-  const blurPx = isSafari ? 0 : 8 + 12 * t; // keep your glassy blur logic
-  const shadowA = 0.1 + 0.24 * t + 0.14 * lock;
-
-  // border only shows after lock starts (separation from content)
-  const borderA = 0.02 + 0.14 * lock;
-
-  // height shrink keeps it from feeling like a slab over content
-  const hMobile = Math.round(74 - 8 * t - 4 * lock); // 74 → ~62
-  const hDesktop = Math.round(82 - 10 * t - 6 * lock); // 82 → ~66
+  const scrim = 0.14 + 0.56 * t;
+  const blurPx = isSafari ? 0 : 8 + 12 * t;
+  const shadowA = 0.1 + 0.24 * t;
 
   // logo selection
   const heroZone = t < 0.22;
@@ -357,10 +343,7 @@ export default function LandingHeader(props: LandingHeaderProps) {
   useEffect(() => setLogoOk(true), [logoSrc]);
 
   const topImg = props.heroBgSrc ?? props.tintSources?.top;
-
-  // ✅ restore chameleon: allow blend-difference near top (hero), disable after lock
-  const useBlendInk = t < 0.16 && !!topImg && lock < 0.5;
-
+  const useBlendInk = t < 0.16 && !!topImg;
   const inkText = cx(
     "text-white",
     !isSafari && useBlendInk && "mix-blend-difference",
@@ -376,7 +359,7 @@ export default function LandingHeader(props: LandingHeaderProps) {
         className="fixed top-0 left-0 right-0 z-[2147483647] overflow-visible"
         style={{
           ...cssVars,
-          borderBottom: `1px solid rgba(255,255,255,${borderA})`,
+          borderBottom: "none",
           boxShadow: `0 10px 30px rgba(0,0,0,${shadowA})`,
           transform: isSafari ? undefined : "translate3d(0,0,0)",
           willChange: isSafari ? undefined : "transform",
@@ -389,12 +372,8 @@ export default function LandingHeader(props: LandingHeaderProps) {
             className="absolute inset-0"
             style={{
               opacity: scrim,
-              // ✅ keep your original gradient, just slightly deeper after lock
-              background: `linear-gradient(to bottom,
-                rgba(7,7,10,${clamp(0.9 + 0.05 * lock, 0, 0.98)}),
-                rgba(7,7,10,${clamp(0.56 + 0.12 * lock, 0, 0.9)}) 55%,
-                rgba(7,7,10,${clamp(0.16 + 0.08 * lock, 0, 0.7)})
-              )`,
+              background:
+                "linear-gradient(to bottom, rgba(7,7,10,0.90), rgba(7,7,10,0.56) 55%, rgba(7,7,10,0.16))",
               ...(blurPx > 0
                 ? {
                     backdropFilter: `blur(${blurPx}px) saturate(${1.05 + 0.15 * t})`,
@@ -403,22 +382,11 @@ export default function LandingHeader(props: LandingHeaderProps) {
                 : {}),
             }}
           />
-
-          {/* tint line stays subtle (helps separation when locked) */}
-          <div
-            className="absolute left-0 right-0 bottom-0 h-[2px]"
-            style={{
-              opacity: 0.18 + 0.26 * lock,
-              background: "linear-gradient(90deg, transparent, rgb(var(--tint) / 0.65), transparent)",
-            }}
-          />
         </div>
 
         <div className="relative z-10 pt-[env(safe-area-inset-top)]">
-          <div
-            className={cx("mx-auto grid max-w-7xl items-center px-5 md:px-8", "grid-cols-[auto_1fr_auto]")}
-            style={{ height: `${hMobile}px` } as any}
-          >
+          {/* ✅ 3-column layout: left logo, centered nav, right actions */}
+          <div className={cx("mx-auto grid max-w-7xl items-center px-5 md:px-8", "h-[74px] md:h-[82px]", "grid-cols-[auto_1fr_auto]")}>
             {/* LEFT */}
             <div className="flex items-center">
               {showHeaderLogo ? (
@@ -501,15 +469,6 @@ export default function LandingHeader(props: LandingHeaderProps) {
               </div>
             </div>
           </div>
-
-          {/* Desktop height override */}
-          <style jsx>{`
-            @media (min-width: 768px) {
-              header > div.relative > div.mx-auto {
-                height: ${hDesktop}px !important;
-              }
-            }
-          `}</style>
         </div>
       </header>
 
