@@ -1,3 +1,4 @@
+// LandingHeader.tsx (FULL EDIT)
 "use client";
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
@@ -14,6 +15,23 @@ function cx(...classes: Array<string | false | null | undefined>) {
 
 function clamp(n: number, a: number, b: number) {
   return Math.max(a, Math.min(b, n));
+}
+
+// Safari detect (same philosophy as hero)
+function detectSafari() {
+  if (typeof navigator === "undefined") return { isSafari: false, isIOS: false };
+  const ua = navigator.userAgent;
+  const isIOS = /iPhone|iPad|iPod/.test(ua);
+  const isWebKit = /AppleWebKit/.test(ua);
+  const isNotChrome = !/Chrome|CriOS|Edg|OPR|Firefox|FxiOS/.test(ua);
+  const isSafari = isWebKit && isNotChrome;
+  return { isSafari, isIOS };
+}
+
+function useSafariInfo() {
+  const [info, setInfo] = useState<{ isSafari: boolean; isIOS: boolean }>({ isSafari: false, isIOS: false });
+  useEffect(() => setInfo(detectSafari()), []);
+  return info;
 }
 
 // Tint sampling
@@ -233,6 +251,7 @@ const LOGO_LIGHT = "/Pictures/yard.png";
 const LOGO_DARK = "/Pictures/yard2.png";
 
 export default function LandingHeader(props: LandingHeaderProps) {
+  const { isSafari } = useSafariInfo();
   const brandName = props.brandName ?? "Yarden";
 
   const [internalMenuOpen, setInternalMenuOpen] = useState(false);
@@ -310,8 +329,10 @@ export default function LandingHeader(props: LandingHeaderProps) {
     [tint]
   );
 
+  // Safari: backdrop-filter + heavy pinned animations can sometimes stutter/flicker.
+  // Keep the glass look everywhere else, soften it on Safari.
   const scrim = 0.14 + 0.56 * t;
-  const blurPx = 8 + 12 * t;
+  const blurPx = isSafari ? 0 : 8 + 12 * t;
   const shadowA = 0.1 + 0.24 * t;
 
   // decide "dark mode" for logo selection
@@ -330,7 +351,8 @@ export default function LandingHeader(props: LandingHeaderProps) {
   const useBlendInk = t < 0.16 && !!topImg;
   const inkText = cx(
     "text-white",
-    useBlendInk && "mix-blend-difference",
+    // Safari + blend modes can be weird over pinned layers; keep it simple there
+    !isSafari && useBlendInk && "mix-blend-difference",
     "[text-shadow:0_1px_12px_rgba(0,0,0,.35)]"
   );
 
@@ -346,10 +368,11 @@ export default function LandingHeader(props: LandingHeaderProps) {
           borderBottom: "none",
           boxShadow: `0 10px 30px rgba(0,0,0,${shadowA})`,
 
-          // ✅ Force header onto its own compositor layer ABOVE pinned transform layers
-          transform: "translate3d(0,0,0)",
-          willChange: "transform",
+          // Safari: avoid forcing a transformed fixed layer (can jitter on scroll)
+          transform: isSafari ? undefined : "translate3d(0,0,0)",
+          willChange: isSafari ? undefined : "transform",
           backfaceVisibility: "hidden",
+          WebkitBackfaceVisibility: "hidden",
         }}
       >
         <div className="pointer-events-none absolute inset-0 z-0 overflow-hidden">
@@ -359,8 +382,12 @@ export default function LandingHeader(props: LandingHeaderProps) {
               opacity: scrim,
               background:
                 "linear-gradient(to bottom, rgba(7,7,10,0.90), rgba(7,7,10,0.56) 55%, rgba(7,7,10,0.16))",
-              backdropFilter: `blur(${blurPx}px) saturate(${1.05 + 0.15 * t})`,
-              WebkitBackdropFilter: `blur(${blurPx}px) saturate(${1.05 + 0.15 * t})`,
+              ...(blurPx > 0
+                ? {
+                    backdropFilter: `blur(${blurPx}px) saturate(${1.05 + 0.15 * t})`,
+                    WebkitBackdropFilter: `blur(${blurPx}px) saturate(${1.05 + 0.15 * t})`,
+                  }
+                : {}),
             }}
           />
         </div>

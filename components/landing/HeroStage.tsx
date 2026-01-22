@@ -1,3 +1,4 @@
+// HeroSection.tsx (FULL EDIT)
 "use client";
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
@@ -36,6 +37,22 @@ type NowPlaying = {
 type SocialLink = { label: string; href: string };
 type NextShow = { dateLabel: string; city: string; venue: string; href?: string };
 
+function detectSafari() {
+  if (typeof navigator === "undefined") return { isSafari: false, isIOS: false };
+  const ua = navigator.userAgent;
+  const isIOS = /iPhone|iPad|iPod/.test(ua);
+  const isWebKit = /AppleWebKit/.test(ua);
+  const isNotChrome = !/Chrome|CriOS|Edg|OPR|Firefox|FxiOS/.test(ua);
+  const isSafari = isWebKit && isNotChrome;
+  return { isSafari, isIOS };
+}
+
+function useSafariInfo() {
+  const [info, setInfo] = useState<{ isSafari: boolean; isIOS: boolean }>({ isSafari: false, isIOS: false });
+  useEffect(() => setInfo(detectSafari()), []);
+  return info;
+}
+
 export function HeroSection(props: {
   heroA: HeroImage;
   heroB: HeroImage;
@@ -69,9 +86,47 @@ export function HeroSection(props: {
   onJoinNewsletter?: (payload: { email: string }) => void;
 }) {
   const reducedMotion = usePrefersReducedMotion();
+  const { isSafari, isIOS } = useSafariInfo();
 
   const headerOffset = props.headerOffset ?? 0;
   const fullBleed = props.fullBleed ?? true;
+
+  // Refs (move up so effects can use them safely)
+  const rootRef = useRef<HTMLDivElement | null>(null);
+  const sectionRef = useRef<HTMLElement | null>(null);
+  const pinRef = useRef<HTMLDivElement | null>(null);
+
+  const mediaRef = useRef<HTMLDivElement | null>(null);
+  const artARef = useRef<HTMLDivElement | null>(null);
+  const artBRef = useRef<HTMLDivElement | null>(null);
+  const patternRef = useRef<HTMLDivElement | null>(null);
+  const glowFxRef = useRef<HTMLDivElement | null>(null);
+
+  const nowARef = useRef<HTMLDivElement | null>(null);
+  const nowBRef = useRef<HTMLDivElement | null>(null);
+
+  const sceneARef = useRef<HTMLDivElement | null>(null);
+  const sceneBRef = useRef<HTMLDivElement | null>(null);
+  const railARef = useRef<HTMLDivElement | null>(null);
+  const railBRef = useRef<HTMLDivElement | null>(null);
+
+  // Safari iOS: lock a stable viewport height to avoid address-bar resize jumps while pinned
+  useEffect(() => {
+    if (!isIOS) return;
+    const el = rootRef.current;
+    if (!el) return;
+
+    const setVH = () => el.style.setProperty("--hero-vh", `${window.innerHeight}px`);
+    setVH();
+
+    window.addEventListener("resize", setVH, { passive: true });
+    window.addEventListener("orientationchange", setVH as any, { passive: true } as any);
+
+    return () => {
+      window.removeEventListener("resize", setVH);
+      window.removeEventListener("orientationchange", setVH as any);
+    };
+  }, [isIOS]);
 
   const [pinDistance, setPinDistance] = useState<number>(() => {
     if (typeof props.pinDistance === "number") return props.pinDistance;
@@ -142,38 +197,22 @@ export function HeroSection(props: {
     setEmail("");
   };
 
-  // Refs
-  const rootRef = useRef<HTMLDivElement | null>(null);
-  const sectionRef = useRef<HTMLElement | null>(null);
-  const pinRef = useRef<HTMLDivElement | null>(null);
-
-  const mediaRef = useRef<HTMLDivElement | null>(null);
-  const artARef = useRef<HTMLDivElement | null>(null);
-  const artBRef = useRef<HTMLDivElement | null>(null);
-  const patternRef = useRef<HTMLDivElement | null>(null);
-  const glowFxRef = useRef<HTMLDivElement | null>(null);
-
-  const nowARef = useRef<HTMLDivElement | null>(null);
-  const nowBRef = useRef<HTMLDivElement | null>(null);
-
-  const sceneARef = useRef<HTMLDivElement | null>(null);
-  const sceneBRef = useRef<HTMLDivElement | null>(null);
-  const railARef = useRef<HTMLDivElement | null>(null);
-  const railBRef = useRef<HTMLDivElement | null>(null);
-
   // load tracking
   const [loadedCount, setLoadedCount] = useState(0);
   const loadedAOnce = useRef(false);
   const loadedBOnce = useRef(false);
   const refreshedOnce = useRef(false);
-
   const prevProgressRef = useRef(0);
 
   useGSAP(
     () => {
       if (reducedMotion) return;
 
-      ScrollTrigger.config({ ignoreMobileResize: true });
+      // Safari can spam refresh triggers while scrolling; keep this stable
+      ScrollTrigger.config({
+        ignoreMobileResize: true,
+        autoRefreshEvents: "visibilitychange,DOMContentLoaded,load",
+      });
 
       const section = sectionRef.current;
       const pinEl = pinRef.current;
@@ -211,22 +250,25 @@ export function HeroSection(props: {
       // Kill prior instance
       ScrollTrigger.getById("hero-pin")?.kill(true);
 
-      // --- anti-flicker / anti-shimmer ---
+      // --- Safari-safe anti-flicker ---
       gsap.set([media, artA, artB, pattern, glowFx].filter(Boolean), {
         backfaceVisibility: "hidden",
-        transformStyle: "preserve-3d",
+        webkitBackfaceVisibility: "hidden",
+        // Safari often flickers with preserve-3d + opacity/filters while scrubbing
+        transformStyle: isSafari ? "flat" : "preserve-3d",
       });
 
-      gsap.set(pinEl, { willChange: "transform", force3D: true });
+      gsap.set(pinEl, { willChange: "transform", force3D: isSafari ? false : true });
+      if (isSafari) gsap.set([artA, artB], { z: 0.01 });
 
-      // Keep container stable (avoid animating borderRadius — that can repaint & stutter)
+      // Keep container stable (avoid animating borderRadius — repaint & stutter)
       gsap.set(media, {
         borderRadius: 0,
         scale: 1,
         y: 0,
         x: 0,
         willChange: "transform, opacity",
-        force3D: true,
+        force3D: isSafari ? false : true,
         transformOrigin: "50% 50%",
       });
 
@@ -237,7 +279,7 @@ export function HeroSection(props: {
         scale: 1,
         y: 0,
         x: 0,
-        force3D: true,
+        force3D: isSafari ? false : true,
       });
       gsap.set(artB, {
         opacity: 0,
@@ -245,11 +287,11 @@ export function HeroSection(props: {
         scale: 1.12,
         y: 60,
         x: 0,
-        force3D: true,
+        force3D: isSafari ? false : true,
       });
 
-      if (pattern) gsap.set(pattern, { opacity: 0.18, scale: 1, force3D: true });
-      if (glowFx) gsap.set(glowFx, { opacity: 0, scale: 0.92, force3D: true });
+      if (pattern) gsap.set(pattern, { opacity: 0.18, scale: 1, force3D: isSafari ? false : true });
+      if (glowFx) gsap.set(glowFx, { opacity: 0, scale: 0.92, force3D: isSafari ? false : true });
 
       // foreground initial scene A
       gsap.set(sceneA, { opacity: 1, y: 0 });
@@ -345,14 +387,14 @@ export function HeroSection(props: {
         anticipatePin: 1,
         invalidateOnRefresh: true,
 
-        // smoother + less “hang”
-        scrub: 0.7,
+        // Safari: a bit tighter scrub feels less “rubber-bandy”
+        scrub: isSafari ? 0.55 : 0.7,
 
         // let ScrollTrigger drive the timeline
         animation: masterTL,
 
-        // keep your transform pin (less jitter in some layouts)
-        pinType: "transform",
+        // ✅ KEY FIX: Safari hates transform-pinning with scrubbed opacity/filters/blends
+        pinType: isSafari ? "fixed" : "transform",
 
         // no reparenting (often causes jitter)
         pinReparent: false,
@@ -382,7 +424,7 @@ export function HeroSection(props: {
         ScrollTrigger.getById("hero-pin")?.kill(true);
       };
     },
-    { scope: rootRef, dependencies: [reducedMotion, pinDistance] }
+    { scope: rootRef, dependencies: [reducedMotion, pinDistance, isSafari] }
   );
 
   // refresh only once after both images load
@@ -397,7 +439,8 @@ export function HeroSection(props: {
 
   const topPad = Math.max(0, headerOffset) + 24;
 
-  const imageFilter = "contrast(1.14) saturate(1.22) brightness(1.06)";
+  // Safari: CSS filter on large images + scrubbed opacity can flicker badly
+  const imageFilter = isSafari ? "none" : "contrast(1.14) saturate(1.22) brightness(1.06)";
 
   return (
     <div ref={rootRef}>
@@ -419,7 +462,12 @@ export function HeroSection(props: {
         </div>
 
         {/* ✅ z-0 so the fixed header can stay above reliably */}
-        <div ref={pinRef} className={cx("relative z-0 mx-auto w-full", "min-h-[100svh] md:min-h-[860px]")}>
+        <div
+          ref={pinRef}
+          className={cx("relative z-0 mx-auto w-full", "min-h-[100svh] md:min-h-[860px]")}
+          // iOS Safari: stable pinned height
+          style={isIOS ? ({ minHeight: "var(--hero-vh, 100vh)" } as any) : undefined}
+        >
           {/* MEDIA */}
           <div
             ref={mediaRef}
@@ -428,7 +476,6 @@ export function HeroSection(props: {
               "shadow-[0_40px_100px_rgba(0,0,0,0.75)]",
               "ring-1 ring-white/10"
             )}
-            // ✅ DO NOT translateZ(0) — it can paint above fixed headers during pinning
             style={{ willChange: "transform" }}
           >
             <FloatingCursorSpotlight disabled={reducedMotion} />
@@ -445,7 +492,11 @@ export function HeroSection(props: {
 
             <div
               ref={patternRef}
-              className="pointer-events-none absolute inset-0 mix-blend-soft-light opacity-0"
+              className={cx(
+                "pointer-events-none absolute inset-0 opacity-0",
+                // Safari: blend modes + scrubbing can shimmer
+                !isSafari && "mix-blend-soft-light"
+              )}
               style={{
                 backgroundImage: `
                   radial-gradient(circle at 15% 20%, rgba(255,255,255,0.18) 0%, transparent 38%),
