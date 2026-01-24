@@ -301,14 +301,6 @@ export function Footer() {
               <Link className="hover:text-white" href="/privacy">
                 Privacy
               </Link>
-              <span className="text-white/25">•</span>
-              <Link className="hover:text-white" href="/terms">
-                Terms
-              </Link>
-              <span className="text-white/25">•</span>
-              <Link className="hover:text-white" href="/careers">
-                Careers
-              </Link>
             </div>
           </div>
         </div>
