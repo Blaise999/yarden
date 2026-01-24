@@ -1,7 +1,12 @@
 // content/defaultCms.ts
-import type { ShowItem, TourConfig } from "../components/landing/TourSection";
-import type { MerchItem, StoreConfig } from "../components/landing/StoreSection";
-import type { PressItem, EmbedVideo } from "../components/landing/NewsletterSection";
+import type {
+  ShowItem,
+  TourConfig,
+  MerchItem,
+  StoreConfig,
+  PressItem,
+  EmbedVideo,
+} from "./cmsTypes";
 
 export const CMS_KV_KEY = "yarden:cms:v1";
 
@@ -25,7 +30,9 @@ export interface CmsData {
 
 export const DEFAULT_CMS: CmsData = {
   version: 1,
-  updatedAt: Date.now(),
+
+  // ✅ keep defaults stable (avoid SSR/SSG time drift). When you publish, set Date.now().
+  updatedAt: 0,
 
   tour: {
     shows: [
@@ -106,7 +113,7 @@ export const DEFAULT_CMS: CmsData = {
       },
       {
         id: "culturecustodian-news",
-        title: "Yarden shares debut EP "The One Who Descends"",
+        title: 'Yarden shares debut EP "The One Who Descends"',
         outlet: "Culture Custodian",
         date: "Dec 2023",
         href: "https://culturecustodian.com/yarden-shares-debut-ep-the-one-who-descends/",
@@ -117,7 +124,7 @@ export const DEFAULT_CMS: CmsData = {
       },
       {
         id: "turntable-feature",
-        title: "Best of New Music: debut EP + new single "TIME"",
+        title: 'Best of New Music: debut EP + new single "TIME"',
         outlet: "TurnTable Charts",
         date: "Dec 5, 2023",
         href: "https://www.turntablecharts.com/news/1175",
@@ -127,14 +134,14 @@ export const DEFAULT_CMS: CmsData = {
       },
       {
         id: "pulse-press",
-        title: "EP drops alongside the single "Time"",
+        title: 'EP drops alongside the single "Time"',
         outlet: "Pulse Nigeria",
         date: "Dec 4, 2023",
         href: "https://www.pulse.ng/story/yarden-drops-the-one-who-descends-ep-alongside-the-new-single-time-2024072621214515034",
         image:
           "https://image.api.sportal365.com/process/smp-images-production/pulse.ng/26072024/8fbde703-9a86-4aca-aff0-49d90c576d96",
         tag: "Press",
-        excerpt: "Quick coverage that's easy to share when people ask "who's that?"",
+        excerpt: 'Quick coverage that’s easy to share when people ask "who’s that?"',
       },
       {
         id: "youtube-channel",
