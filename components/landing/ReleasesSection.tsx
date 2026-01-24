@@ -13,6 +13,7 @@ import Image from "next/image";
 import Link from "next/link";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
+import type { ScrollTrigger as ScrollTriggerType } from "gsap/ScrollTrigger";
 
 import {
   Badge,
@@ -238,6 +239,101 @@ function useLockBody(locked: boolean) {
 }
 
 /**
+ * 🎛 Theme morph (scroll-driven)
+ * Muse -> yellow, TOWD -> cream
+ * We animate CSS var --morph (0..1) on wrappers that have data-theme.
+ */
+type ThemeKey = "muse" | "towd";
+
+function themeKeyForRelease(r: ReleaseItem): ThemeKey | null {
+  const k = normalizeTitleKey(r.title);
+  if (k.includes("muse")) return "muse";
+  if (
+    k.includes("theonewhodescends") ||
+    k.includes("onewhodescends") ||
+    k.includes("towd") ||
+    k.endsWith("descends") ||
+    k.includes("descends")
+  )
+    return "towd";
+  return null;
+}
+
+function themeVars(key: ThemeKey | null) {
+  if (!key) return undefined;
+
+  // NOTE: we store RGB as "r g b" so we can use rgb(var(--toneA) / alpha)
+  if (key === "muse") {
+    return {
+      ["--morph" as any]: 0,
+      ["--toneA" as any]: "250 204 21", // yellow-400
+      ["--toneB" as any]: "234 179 8", // yellow-500
+      ["--toneRing" as any]: "250 204 21",
+    } as React.CSSProperties;
+  }
+
+  // TOWD (warm cream)
+  return {
+    ["--morph" as any]: 0,
+    ["--toneA" as any]: "254 243 199", // amber-100
+    ["--toneB" as any]: "253 230 138", // amber-200
+    ["--toneRing" as any]: "253 230 138",
+  } as React.CSSProperties;
+}
+
+function MorphSurfaceLayers() {
+  // uses CSS vars from wrapper:
+  // --morph (0..1), --toneA, --toneB, --toneRing
+  return (
+    <>
+      {/* surface tint */}
+      <div
+        className="pointer-events-none absolute inset-0 z-0 transition-opacity duration-500"
+        style={{
+          opacity: "var(--morph)" as any,
+          background:
+            "linear-gradient(145deg, rgb(var(--toneA) / 0.35) 0%, rgb(var(--toneB) / 0.18) 40%, transparent 80%)",
+        }}
+      />
+      {/* ring tint */}
+      <div
+        className="pointer-events-none absolute inset-0 z-0 rounded-[28px] border transition-opacity duration-500"
+        style={{
+          opacity: "var(--morph)" as any,
+          borderColor: "rgb(var(--toneRing) / 0.35)" as any,
+        }}
+      />
+    </>
+  );
+}
+
+function MorphCoverWash() {
+  return (
+    <div
+      className="pointer-events-none absolute inset-0 mix-blend-overlay transition-opacity duration-500"
+      style={{
+        opacity: "var(--morph)" as any,
+        background:
+          "linear-gradient(180deg, rgb(var(--toneA) / 0.30) 0%, rgb(var(--toneB) / 0.15) 50%, transparent 100%)",
+      }}
+    />
+  );
+}
+
+function MorphGlow() {
+  return (
+    <div
+      className="pointer-events-none absolute left-1/2 top-1/2 h-48 w-48 -translate-x-1/2 -translate-y-1/2 rounded-full transition-opacity duration-500"
+      style={{
+        opacity: "var(--morph)" as any,
+        background: "radial-gradient(circle, rgb(var(--toneA) / 0.42), transparent 70%)",
+        filter: "blur(20px)",
+      }}
+    />
+  );
+}
+
+/**
  * Clean “More platforms” dropdown: keeps cards readable.
  */
 function MorePlatformsDropdown(props: {
@@ -342,11 +438,6 @@ function StatChip(props: { label: string; value: string }) {
 
 /**
  * 🔥 Upgraded “Details Sheet”
- * - Has a visible chevron-down control (mobile)
- * - Has a proper X icon button
- * - Smooth open/close animation
- * - Sticky bottom action bar (Listen / Smart / Pass)
- * - Cleaner layout hierarchy + stats row + verified sources
  */
 function ReleaseDetailsSheet(props: {
   open: boolean;
@@ -356,14 +447,12 @@ function ReleaseDetailsSheet(props: {
 }) {
   const r = props.release;
 
-  // mount/animate (so you get a real slide-in + fade and not a hard pop)
   const [present, setPresent] = useState(false);
   const [active, setActive] = useState(false);
 
   useEffect(() => {
     if (props.open) {
       setPresent(true);
-      // next frame -> activate transitions
       const t = window.setTimeout(() => setActive(true), 10);
       return () => window.clearTimeout(t);
     } else {
@@ -420,40 +509,29 @@ function ReleaseDetailsSheet(props: {
       role="dialog"
       aria-modal="true"
       aria-label={`${r.title} details`}
-      onMouseDown={(e) => {
-        // clicking anywhere outside panel closes
-        props.onClose();
-      }}
+      onMouseDown={() => props.onClose()}
     >
-      {/* backdrop */}
       <div className="absolute inset-0 bg-black/70 backdrop-blur-[2px]" />
 
-      {/* panel */}
       <div
         onMouseDown={stop}
         className={cx(
           "absolute left-0 right-0 mx-auto w-full",
-          // Mobile bottom sheet
           "bottom-0 rounded-t-[28px] border-t border-white/10 bg-black/70 backdrop-blur-2xl",
-          // Desktop drawer
           "md:bottom-0 md:right-0 md:left-auto md:top-0 md:h-full md:w-[480px] md:rounded-none md:border-l md:border-t-0",
-          // transition
           "transition-transform duration-200 will-change-transform",
           active
             ? "translate-y-0 md:translate-x-0"
             : "translate-y-6 md:translate-y-0 md:translate-x-6"
         )}
       >
-        {/* Top glow + texture */}
         <div className="pointer-events-none absolute inset-0 opacity-[0.75]">
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_25%_10%,rgba(255,255,255,0.12),transparent_55%)]" />
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_75%_65%,rgba(255,255,255,0.08),transparent_55%)]" />
           <div className="absolute inset-0 bg-[linear-gradient(to_bottom,rgba(255,255,255,0.06),transparent_30%)]" />
         </div>
 
-        {/* Header */}
         <div className="relative">
-          {/* grab handle + chevron down (mobile) */}
           <div className="mx-auto pt-3 md:hidden">
             <div className="mx-auto h-1.5 w-12 rounded-full bg-white/15" />
             <button
@@ -483,7 +561,6 @@ function ReleaseDetailsSheet(props: {
               ) : null}
             </div>
 
-            {/* X icon */}
             <button
               type="button"
               onClick={props.onClose}
@@ -498,9 +575,7 @@ function ReleaseDetailsSheet(props: {
           </div>
         </div>
 
-        {/* Content */}
         <div className="relative px-5 pb-24 md:px-6 md:pb-28">
-          {/* cover + meta block */}
           <div className="grid gap-4 md:grid-cols-[140px_1fr] md:items-start">
             <div className="relative overflow-hidden rounded-2xl ring-1 ring-white/10">
               <div className="relative aspect-square">
@@ -523,14 +598,12 @@ function ReleaseDetailsSheet(props: {
                 ))}
               </div>
 
-              {/* stats row */}
               <div className="mt-4 grid grid-cols-3 gap-2">
                 <StatChip label="Platforms" value={String(platformCount)} />
                 <StatChip label="Tracks" value={trackCount ? String(trackCount) : "—"} />
                 <StatChip label="Smart link" value={r.fanLink ? "Yes" : "No"} />
               </div>
 
-              {/* credits */}
               <div className="mt-4 rounded-2xl bg-white/[0.03] p-4 ring-1 ring-white/10">
                 <div className="text-xs uppercase tracking-[0.22em] text-white/55">Credits</div>
 
@@ -581,7 +654,6 @@ function ReleaseDetailsSheet(props: {
             </div>
           </div>
 
-          {/* tracklist */}
           <div className="mt-6">
             <div className="flex items-end justify-between gap-3">
               <div>
@@ -593,9 +665,7 @@ function ReleaseDetailsSheet(props: {
                 </div>
               </div>
 
-              {trackResolved?.tracks?.length ? (
-                <Pill tone="ghost">Scroll</Pill>
-              ) : null}
+              {trackResolved?.tracks?.length ? <Pill tone="ghost">Scroll</Pill> : null}
             </div>
 
             {trackResolved?.tracks?.length ? (
@@ -628,7 +698,6 @@ function ReleaseDetailsSheet(props: {
             )}
           </div>
 
-          {/* all platforms */}
           {platformItems.length ? (
             <div className="mt-6">
               <div className="text-xs uppercase tracking-[0.22em] text-white/55">All platforms</div>
@@ -658,7 +727,6 @@ function ReleaseDetailsSheet(props: {
           ) : null}
         </div>
 
-        {/* Sticky action bar */}
         <div className="absolute bottom-0 left-0 right-0 border-t border-white/10 bg-black/55 backdrop-blur-2xl">
           <div className="px-5 py-4 md:px-6">
             <div className="flex flex-wrap items-center gap-2">
@@ -775,12 +843,10 @@ export function ReleasesSection(props: {
     return rest.slice(0, initialCount);
   }, [featured, filteredSorted, expanded, initialCount]);
 
-  // robust lookup map so details always resolve
   const keyToRelease = useMemo(() => {
     const map = new Map<string, ReleaseItem>();
     if (featured && featuredKey) map.set(featuredKey, featured);
-    filteredSorted.forEach((r, i) => {
-      map.set(normalizeTitleKey(`${r.title}-${i}`), r);
+    filteredSorted.forEach((r) => {
       map.set(normalizeTitleKey(r.title), r);
     });
     return map;
@@ -794,14 +860,16 @@ export function ReleasesSection(props: {
   const openDetails = useCallback((key: string) => setOpenDetailsKey(key), []);
   const closeDetails = useCallback(() => setOpenDetailsKey(null), []);
 
-  // Premium motion pass: background parallax + reveal animation + hover tilt
+  // Premium motion pass: background parallax + reveal animation + hover tilt + ✅ scroll morph theme
   useLayoutEffect(() => {
     if (reducedMotion) return;
 
-    const ctx = gsap.context(() => {
-      const root = rootRef.current;
-      if (!root) return;
+    const root = rootRef.current;
+    if (!root) return;
 
+    const morphTriggers: ScrollTriggerType[] = [];
+
+    const ctx = gsap.context(() => {
       const bg = root.querySelector<HTMLElement>("[data-releases-bg='true']");
       if (bg) {
         gsap.fromTo(
@@ -821,10 +889,10 @@ export function ReleasesSection(props: {
         );
       }
 
-      const featuredCard = root.querySelector<HTMLElement>("[data-featured-card='true']");
-      if (featuredCard) {
+      const featuredWrap = root.querySelector<HTMLElement>("[data-featured-card='true']");
+      if (featuredWrap) {
         gsap.fromTo(
-          featuredCard,
+          featuredWrap,
           { y: 24, opacity: 0, filter: "blur(10px)", clipPath: "inset(10% 8% 14% 8% round 28px)" },
           {
             y: 0,
@@ -833,7 +901,7 @@ export function ReleasesSection(props: {
             clipPath: "inset(0% 0% 0% 0% round 28px)",
             duration: 0.8,
             ease: "power3.out",
-            scrollTrigger: { trigger: featuredCard, start: "top 80%", once: true },
+            scrollTrigger: { trigger: featuredWrap, start: "top 80%", once: true },
           }
         );
       }
@@ -860,9 +928,39 @@ export function ReleasesSection(props: {
         },
       });
 
+      // ✅ Scroll morph theme (Muse yellow / TOWD cream)
+      const themed = [
+        ...(featuredWrap ? [featuredWrap] : []),
+        ...cards,
+      ].filter((el) => !!el.getAttribute("data-theme"));
+
+      themed.forEach((el) => {
+        gsap.set(el, { ["--morph" as any]: 0 });
+
+        const to = (v: 0 | 1) =>
+          gsap.to(el, {
+            ["--morph" as any]: v,
+            duration: v === 1 ? 0.85 : 0.55,
+            ease: v === 1 ? "power3.out" : "power2.out",
+            overwrite: true,
+          });
+
+        const t = ScrollTrigger.create({
+          trigger: el,
+          start: "top 74%",
+          end: "bottom 26%",
+          onEnter: () => to(1),
+          onEnterBack: () => to(1),
+          onLeave: () => to(0),
+          onLeaveBack: () => to(0),
+        });
+
+        morphTriggers.push(t);
+      });
+
       // Hover tilt (pointer devices)
       const tiltTargets = [
-        ...(featuredCard ? [featuredCard] : []),
+        ...(featuredWrap ? [featuredWrap] : []),
         ...cards,
       ];
 
@@ -941,12 +1039,13 @@ export function ReleasesSection(props: {
     }, rootRef);
 
     return () => {
-      const root = rootRef.current;
-      if (root) {
-        const cards = Array.from(root.querySelectorAll<HTMLElement>("[data-release-card='true']"));
+      morphTriggers.forEach((t) => t.kill());
+      const rootNow = rootRef.current;
+      if (rootNow) {
+        const cards = Array.from(rootNow.querySelectorAll<HTMLElement>("[data-release-card='true']"));
         cards.forEach((c) => (c as any).__cleanup?.());
-        const featuredCard = root.querySelector<HTMLElement>("[data-featured-card='true']");
-        (featuredCard as any)?.__cleanup?.();
+        const featuredWrap = rootNow.querySelector<HTMLElement>("[data-featured-card='true']");
+        (featuredWrap as any)?.__cleanup?.();
       }
       ctx.revert();
     };
@@ -968,7 +1067,15 @@ export function ReleasesSection(props: {
       gsap.fromTo(
         newly,
         { y: 18, opacity: 0, filter: "blur(8px)", clipPath: "inset(10% 10% 14% 10% round 24px)" },
-        { y: 0, opacity: 1, filter: "blur(0px)", clipPath: "inset(0% 0% 0% 0% round 24px)", duration: 0.6, ease: "power3.out", stagger: 0.06 }
+        {
+          y: 0,
+          opacity: 1,
+          filter: "blur(0px)",
+          clipPath: "inset(0% 0% 0% 0% round 24px)",
+          duration: 0.6,
+          ease: "power3.out",
+          stagger: 0.06,
+        }
       );
     }
 
@@ -1054,6 +1161,9 @@ export function ReleasesSection(props: {
     );
   }
 
+  const featuredTheme = featured ? themeKeyForRelease(featured) : null;
+  const featuredThemeVars = featuredTheme ? themeVars(featuredTheme) : undefined;
+
   return (
     <section id={id} className="relative py-20 md:py-24">
       <div className="absolute inset-0 -z-10">
@@ -1102,7 +1212,6 @@ export function ReleasesSection(props: {
           }
         />
 
-        {/* Filters */}
         <div className="mt-6">{renderFilters}</div>
 
         {/* Featured */}
@@ -1123,178 +1232,200 @@ export function ReleasesSection(props: {
               </button>
             </div>
 
-            <Card
-              className={cx(
-                "overflow-hidden ring-1 ring-white/10 bg-white/[0.03]",
-                "shadow-[0_30px_90px_rgba(0,0,0,0.65)]",
-                "will-change-transform [transform-style:preserve-3d]"
-              )}
+            {/* ✅ wrapper takes data-theme + style so TS stops complaining */}
+            <div
               data-featured-card="true"
+              data-theme={featuredTheme ?? undefined}
+              style={featuredThemeVars ? (featuredThemeVars as any) : undefined}
+              className={cx(
+                "group/card rounded-[28px] [transform-style:preserve-3d] will-change-transform"
+              )}
             >
-              <div className="grid md:grid-cols-[1.15fr_0.85fr]">
-                {/* cover */}
-                <div className="relative">
-                  <div className="relative aspect-[16/10] md:aspect-auto md:h-full overflow-hidden">
-                    <div data-release-cover="true" className="absolute inset-0">
-                      <Image
-                        src={featured.art}
-                        alt={`${featured.title} cover`}
-                        fill
-                        sizes="(max-width: 768px) 100vw, 60vw"
-                        className="object-cover"
-                        priority
+              <Card
+                className={cx(
+                  "relative overflow-hidden rounded-[28px] ring-1 ring-white/10 bg-white/[0.03]",
+                  "shadow-[0_30px_90px_rgba(0,0,0,0.65)]"
+                )}
+              >
+                {/* ✅ Scroll-morph surface + ring (only when theme is present) */}
+                {featuredTheme ? <MorphSurfaceLayers /> : null}
+
+                <div className="relative z-10 grid md:grid-cols-[1.15fr_0.85fr]">
+                  {/* cover */}
+                  <div className="relative">
+                    <div className="relative aspect-[16/10] md:aspect-auto md:h-full overflow-hidden">
+                      <div data-release-cover="true" className="absolute inset-0">
+                        <Image
+                          src={featured.art}
+                          alt={`${featured.title} cover`}
+                          fill
+                          sizes="(max-width: 768px) 100vw, 60vw"
+                          className="object-cover"
+                          priority
+                        />
+                      </div>
+
+                      <div className="absolute inset-0 bg-gradient-to-r from-black/45 via-black/15 to-transparent" />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/45 via-transparent to-transparent" />
+
+                      {/* ✅ Scroll-morph wash on cover */}
+                      {featuredTheme ? <MorphCoverWash /> : null}
+
+                      <div
+                        data-release-shine="true"
+                        className="pointer-events-none absolute inset-0 opacity-0"
+                        style={{
+                          background:
+                            "radial-gradient(circle at 35% 20%, rgba(255,255,255,0.18), rgba(255,255,255,0.00) 55%)",
+                        }}
                       />
-                    </div>
 
-                    <div className="absolute inset-0 bg-gradient-to-r from-black/45 via-black/15 to-transparent" />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/45 via-transparent to-transparent" />
+                      {/* ✅ Scroll-morph glow */}
+                      {featuredTheme ? (
+                        <div data-release-glow="true" className="absolute inset-0">
+                          <MorphGlow />
+                        </div>
+                      ) : (
+                        <div
+                          data-release-glow="true"
+                          className="pointer-events-none absolute left-1/2 top-1/2 h-44 w-44 -translate-x-1/2 -translate-y-1/2 rounded-full opacity-[0.32]"
+                          style={{
+                            background:
+                              "radial-gradient(circle, rgba(255,255,255,0.20), rgba(255,255,255,0.0) 70%)",
+                            filter: "blur(12px)",
+                          }}
+                        />
+                      )}
 
-                    <div
-                      data-release-shine="true"
-                      className="pointer-events-none absolute inset-0 opacity-0"
-                      style={{
-                        background:
-                          "radial-gradient(circle at 35% 20%, rgba(255,255,255,0.18), rgba(255,255,255,0.00) 55%)",
-                      }}
-                    />
-                    <div
-                      data-release-glow="true"
-                      className="pointer-events-none absolute left-1/2 top-1/2 h-44 w-44 -translate-x-1/2 -translate-y-1/2 rounded-full opacity-[0.32]"
-                      style={{
-                        background:
-                          "radial-gradient(circle, rgba(255,255,255,0.20), rgba(255,255,255,0.0) 70%)",
-                        filter: "blur(12px)",
-                      }}
-                    />
+                      <div className="absolute left-5 top-5 flex items-center gap-2">
+                        {featured.year ? <Pill tone="muted">{featured.year}</Pill> : null}
+                        {inferFormat(featured) ? <Pill tone="ghost">{inferFormat(featured)}</Pill> : null}
+                        {hasChip(featured, "New") ? <Pill tone="brand">New</Pill> : null}
+                      </div>
 
-                    <div className="absolute left-5 top-5 flex items-center gap-2">
-                      {featured.year ? <Pill tone="muted">{featured.year}</Pill> : null}
-                      {inferFormat(featured) ? <Pill tone="ghost">{inferFormat(featured)}</Pill> : null}
-                      {hasChip(featured, "New") ? <Pill tone="brand">New</Pill> : null}
-                    </div>
-
-                    <div className="absolute bottom-5 left-5 right-5">
-                      <div className="max-w-[520px]">
-                        <div className="text-xs uppercase tracking-[0.22em] text-white/60">Featured release</div>
-                        <div className="mt-2 text-3xl font-semibold tracking-tight text-white">{featured.title}</div>
-                        {featured.subtitle ? (
-                          <div className="mt-1 text-sm text-white/65">{featured.subtitle}</div>
-                        ) : null}
-
-                        <div className="mt-4 flex flex-wrap gap-2">
-                          <Button
-                            variant="primary"
-                            href={pickPrimaryLink(featured.links, featured.primary)?.href ?? "#"}
-                            target="_blank"
-                            iconRight={<IconArrowUpRight className="h-4 w-4" />}
-                            disabled={!pickPrimaryLink(featured.links, featured.primary)?.href}
-                          >
-                            {pickPrimaryLink(featured.links, featured.primary)
-                              ? `Open on ${PLATFORM_LABEL[pickPrimaryLink(featured.links, featured.primary)!.key]}`
-                              : "Coming soon"}
-                          </Button>
-
-                          {featured.fanLink ? (
-                            <Button
-                              variant="secondary"
-                              href={featured.fanLink}
-                              target="_blank"
-                              iconRight={<IconArrowUpRight className="h-4 w-4" />}
-                            >
-                              Smart link
-                            </Button>
+                      <div className="absolute bottom-5 left-5 right-5">
+                        <div className="max-w-[520px]">
+                          <div className="text-xs uppercase tracking-[0.22em] text-white/60">Featured release</div>
+                          <div className="mt-2 text-3xl font-semibold tracking-tight text-white">{featured.title}</div>
+                          {featured.subtitle ? (
+                            <div className="mt-1 text-sm text-white/65">{featured.subtitle}</div>
                           ) : null}
 
-                          <Button
-                            variant="ghost"
-                            onClick={() => featuredKey && openDetails(featuredKey)}
-                            iconRight={<IconArrowUpRight className="h-4 w-4" />}
-                          >
-                            View details
-                          </Button>
-
-                          <Button
-                            variant="ghost"
-                            onClick={props.onOpenPass}
-                            iconLeft={<IconSpark className="h-4 w-4" />}
-                          >
-                            Join the Pass
-                          </Button>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* side content */}
-                <div className="p-6 md:p-7">
-                  <div className="flex flex-wrap items-center gap-2">
-                    {(featured.chips ?? []).filter((c) => c !== "New").slice(0, 5).map((c) => (
-                      <Badge key={c}>{c}</Badge>
-                    ))}
-                  </div>
-
-                  <div className="mt-5 rounded-2xl bg-white/[0.03] p-4 ring-1 ring-white/10">
-                    <div className="flex items-center justify-between gap-3">
-                      <div className="text-xs uppercase tracking-[0.22em] text-white/55">Availability</div>
-                      <div className="text-xs text-white/70">{availabilityLine(featured)}</div>
-                    </div>
-
-                    <div className="mt-3 h-px bg-white/10" />
-
-                    {/* Track preview: first 3 */}
-                    {resolveTracklist(featured)?.tracks?.length ? (
-                      <div className="mt-3">
-                        <div className="text-xs uppercase tracking-[0.22em] text-white/55">Track preview</div>
-
-                        <ol className="mt-2 space-y-2">
-                          {resolveTracklist(featured)!.tracks.slice(0, 3).map((t, i) => (
-                            <li
-                              key={`${t.title}-${i}`}
-                              className="flex items-center gap-3 rounded-xl bg-white/[0.02] px-3 py-2 ring-1 ring-white/10"
+                          <div className="mt-4 flex flex-wrap gap-2">
+                            <Button
+                              variant="primary"
+                              href={pickPrimaryLink(featured.links, featured.primary)?.href ?? "#"}
+                              target="_blank"
+                              iconRight={<IconArrowUpRight className="h-4 w-4" />}
+                              disabled={!pickPrimaryLink(featured.links, featured.primary)?.href}
                             >
-                              <div className="w-6 text-xs tabular-nums text-white/45">
-                                {String(i + 1).padStart(2, "0")}
-                              </div>
-                              <div className="min-w-0 flex-1">
-                                <div className="truncate text-sm text-white">{t.title}</div>
-                                {t.meta ? <div className="mt-0.5 truncate text-xs text-white/55">{t.meta}</div> : null}
-                              </div>
-                              {t.duration ? <div className="text-xs tabular-nums text-white/45">{t.duration}</div> : null}
-                            </li>
-                          ))}
-                        </ol>
+                              {pickPrimaryLink(featured.links, featured.primary)
+                                ? `Open on ${PLATFORM_LABEL[pickPrimaryLink(featured.links, featured.primary)!.key]}`
+                                : "Coming soon"}
+                            </Button>
 
-                        <div className="mt-3 flex items-center justify-between">
-                          <div className="text-xs text-white/60">
-                            {resolveTracklist(featured)!.tracks.length} tracks total
+                            {featured.fanLink ? (
+                              <Button
+                                variant="secondary"
+                                href={featured.fanLink}
+                                target="_blank"
+                                iconRight={<IconArrowUpRight className="h-4 w-4" />}
+                              >
+                                Smart link
+                              </Button>
+                            ) : null}
+
+                            <Button
+                              variant="ghost"
+                              onClick={() => featuredKey && openDetails(featuredKey)}
+                              iconRight={<IconArrowUpRight className="h-4 w-4" />}
+                            >
+                              View details
+                            </Button>
+
+                            <Button
+                              variant="ghost"
+                              onClick={props.onOpenPass}
+                              iconLeft={<IconSpark className="h-4 w-4" />}
+                            >
+                              Join the Pass
+                            </Button>
                           </div>
-                          <button
-                            type="button"
-                            onClick={() => featuredKey && openDetails(featuredKey)}
-                            className="text-xs text-white/70 hover:text-white transition underline underline-offset-4"
-                          >
-                            View full tracklist
-                          </button>
                         </div>
                       </div>
-                    ) : (
-                      <div className="mt-3 text-sm text-white/60">Tracklist available in details.</div>
-                    )}
+                    </div>
                   </div>
 
-                  {/* Clean platform dropdown */}
-                  <div className="mt-4 flex flex-wrap items-center gap-2">
-                    <MorePlatformsDropdown
-                      links={featured.links}
-                      excludeKey={pickPrimaryLink(featured.links, featured.primary)?.key}
-                      platformSources={featured.platformSources}
-                    />
-                    <Pill tone="ghost">Clean links</Pill>
+                  {/* side content */}
+                  <div className="p-6 md:p-7">
+                    <div className="flex flex-wrap items-center gap-2">
+                      {(featured.chips ?? []).filter((c) => c !== "New").slice(0, 5).map((c) => (
+                        <Badge key={c}>{c}</Badge>
+                      ))}
+                    </div>
+
+                    <div className="mt-5 rounded-2xl bg-white/[0.03] p-4 ring-1 ring-white/10">
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="text-xs uppercase tracking-[0.22em] text-white/55">Availability</div>
+                        <div className="text-xs text-white/70">{availabilityLine(featured)}</div>
+                      </div>
+
+                      <div className="mt-3 h-px bg-white/10" />
+
+                      {resolveTracklist(featured)?.tracks?.length ? (
+                        <div className="mt-3">
+                          <div className="text-xs uppercase tracking-[0.22em] text-white/55">Track preview</div>
+
+                          <ol className="mt-2 space-y-2">
+                            {resolveTracklist(featured)!.tracks.slice(0, 3).map((t, i) => (
+                              <li
+                                key={`${t.title}-${i}`}
+                                className="flex items-center gap-3 rounded-xl bg-white/[0.02] px-3 py-2 ring-1 ring-white/10"
+                              >
+                                <div className="w-6 text-xs tabular-nums text-white/45">
+                                  {String(i + 1).padStart(2, "0")}
+                                </div>
+                                <div className="min-w-0 flex-1">
+                                  <div className="truncate text-sm text-white">{t.title}</div>
+                                  {t.meta ? (
+                                    <div className="mt-0.5 truncate text-xs text-white/55">{t.meta}</div>
+                                  ) : null}
+                                </div>
+                                {t.duration ? (
+                                  <div className="text-xs tabular-nums text-white/45">{t.duration}</div>
+                                ) : null}
+                              </li>
+                            ))}
+                          </ol>
+
+                          <div className="mt-3 flex items-center justify-between">
+                            <div className="text-xs text-white/60">{resolveTracklist(featured)!.tracks.length} tracks total</div>
+                            <button
+                              type="button"
+                              onClick={() => featuredKey && openDetails(featuredKey)}
+                              className="text-xs text-white/70 hover:text-white transition underline underline-offset-4"
+                            >
+                              View full tracklist
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="mt-3 text-sm text-white/60">Tracklist available in details.</div>
+                      )}
+                    </div>
+
+                    <div className="mt-4 flex flex-wrap items-center gap-2">
+                      <MorePlatformsDropdown
+                        links={featured.links}
+                        excludeKey={pickPrimaryLink(featured.links, featured.primary)?.key}
+                        platformSources={featured.platformSources}
+                      />
+                      <Pill tone="ghost">Clean links</Pill>
+                    </div>
                   </div>
                 </div>
-              </div>
-            </Card>
+              </Card>
+            </div>
           </div>
         ) : null}
 
@@ -1320,7 +1451,7 @@ export function ReleasesSection(props: {
               {catalog.map((r, idx) => {
                 const primary = pickPrimaryLink(r.links, r.primary);
                 const format = inferFormat(r);
-                const cardKey = normalizeTitleKey(`${r.title}-${idx}`);
+                const cardKey = normalizeTitleKey(r.title);
 
                 const coverLabelRaw = r.artSourceLabel || r.artSource || `Asset: ${filenameFromPath(r.art)}`;
                 const coverLabel = normalizeSourceLabel(coverLabelRaw);
@@ -1328,211 +1459,187 @@ export function ReleasesSection(props: {
 
                 const trackResolved = resolveTracklist(r);
 
-                // Check release type for color theming
-                const titleLower = r.title.toLowerCase();
-                const isMuse = titleLower.includes("muse");
-                const isTOWD = titleLower.includes("the one who descends") || titleLower.includes("towd");
-                const isSpecialRelease = isMuse || isTOWD;
-
-                // Color schemes: Muse = vibrant yellow, TOWD = warm cream
-                const gradientColor = isMuse 
-                  ? "rgba(250, 204, 21, 0.35)" // yellow-400
-                  : isTOWD 
-                    ? "rgba(254, 243, 199, 0.4)" // cream/amber-100
-                    : "transparent";
-                const gradientColorMid = isMuse 
-                  ? "rgba(234, 179, 8, 0.18)" // yellow-500
-                  : isTOWD 
-                    ? "rgba(253, 230, 138, 0.22)" // amber-200
-                    : "transparent";
-                const ringColor = isMuse 
-                  ? "hover:ring-yellow-400/40" 
-                  : isTOWD 
-                    ? "hover:ring-amber-200/40" 
-                    : "";
+                const themeKey = themeKeyForRelease(r);
+                const themeStyleObj = themeKey ? themeVars(themeKey) : undefined;
 
                 return (
-                  <Card
+                  <div
                     key={`${r.title}-${idx}`}
-                    className={cx(
-                      "group/card overflow-hidden ring-1 ring-white/10 bg-white/[0.03]",
-                      "shadow-[0_30px_90px_rgba(0,0,0,0.65)]",
-                      "will-change-transform [transform-style:preserve-3d]",
-                      "relative transition-all duration-500",
-                      isSpecialRelease && ringColor
-                    )}
                     data-release-card="true"
-                  >
-                    {/* Full card gradient overlay on hover */}
-                    {isSpecialRelease && (
-                      <div 
-                        className="absolute inset-0 z-0 opacity-0 group-hover/card:opacity-100 transition-opacity duration-500 pointer-events-none"
-                        style={{
-                          background: `linear-gradient(145deg, ${gradientColor} 0%, ${gradientColorMid} 40%, transparent 80%)`,
-                        }}
-                      />
+                    data-theme={themeKey ?? undefined}
+                    style={themeStyleObj ? (themeStyleObj as any) : undefined}
+                    className={cx(
+                      "group/card rounded-[28px] [transform-style:preserve-3d] will-change-transform"
                     )}
-                    <div className="grid md:grid-cols-[.92fr_1.08fr] relative z-10">
-                      {/* Cover */}
-                      <div className="relative">
-                        <div className="relative aspect-[4/3] md:aspect-auto md:h-full overflow-hidden">
-                          <div data-release-cover="true" className="absolute inset-0">
-                            <Image
-                              src={r.art}
-                              alt={`${r.title} cover`}
-                              fill
-                              sizes="(max-width: 768px) 100vw, 40vw"
-                              className="object-cover"
-                              priority={idx < 2 && !featured}
-                            />
-                          </div>
+                  >
+                    <Card
+                      className={cx(
+                        "relative overflow-hidden rounded-[28px] ring-1 ring-white/10 bg-white/[0.03]",
+                        "shadow-[0_30px_90px_rgba(0,0,0,0.65)]",
+                        "transition-all duration-500"
+                      )}
+                    >
+                      {/* ✅ Scroll-morph surface + ring */}
+                      {themeKey ? <MorphSurfaceLayers /> : null}
 
-                          {/* cinematic overlays */}
-                          <div className="absolute inset-0 bg-gradient-to-r from-black/35 via-black/10 to-transparent" />
-                          <div className="absolute inset-0 bg-gradient-to-t from-black/35 via-transparent to-transparent" />
+                      <div className="relative z-10 grid md:grid-cols-[.92fr_1.08fr]">
+                        {/* Cover */}
+                        <div className="relative">
+                          <div className="relative aspect-[4/3] md:aspect-auto md:h-full overflow-hidden">
+                            <div data-release-cover="true" className="absolute inset-0">
+                              <Image
+                                src={r.art}
+                                alt={`${r.title} cover`}
+                                fill
+                                sizes="(max-width: 768px) 100vw, 40vw"
+                                className="object-cover"
+                                priority={idx < 2 && !featured}
+                              />
+                            </div>
 
-                          {/* Color wash on hover for special releases */}
-                          {isSpecialRelease && (
+                            <div className="absolute inset-0 bg-gradient-to-r from-black/35 via-black/10 to-transparent" />
+                            <div className="absolute inset-0 bg-gradient-to-t from-black/35 via-transparent to-transparent" />
+
+                            {/* ✅ Scroll-morph cover wash */}
+                            {themeKey ? <MorphCoverWash /> : null}
+
                             <div
-                              className="pointer-events-none absolute inset-0 opacity-0 group-hover/card:opacity-100 transition-opacity duration-500 mix-blend-overlay"
+                              data-release-shine="true"
+                              className="pointer-events-none absolute inset-0 opacity-0"
                               style={{
-                                background: isMuse 
-                                  ? "linear-gradient(180deg, rgba(250, 204, 21, 0.3) 0%, rgba(234, 179, 8, 0.15) 50%, transparent 100%)"
-                                  : "linear-gradient(180deg, rgba(254, 243, 199, 0.35) 0%, rgba(253, 230, 138, 0.18) 50%, transparent 100%)",
+                                background:
+                                  "radial-gradient(circle at 35% 20%, rgba(255,255,255,0.18), rgba(255,255,255,0.00) 55%)",
                               }}
                             />
-                          )}
 
-                          <div
-                            data-release-shine="true"
-                            className="pointer-events-none absolute inset-0 opacity-0"
-                            style={{
-                              background:
-                                "radial-gradient(circle at 35% 20%, rgba(255,255,255,0.18), rgba(255,255,255,0.00) 55%)",
-                            }}
-                          />
-                          <div
-                            data-release-glow="true"
-                            className={cx(
-                              "pointer-events-none absolute left-1/2 top-1/2 h-48 w-48 -translate-x-1/2 -translate-y-1/2 rounded-full",
-                              "opacity-0 group-hover/card:opacity-100 transition-opacity duration-500"
+                            {/* glow:
+                                - themed: driven by --morph
+                                - others: hover glow (original) */}
+                            {themeKey ? (
+                              <div data-release-glow="true" className="absolute inset-0">
+                                <MorphGlow />
+                              </div>
+                            ) : (
+                              <div
+                                data-release-glow="true"
+                                className={cx(
+                                  "pointer-events-none absolute left-1/2 top-1/2 h-48 w-48 -translate-x-1/2 -translate-y-1/2 rounded-full",
+                                  "opacity-0 group-hover/card:opacity-100 transition-opacity duration-500"
+                                )}
+                                style={{
+                                  background: "radial-gradient(circle, rgba(255,255,255,0.20), transparent 70%)",
+                                  filter: "blur(20px)",
+                                }}
+                              />
                             )}
-                            style={{
-                              background: isMuse
-                                ? "radial-gradient(circle, rgba(250, 204, 21, 0.4), transparent 70%)"
-                                : isTOWD
-                                  ? "radial-gradient(circle, rgba(254, 243, 199, 0.45), transparent 70%)"
-                                  : "radial-gradient(circle, rgba(255,255,255,0.20), transparent 70%)",
-                              filter: "blur(20px)",
-                            }}
-                          />
 
-                          {/* top meta */}
-                          <div className="absolute left-4 top-4 flex items-center gap-2">
-                            {r.year ? <Pill tone="muted">{r.year}</Pill> : null}
-                            {format ? <Pill tone="ghost">{format}</Pill> : null}
-                            {hasChip(r, "New") ? <Pill tone="brand">New</Pill> : null}
-                          </div>
+                            <div className="absolute left-4 top-4 flex items-center gap-2">
+                              {r.year ? <Pill tone="muted">{r.year}</Pill> : null}
+                              {format ? <Pill tone="ghost">{format}</Pill> : null}
+                              {hasChip(r, "New") ? <Pill tone="brand">New</Pill> : null}
+                            </div>
 
-                          {/* title strip */}
-                          <div className="absolute bottom-4 left-4 right-4">
-                            <div className="rounded-2xl bg-black/20 px-3 py-2 ring-1 ring-white/10 backdrop-blur-xl">
-                              <div className="truncate text-sm font-semibold text-white">{r.title}</div>
-                              {r.subtitle ? <div className="truncate text-xs text-white/60">{r.subtitle}</div> : null}
+                            <div className="absolute bottom-4 left-4 right-4">
+                              <div className="rounded-2xl bg-black/20 px-3 py-2 ring-1 ring-white/10 backdrop-blur-xl">
+                                <div className="truncate text-sm font-semibold text-white">{r.title}</div>
+                                {r.subtitle ? <div className="truncate text-xs text-white/60">{r.subtitle}</div> : null}
+                              </div>
                             </div>
                           </div>
                         </div>
-                      </div>
 
-                      {/* Copy + Links */}
-                      <div className="p-6">
-                        <div className="flex flex-wrap items-center gap-2">
-                          {(r.chips ?? []).filter((c) => c !== "New").slice(0, 4).map((c) => (
-                            <Badge key={c}>{c}</Badge>
-                          ))}
-                        </div>
-
-                        <h3 className="mt-4 text-2xl font-semibold tracking-tight text-white">{r.title}</h3>
-                        {r.subtitle ? <p className="mt-1 text-sm text-white/60">{r.subtitle}</p> : null}
-
-                        {/* Availability + artwork credit */}
-                        <div className="mt-4 grid gap-2 rounded-2xl bg-white/[0.03] p-4 ring-1 ring-white/10">
-                          <div className="flex items-center justify-between gap-3">
-                            <div className="text-xs uppercase tracking-[0.22em] text-white/55">Availability</div>
-                            <div className="text-xs text-white/70">{availabilityLine(r)}</div>
+                        {/* Copy + Links */}
+                        <div className="p-6">
+                          <div className="flex flex-wrap items-center gap-2">
+                            {(r.chips ?? []).filter((c) => c !== "New").slice(0, 4).map((c) => (
+                              <Badge key={c}>{c}</Badge>
+                            ))}
                           </div>
 
-                          <div className="h-px bg-white/10" />
+                          <h3 className="mt-4 text-2xl font-semibold tracking-tight text-white">{r.title}</h3>
+                          {r.subtitle ? <p className="mt-1 text-sm text-white/60">{r.subtitle}</p> : null}
 
-                          <div className="flex items-start justify-between gap-3">
-                            <div className="text-xs uppercase tracking-[0.22em] text-white/55">Artwork</div>
-                            <div className="min-w-0 text-right text-xs text-white/70">
-                              {coverHref ? (
-                                <Link
-                                  href={coverHref}
-                                  target="_blank"
-                                  rel="noreferrer"
-                                  className="inline-flex items-center gap-2 hover:text-white transition underline underline-offset-4"
-                                  title={coverLabel}
-                                >
+                          <div className="mt-4 grid gap-2 rounded-2xl bg-white/[0.03] p-4 ring-1 ring-white/10">
+                            <div className="flex items-center justify-between gap-3">
+                              <div className="text-xs uppercase tracking-[0.22em] text-white/55">Availability</div>
+                              <div className="text-xs text-white/70">{availabilityLine(r)}</div>
+                            </div>
+
+                            <div className="h-px bg-white/10" />
+
+                            <div className="flex items-start justify-between gap-3">
+                              <div className="text-xs uppercase tracking-[0.22em] text-white/55">Artwork</div>
+                              <div className="min-w-0 text-right text-xs text-white/70">
+                                {coverHref ? (
+                                  <Link
+                                    href={coverHref}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="inline-flex items-center gap-2 hover:text-white transition underline underline-offset-4"
+                                    title={coverLabel}
+                                  >
+                                    <span className="line-clamp-1">{coverLabel}</span>
+                                    <IconArrowUpRight className="h-3.5 w-3.5 opacity-80" />
+                                  </Link>
+                                ) : (
                                   <span className="line-clamp-1">{coverLabel}</span>
-                                  <IconArrowUpRight className="h-3.5 w-3.5 opacity-80" />
-                                </Link>
-                              ) : (
-                                <span className="line-clamp-1">{coverLabel}</span>
-                              )}
+                                )}
+                              </div>
                             </div>
                           </div>
-                        </div>
 
-                        <div className="mt-6 flex flex-wrap items-center gap-2">
-                          <Button
-                            variant="primary"
-                            href={primary?.href ?? "#"}
-                            target="_blank"
-                            iconRight={<IconArrowUpRight className="h-4 w-4" />}
-                            disabled={!primary?.href}
-                          >
-                            {primary ? `Open on ${PLATFORM_LABEL[primary.key]}` : "Coming soon"}
-                          </Button>
-
-                          {r.fanLink ? (
+                          <div className="mt-6 flex flex-wrap items-center gap-2">
                             <Button
-                              variant="secondary"
-                              href={r.fanLink}
+                              variant="primary"
+                              href={primary?.href ?? "#"}
                               target="_blank"
                               iconRight={<IconArrowUpRight className="h-4 w-4" />}
+                              disabled={!primary?.href}
                             >
-                              Smart link
+                              {primary ? `Open on ${PLATFORM_LABEL[primary.key]}` : "Coming soon"}
                             </Button>
-                          ) : null}
 
-                          <Button
-                            variant="ghost"
-                            onClick={() => openDetails(cardKey)}
-                            iconRight={<IconArrowUpRight className="h-4 w-4" />}
-                          >
-                            {trackResolved?.tracks?.length ? "View tracks" : "View details"}
-                          </Button>
+                            {r.fanLink ? (
+                              <Button
+                                variant="secondary"
+                                href={r.fanLink}
+                                target="_blank"
+                                iconRight={<IconArrowUpRight className="h-4 w-4" />}
+                              >
+                                Smart link
+                              </Button>
+                            ) : null}
 
-                          <Button
-                            variant="ghost"
-                            onClick={props.onOpenPass}
-                            iconLeft={<IconSpark className="h-4 w-4" />}
-                          >
-                            Join the Pass
-                          </Button>
+                            <Button
+                              variant="ghost"
+                              onClick={() => openDetails(cardKey)}
+                              iconRight={<IconArrowUpRight className="h-4 w-4" />}
+                            >
+                              {trackResolved?.tracks?.length ? "View tracks" : "View details"}
+                            </Button>
 
-                          <MorePlatformsDropdown links={r.links} excludeKey={primary?.key} platformSources={r.platformSources} />
+                            <Button
+                              variant="ghost"
+                              onClick={props.onOpenPass}
+                              iconLeft={<IconSpark className="h-4 w-4" />}
+                            >
+                              Join the Pass
+                            </Button>
+
+                            <MorePlatformsDropdown
+                              links={r.links}
+                              excludeKey={primary?.key}
+                              platformSources={r.platformSources}
+                            />
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  </Card>
+                    </Card>
+                  </div>
                 );
               })}
             </div>
 
-            {/* Expand / collapse */}
             {(filteredSorted.length - (featured ? 1 : 0)) > initialCount ? (
               <div className="mt-8">
                 <Card className="relative overflow-hidden ring-1 ring-white/10 bg-white/[0.03]">
@@ -1552,19 +1659,19 @@ export function ReleasesSection(props: {
                         {expanded ? "All releases." : "More releases."}
                       </div>
 
-                      <div className="mt-1 text-sm text-white/60">
-                        {expanded
-                          ? "Show less."
-                          : "View all."}
-                      </div>
+                      <div className="mt-1 text-sm text-white/60">{expanded ? "Show less." : "View all."}</div>
                     </div>
 
                     <div className="flex flex-wrap gap-2">
                       <Button
                         variant={expanded ? "secondary" : "primary"}
                         onClick={() => {
-                          setExpanded((v) => !v);
-                          prevVisibleCount.current = expanded ? initialCount : prevVisibleCount.current;
+                          setExpanded((v) => {
+                            const next = !v;
+                            // when collapsing, reset visible count baseline
+                            if (!next) prevVisibleCount.current = initialCount;
+                            return next;
+                          });
                         }}
                         iconRight={<IconArrowUpRight className="h-4 w-4" />}
                       >
@@ -1588,8 +1695,12 @@ export function ReleasesSection(props: {
           </div>
         )}
 
-        {/* Details sheet */}
-        <ReleaseDetailsSheet open={!!openDetailsKey} release={activeDetails} onClose={closeDetails} onOpenPass={props.onOpenPass} />
+        <ReleaseDetailsSheet
+          open={!!openDetailsKey}
+          release={activeDetails}
+          onClose={closeDetails}
+          onOpenPass={props.onOpenPass}
+        />
       </div>
     </section>
   );
