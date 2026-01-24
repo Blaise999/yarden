@@ -1,4 +1,4 @@
-// LandingHeader.tsx (FULL EDIT) — hero-stage sync + glass-on-scroll + shrink
+// LandingHeader.tsx (FULL EDIT) — hero-stage sync + glass-on-scroll + shrink + scrollPaddingTop offset
 "use client";
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
@@ -312,14 +312,19 @@ export default function LandingHeader(props: LandingHeaderProps) {
   const showGlass = menuOpen || scrollY > 10;
   const compact = !menuOpen && scrollY > 78;
 
-  // Sync a CSS var so Hero can pad exactly to the real header height
+  // ✅ Sync header height + set scroll-padding-top to prevent overlap when navigating/anchoring
   useEffect(() => {
     const el = headerElRef.current;
     if (!el) return;
 
     const setVar = () => {
       const h = Math.round(el.getBoundingClientRect().height);
+
+      // used by hero/layout
       document.documentElement.style.setProperty("--header-h", `${h}px`);
+
+      // prevents section headings from hiding under fixed header
+      document.documentElement.style.scrollPaddingTop = `${h + 10}px`;
     };
 
     setVar();
