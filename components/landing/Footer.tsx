@@ -198,7 +198,7 @@ export function Footer() {
             </div>
 
             <p className="mt-4 max-w-sm text-sm leading-relaxed text-white/70">
-              Music, visuals, live moments — one place to follow the story. Tap a platform and
+              One place for everything.
               you’re there.
             </p>
 
@@ -300,6 +300,14 @@ export function Footer() {
               </span>
               <Link className="hover:text-white" href="/privacy">
                 Privacy
+              </Link>
+              <span className="text-white/25">•</span>
+              <Link className="hover:text-white" href="/terms">
+                Terms
+              </Link>
+              <span className="text-white/25">•</span>
+              <Link className="hover:text-white" href="/careers">
+                Careers
               </Link>
             </div>
           </div>

@@ -137,24 +137,24 @@ export default function Page() {
   const tourConfig: TourConfig = {
     posterSrc: "/Pictures/yarden4.png",
     posterAlt: "Tour poster",
-    headline: "Shows that feel like chapters.",
-    description: "Right now it’s placeholders. Later, admin updates dates instantly — no redesign needed.",
+    headline: "Live shows.",
+    description: "Dates coming soon.",
     ticketPortalHref: "",
-    notifyCtaLabel: "Get alerts",
+    notifyCtaLabel: "Notify me",
     providerHint: "Bandsintown",
   };
 
   const shows: ShowItem[] = [
-    { id: "lagos_1", dateLabel: "APR 12", city: "Lagos", venue: "— Venue TBA", status: "announce" },
-    { id: "abuja_1", dateLabel: "MAY 03", city: "Abuja", venue: "— Venue TBA", status: "announce" },
-    { id: "london_1", dateLabel: "JUN 21", city: "London", venue: "— Venue TBA", status: "announce" },
-    { id: "berlin_1", dateLabel: "JUL 09", city: "Berlin", venue: "— Venue TBA", status: "announce" },
+    { id: "lagos_1", dateLabel: "APR 12", city: "Lagos", venue: "TBA", status: "announce" },
+    { id: "abuja_1", dateLabel: "MAY 03", city: "Abuja", venue: "TBA", status: "announce" },
+    { id: "london_1", dateLabel: "JUN 21", city: "London", venue: "TBA", status: "announce" },
+    { id: "berlin_1", dateLabel: "JUL 09", city: "Berlin", venue: "TBA", status: "announce" },
   ];
 
   const storeConfig: StoreConfig = {
     eyebrow: "Store",
-    title: "Merch that matches the era.",
-    desc: "Official drops and limited pieces.",
+    title: "Official merch.",
+    desc: "Limited drops.",
     storeHref: "#",
   };
 

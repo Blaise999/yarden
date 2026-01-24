@@ -1328,9 +1328,28 @@ export function ReleasesSection(props: {
 
                 const trackResolved = resolveTracklist(r);
 
-                // Check if this is Muse or The One Who Descends for special yellow gradient
+                // Check release type for color theming
                 const titleLower = r.title.toLowerCase();
-                const isSpecialRelease = titleLower.includes("muse") || titleLower.includes("the one who descends") || titleLower.includes("towd");
+                const isMuse = titleLower.includes("muse");
+                const isTOWD = titleLower.includes("the one who descends") || titleLower.includes("towd");
+                const isSpecialRelease = isMuse || isTOWD;
+
+                // Color schemes: Muse = vibrant yellow, TOWD = warm cream
+                const gradientColor = isMuse 
+                  ? "rgba(250, 204, 21, 0.35)" // yellow-400
+                  : isTOWD 
+                    ? "rgba(254, 243, 199, 0.4)" // cream/amber-100
+                    : "transparent";
+                const gradientColorMid = isMuse 
+                  ? "rgba(234, 179, 8, 0.18)" // yellow-500
+                  : isTOWD 
+                    ? "rgba(253, 230, 138, 0.22)" // amber-200
+                    : "transparent";
+                const ringColor = isMuse 
+                  ? "hover:ring-yellow-400/40" 
+                  : isTOWD 
+                    ? "hover:ring-amber-200/40" 
+                    : "";
 
                 return (
                   <Card
@@ -1339,17 +1358,17 @@ export function ReleasesSection(props: {
                       "group/card overflow-hidden ring-1 ring-white/10 bg-white/[0.03]",
                       "shadow-[0_30px_90px_rgba(0,0,0,0.65)]",
                       "will-change-transform [transform-style:preserve-3d]",
-                      "relative transition-all duration-300",
-                      isSpecialRelease && "hover:ring-amber-500/30"
+                      "relative transition-all duration-500",
+                      isSpecialRelease && ringColor
                     )}
                     data-release-card="true"
                   >
-                    {/* Yellow/Gold gradient hover overlay for special releases */}
+                    {/* Full card gradient overlay on hover */}
                     {isSpecialRelease && (
                       <div 
-                        className="absolute inset-0 z-0 opacity-0 group-hover/card:opacity-100 transition-opacity duration-300 pointer-events-none"
+                        className="absolute inset-0 z-0 opacity-0 group-hover/card:opacity-100 transition-opacity duration-500 pointer-events-none"
                         style={{
-                          background: "radial-gradient(ellipse at 50% 0%, rgba(251, 191, 36, 0.15) 0%, rgba(245, 158, 11, 0.08) 35%, transparent 70%)",
+                          background: `linear-gradient(145deg, ${gradientColor} 0%, ${gradientColorMid} 40%, transparent 80%)`,
                         }}
                       />
                     )}
@@ -1372,12 +1391,14 @@ export function ReleasesSection(props: {
                           <div className="absolute inset-0 bg-gradient-to-r from-black/35 via-black/10 to-transparent" />
                           <div className="absolute inset-0 bg-gradient-to-t from-black/35 via-transparent to-transparent" />
 
-                          {/* Yellow glow on hover for special releases */}
+                          {/* Color wash on hover for special releases */}
                           {isSpecialRelease && (
                             <div
-                              className="pointer-events-none absolute inset-0 opacity-0 group-hover/card:opacity-100 transition-opacity duration-300"
+                              className="pointer-events-none absolute inset-0 opacity-0 group-hover/card:opacity-100 transition-opacity duration-500 mix-blend-overlay"
                               style={{
-                                background: "linear-gradient(135deg, rgba(251, 191, 36, 0.12) 0%, transparent 50%)",
+                                background: isMuse 
+                                  ? "linear-gradient(180deg, rgba(250, 204, 21, 0.3) 0%, rgba(234, 179, 8, 0.15) 50%, transparent 100%)"
+                                  : "linear-gradient(180deg, rgba(254, 243, 199, 0.35) 0%, rgba(253, 230, 138, 0.18) 50%, transparent 100%)",
                               }}
                             />
                           )}
@@ -1393,14 +1414,16 @@ export function ReleasesSection(props: {
                           <div
                             data-release-glow="true"
                             className={cx(
-                              "pointer-events-none absolute left-1/2 top-1/2 h-40 w-40 -translate-x-1/2 -translate-y-1/2 rounded-full opacity-[0.32]",
-                              "group-hover/card:opacity-[0.45] transition-opacity duration-300"
+                              "pointer-events-none absolute left-1/2 top-1/2 h-48 w-48 -translate-x-1/2 -translate-y-1/2 rounded-full",
+                              "opacity-0 group-hover/card:opacity-100 transition-opacity duration-500"
                             )}
                             style={{
-                              background: isSpecialRelease
-                                ? "radial-gradient(circle, rgba(251, 191, 36, 0.25), rgba(245, 158, 11, 0.0) 70%)"
-                                : "radial-gradient(circle, rgba(255,255,255,0.20), rgba(255,255,255,0.0) 70%)",
-                              filter: "blur(10px)",
+                              background: isMuse
+                                ? "radial-gradient(circle, rgba(250, 204, 21, 0.4), transparent 70%)"
+                                : isTOWD
+                                  ? "radial-gradient(circle, rgba(254, 243, 199, 0.45), transparent 70%)"
+                                  : "radial-gradient(circle, rgba(255,255,255,0.20), transparent 70%)",
+                              filter: "blur(20px)",
                             }}
                           />
 
@@ -1526,13 +1549,13 @@ export function ReleasesSection(props: {
                       </div>
 
                       <div className="mt-3 text-lg font-semibold text-white">
-                        {expanded ? "Full catalog loaded." : "Explore more releases."}
+                        {expanded ? "All releases." : "More releases."}
                       </div>
 
                       <div className="mt-1 text-sm text-white/60">
                         {expanded
-                          ? "Collapse to return to the highlights."
-                          : "Same layout, same direct links — just more records."}
+                          ? "Show less."
+                          : "View all."}
                       </div>
                     </div>
 

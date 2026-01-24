@@ -179,10 +179,10 @@ export function HeroSection(props: {
 
   // Copy (short)
   const headlineA = props.headlineA ?? "Yarden";
-  const subheadA = props.subheadA ?? "New releases, visuals, and tour updates — in one place.";
+  const subheadA = props.subheadA ?? "Music. Visuals. Live.";
 
   const headlineB = props.headlineB ?? "Visuals";
-  const subheadB = props.subheadB ?? "Official videos, live moments, and highlights.";
+  const subheadB = props.subheadB ?? "Watch the journey.";
 
   const nextShow: NextShow =
     props.nextShow ??

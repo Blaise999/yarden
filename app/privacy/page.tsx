@@ -4,7 +4,7 @@ import type { Metadata } from "next";
 
 export const metadata: Metadata = {
   title: "Privacy Policy - Yarden",
-  description: "Privacy policy for Yarden's official website.",
+  description: "Privacy policy for Yarden's website and services.",
 };
 
 export default function PrivacyPage() {
@@ -20,10 +20,9 @@ export default function PrivacyPage() {
               </div>
               <span className="text-lg font-semibold tracking-tight">Yarden</span>
             </Link>
-
-            <Link
+            <Link 
               href="/"
-              className="rounded-full border border-white/12 bg-white/5 px-4 py-2 text-sm font-medium text-white/80 transition hover:bg-white/10"
+              className="rounded-full border border-white/12 bg-white/5 px-4 py-2 text-sm font-medium text-white/80 hover:bg-white/10 transition"
             >
               ← Back Home
             </Link>
@@ -32,177 +31,104 @@ export default function PrivacyPage() {
       </header>
 
       {/* Main Content */}
-      <main className="pb-16 pt-24">
+      <main className="pt-24 pb-16">
         <div className="mx-auto max-w-4xl px-5 md:px-8">
           {/* Hero Section */}
           <div className="mb-12">
-            <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-white/12 bg-white/5 px-4 py-2 text-xs uppercase tracking-widest text-white/60">
+            <div className="inline-flex items-center gap-2 rounded-full border border-white/12 bg-white/5 px-4 py-2 text-xs uppercase tracking-widest text-white/60 mb-6">
               <span className="opacity-70">☥</span>
               Legal
             </div>
-            <h1 className="mb-4 text-4xl font-semibold tracking-tight md:text-5xl">
+            <h1 className="text-4xl md:text-5xl font-semibold tracking-tight mb-4">
               Privacy Policy
             </h1>
-            <p className="text-white/60">Last updated: January 2026</p>
+            <p className="text-white/60">
+              Last updated: January 2026
+            </p>
           </div>
 
           {/* Content */}
           <div className="space-y-8 text-white/70 leading-relaxed">
             <section className="rounded-3xl border border-white/10 bg-white/[0.02] p-8">
-              <h2 className="mb-4 text-xl font-semibold text-white">1. Overview</h2>
+              <h2 className="text-xl font-semibold text-white mb-4">1. Introduction</h2>
               <p className="mb-4">
-                This Privacy Policy explains how information is collected, used, and protected when you
-                visit or interact with <span className="text-white">https://thisisyarden.com</span> (the
-                “Website”).
+                Welcome to Yarden ("we," "our," or "us"). We are committed to protecting your personal 
+                information and your right to privacy. This Privacy Policy explains how we collect, use, 
+                disclose, and safeguard your information when you visit our website.
               </p>
               <p>
-                This Website represents the official online presence of the artist{" "}
-                <span className="text-white">Yarden</span> and is operated in association with{" "}
-                <span className="text-white">Etins Records</span>.
+                Please read this privacy policy carefully. If you do not agree with the terms of this 
+                privacy policy, please do not access the site.
               </p>
             </section>
 
             <section className="rounded-3xl border border-white/10 bg-white/[0.02] p-8">
-              <h2 className="mb-4 text-xl font-semibold text-white">2. Information We Collect</h2>
-              <p className="mb-4">We may collect the following information:</p>
-
-              <div className="space-y-5">
-                <div>
-                  <h3 className="mb-2 font-semibold text-white">a) Information You Provide</h3>
-                  <p className="mb-3">
-                    When you voluntarily submit it, such as through mailing lists, contact forms, or
-                    enquiries:
-                  </p>
-                  <ul className="ml-4 list-disc list-inside space-y-2">
-                    <li>Your name</li>
-                    <li>Email address</li>
-                    <li>Contact details (where provided)</li>
-                  </ul>
-                </div>
-
-                <div>
-                  <h3 className="mb-2 font-semibold text-white">b) Automatically Collected Information</h3>
-                  <p className="mb-3">This may include:</p>
-                  <ul className="ml-4 list-disc list-inside space-y-2">
-                    <li>IP address</li>
-                    <li>Browser type and device information</li>
-                    <li>Pages visited and time spent on the Website</li>
-                  </ul>
-                  <p className="mt-3 text-white/60">
-                    This information is collected for analytics, security, and to improve the Website experience.
-                  </p>
-                </div>
-              </div>
-            </section>
-
-            <section className="rounded-3xl border border-white/10 bg-white/[0.02] p-8">
-              <h2 className="mb-4 text-xl font-semibold text-white">3. How We Use Your Information</h2>
-              <p className="mb-4">We may use collected information to:</p>
-              <ul className="ml-4 list-disc list-inside space-y-2">
-                <li>Respond to messages or enquiries</li>
-                <li>Send updates, newsletters, or announcements (only where you have opted in)</li>
-                <li>Improve website functionality and content</li>
-                <li>Monitor traffic, performance, and security</li>
+              <h2 className="text-xl font-semibold text-white mb-4">2. Information We Collect</h2>
+              <p className="mb-4">We may collect information about you in a variety of ways:</p>
+              <ul className="list-disc list-inside space-y-2 ml-4">
+                <li><strong className="text-white">Personal Data:</strong> Name, email address, and other contact details you voluntarily provide.</li>
+                <li><strong className="text-white">Usage Data:</strong> Information about how you use our website, including IP address, browser type, and pages visited.</li>
+                <li><strong className="text-white">Newsletter Data:</strong> Email address when you subscribe to our newsletter.</li>
+                <li><strong className="text-white">Pass Data:</strong> Information related to your Yard Pass registration.</li>
               </ul>
-              <p className="mt-4">
-                We do <span className="text-white">not</span> sell, rent, or trade personal data to third parties.
-              </p>
             </section>
 
             <section className="rounded-3xl border border-white/10 bg-white/[0.02] p-8">
-              <h2 className="mb-4 text-xl font-semibold text-white">4. Cookies</h2>
-              <p className="mb-4">
-                This Website may use cookies or similar technologies to:
-              </p>
-              <ul className="ml-4 list-disc list-inside space-y-2">
-                <li>Analyse traffic and user behaviour</li>
-                <li>Improve performance and user experience</li>
+              <h2 className="text-xl font-semibold text-white mb-4">3. How We Use Your Information</h2>
+              <p className="mb-4">We use the information we collect to:</p>
+              <ul className="list-disc list-inside space-y-2 ml-4">
+                <li>Provide, operate, and maintain our website</li>
+                <li>Send you newsletters and promotional communications (with your consent)</li>
+                <li>Respond to your comments, questions, and requests</li>
+                <li>Monitor and analyze usage and trends</li>
+                <li>Improve our website and user experience</li>
               </ul>
-              <p className="mt-4">
-                You can control or disable cookies through your browser settings. Some features of the Website may not
-                function correctly if cookies are disabled.
-              </p>
             </section>
 
             <section className="rounded-3xl border border-white/10 bg-white/[0.02] p-8">
-              <h2 className="mb-4 text-xl font-semibold text-white">5. Third-Party Links &amp; Services</h2>
-              <p className="mb-4">
-                This Website may include links to third-party platforms, including but not limited to:
-              </p>
-              <ul className="ml-4 list-disc list-inside space-y-2">
-                <li>Streaming services</li>
-                <li>Social media platforms</li>
-                <li>Ticketing or merchandise providers</li>
-              </ul>
-              <p className="mt-4">
-                We are not responsible for the privacy practices or content of third-party websites. Please review
-                their individual privacy policies.
-              </p>
-            </section>
-
-            <section className="rounded-3xl border border-white/10 bg-white/[0.02] p-8">
-              <h2 className="mb-4 text-xl font-semibold text-white">6. Data Security</h2>
+              <h2 className="text-xl font-semibold text-white mb-4">4. Sharing Your Information</h2>
               <p>
-                Reasonable technical and organisational measures are taken to protect personal data. However, no method
-                of transmission over the internet or electronic storage is completely secure, and absolute security
-                cannot be guaranteed.
+                We do not sell, trade, or otherwise transfer your personally identifiable information 
+                to outside parties except as described in this policy. We may share information with 
+                trusted third parties who assist us in operating our website, conducting our business, 
+                or serving our users, as long as those parties agree to keep this information confidential.
               </p>
             </section>
 
             <section className="rounded-3xl border border-white/10 bg-white/[0.02] p-8">
-              <h2 className="mb-4 text-xl font-semibold text-white">7. Your Rights</h2>
-              <p className="mb-4">
-                Depending on your jurisdiction (including the EU/EEA), you may have the right to:
+              <h2 className="text-xl font-semibold text-white mb-4">5. Cookies</h2>
+              <p>
+                Our website may use cookies to enhance your experience. Cookies are small files that a 
+                site or its service provider transfers to your computer's hard drive through your web 
+                browser that enables the site's or service provider's systems to recognize your browser 
+                and capture and remember certain information.
               </p>
-              <ul className="ml-4 list-disc list-inside space-y-2">
-                <li>Request access to personal data we hold about you</li>
-                <li>Request correction or deletion of your data</li>
-                <li>Withdraw consent for communications at any time</li>
+            </section>
+
+            <section className="rounded-3xl border border-white/10 bg-white/[0.02] p-8">
+              <h2 className="text-xl font-semibold text-white mb-4">6. Your Rights</h2>
+              <p className="mb-4">Depending on your location, you may have the right to:</p>
+              <ul className="list-disc list-inside space-y-2 ml-4">
+                <li>Access the personal data we hold about you</li>
+                <li>Request correction of inaccurate data</li>
+                <li>Request deletion of your data</li>
+                <li>Object to processing of your data</li>
+                <li>Request restriction of processing</li>
+                <li>Data portability</li>
+                <li>Withdraw consent</li>
               </ul>
-              <p className="mt-4">
-                You can exercise these rights by contacting us using the details below.
-              </p>
             </section>
 
             <section className="rounded-3xl border border-white/10 bg-white/[0.02] p-8">
-              <h2 className="mb-4 text-xl font-semibold text-white">8. Intellectual Property</h2>
-              <p>
-                All content on this Website — including music, images, videos, artwork, logos, and text — is owned by
-                or licensed to <span className="text-white">Yarden</span> and/or{" "}
-                <span className="text-white">Etins Records</span>, unless otherwise stated.
-              </p>
-              <p className="mt-4">
-                Unauthorised reproduction, distribution, or use of any content is strictly prohibited.
-              </p>
-            </section>
-
-            <section className="rounded-3xl border border-white/10 bg-white/[0.02] p-8">
-              <h2 className="mb-4 text-xl font-semibold text-white">9. Changes to This Policy</h2>
-              <p>
-                This Privacy Policy may be updated from time to time. Any changes will be posted on this page with an
-                updated revision date.
-              </p>
-            </section>
-
-            <section className="rounded-3xl border border-white/10 bg-white/[0.02] p-8">
-              <h2 className="mb-4 text-xl font-semibold text-white">10. Contact Information</h2>
+              <h2 className="text-xl font-semibold text-white mb-4">7. Contact Us</h2>
               <p className="mb-4">
-                For any questions regarding this Privacy Policy or how your data is used, please contact:
+                If you have questions or comments about this policy, you may contact us at:
               </p>
-              <div className="space-y-2">
-                <p>
-                  <span className="text-white">Website Management:</span> Etins Records
-                </p>
-                <p>
-                  <span className="text-white">Email:</span>{" "}
-                  <a
-                    href="mailto:info@etinsrecords.com"
-                    className="text-white underline underline-offset-4 transition hover:text-white/80"
-                  >
-                    info@etinsrecords.com
-                  </a>
-                </p>
-              </div>
+              <p>
+                <a href="mailto:privacy@yarden.music" className="text-white underline underline-offset-4 hover:text-white/80 transition">
+                  privacy@yarden.music
+                </a>
+              </p>
             </section>
           </div>
         </div>
@@ -210,7 +136,7 @@ export default function PrivacyPage() {
 
       {/* Footer */}
       <footer className="border-t border-white/10 py-8">
-        <div className="mx-auto max-w-7xl px-5 text-center text-xs text-white/40 md:px-8">
+        <div className="mx-auto max-w-7xl px-5 md:px-8 text-center text-xs text-white/40">
           © 2026 Yarden. All rights reserved. Website operated in association with Etins Records.
         </div>
       </footer>
