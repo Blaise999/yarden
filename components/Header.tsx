@@ -1,4 +1,8 @@
-// LandingHeader.tsx (FULL EDIT) — hero-stage sync + glass-on-scroll + shrink + scrollPaddingTop offset
+// LandingHeader.tsx (FULL EDIT) — fixes:
+// 1) "nav intertwines" → header will ALWAYS go glass once you're out of hero (even if scrollY isn't updating)
+// 2) close (X) not working → component is only "controlled" if menuOpen + handlers are provided; otherwise it falls back to internal state
+// 3) more reliable scrollY (window + documentElement/body fallback)
+
 "use client";
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
@@ -235,9 +239,11 @@ type LandingHeaderProps = {
   nav: NavItem[];
   activeId: string;
 
+  // optional "controlled" menu API
   menuOpen?: boolean;
   onOpenMenu?: () => void;
   onCloseMenu?: () => void;
+
   onNav?: (id: string) => void;
   onLogo?: () => void;
 
@@ -260,12 +266,23 @@ export default function LandingHeader(props: LandingHeaderProps) {
   const { isSafari } = useSafariInfo();
   const brandName = props.brandName ?? "Yarden";
 
+  // ✅ controlled only if menuOpen AND a handler exists (fixes "X not working" when parent forgot handlers)
+  const hasMenuHandlers = !!(props.onOpenMenu || props.onCloseMenu);
+  const isControlled = typeof props.menuOpen === "boolean" && hasMenuHandlers;
+
   const [internalMenuOpen, setInternalMenuOpen] = useState(false);
-  const isControlled = typeof props.menuOpen === "boolean";
   const menuOpen = isControlled ? props.menuOpen! : internalMenuOpen;
 
-  const openMenu = props.onOpenMenu ?? (() => setInternalMenuOpen(true));
-  const closeMenu = props.onCloseMenu ?? (() => setInternalMenuOpen(false));
+  const openMenu = () => {
+    if (isControlled) props.onOpenMenu?.();
+    else setInternalMenuOpen(true);
+  };
+
+  const closeMenu = () => {
+    if (isControlled) props.onCloseMenu?.();
+    else setInternalMenuOpen(false);
+  };
+
   const toggleMenu = () => (menuOpen ? closeMenu() : openMenu());
 
   const onNav = props.onNav ?? (() => {});
@@ -274,17 +291,28 @@ export default function LandingHeader(props: LandingHeaderProps) {
   // Header element (for syncing hero padding)
   const headerElRef = useRef<HTMLElement | null>(null);
 
+  // Track if this header is used on the hero page
+  const hasHero = !!(props.heroBgSrc || props.heroAltSrc);
+
   // Scroll progress (drives glass + shrink)
   const [scrollY, setScrollY] = useState(0);
   useEffect(() => {
     let raf = 0;
+
+    const readY = () =>
+      window.scrollY ||
+      document.documentElement.scrollTop ||
+      (document.body ? document.body.scrollTop : 0) ||
+      0;
+
     const onScroll = () => {
       if (raf) return;
       raf = window.requestAnimationFrame(() => {
-        setScrollY(window.scrollY || 0);
+        setScrollY(readY());
         raf = 0;
       });
     };
+
     onScroll();
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => {
@@ -295,7 +323,10 @@ export default function LandingHeader(props: LandingHeaderProps) {
 
   // Hero stage sync (A/B while pinned)
   const [heroStage, setHeroStage] = useState<"A" | "B">("A");
-  const [heroIn, setHeroIn] = useState(false);
+
+  // ✅ start true if we have hero assets (prevents a top-of-page "glass flash" before the first hero event)
+  const [heroIn, setHeroIn] = useState<boolean>(hasHero);
+
   useEffect(() => {
     const onHeroStage = (e: Event) => {
       const ce = e as CustomEvent<HeroStageDetail>;
@@ -307,9 +338,14 @@ export default function LandingHeader(props: LandingHeaderProps) {
     return () => window.removeEventListener(HERO_STAGE_EVENT, onHeroStage as any);
   }, []);
 
-  // Glass only after you start scrolling
+  // Shrink amount
   const t = clamp((scrollY - 10) / 240, 0, 1);
-  const showGlass = menuOpen || scrollY > 10;
+
+  // ✅ FIX "nav intertwines":
+  // once we're OUT of hero, we ALWAYS show glass (so header never visually collides with section headings)
+  const showGlass = menuOpen || scrollY > 10 || !heroIn;
+
+  // ✅ shrink only when it makes sense (don’t shrink while menu open)
   const compact = !menuOpen && scrollY > 78;
 
   // ✅ Sync header height + set scroll-padding-top to prevent overlap when navigating/anchoring
@@ -323,7 +359,7 @@ export default function LandingHeader(props: LandingHeaderProps) {
       // used by hero/layout
       document.documentElement.style.setProperty("--header-h", `${h}px`);
 
-      // prevents section headings from hiding under fixed header
+      // prevents section headings from hiding under fixed header (when you nav/anchor)
       document.documentElement.style.scrollPaddingTop = `${h + 10}px`;
     };
 
@@ -390,7 +426,7 @@ export default function LandingHeader(props: LandingHeaderProps) {
     [tint]
   );
 
-  // Glass styling (0 at top)
+  // Glass styling
   const scrim = showGlass ? 0.10 + 0.46 * t : 0;
   const blurPx = isSafari ? 0 : showGlass ? 10 + 10 * t : 0;
   const shadowA = showGlass ? 0.10 + 0.26 * t : 0;
@@ -404,7 +440,7 @@ export default function LandingHeader(props: LandingHeaderProps) {
   const [logoOk, setLogoOk] = useState(true);
   useEffect(() => setLogoOk(true), [logoSrc]);
 
-  // Blend only when truly on-hero and before glass appears (so it feels “embedded”)
+  // Blend only when truly on-hero and before glass appears
   const useBlendInk = !isSafari && heroIn && !showGlass;
   const inkText = cx(
     "text-white",
@@ -417,15 +453,15 @@ export default function LandingHeader(props: LandingHeaderProps) {
 
   const barH = compact ? "h-[66px] md:h-[70px]" : "h-[74px] md:h-[82px]";
 
-  // ✅ reduced logo size (header stays the same)
+  // reduced logo size (header stays the same)
   const logoH = compact ? "h-7 md:h-8" : "h-8 md:h-9";
-  const logoSlotW = "w-[120px]"; // placeholder width to keep layout stable when logo hides
+  const logoSlotW = "w-[120px]";
 
   return (
     <>
       <header
         ref={headerElRef as any}
-        className="fixed top-0 left-0 right-0 z-[2147483647] overflow-visible"
+        className="fixed left-0 right-0 top-0 z-[2147483647] overflow-visible"
         style={{
           ...cssVars,
           borderBottom: "none",
@@ -436,7 +472,7 @@ export default function LandingHeader(props: LandingHeaderProps) {
           WebkitBackfaceVisibility: "hidden",
         }}
       >
-        {/* glass layer (OFF at top, ON after scroll) */}
+        {/* glass layer */}
         <div className="pointer-events-none absolute inset-0 z-0 overflow-hidden">
           <div
             className="absolute inset-0"
@@ -461,7 +497,6 @@ export default function LandingHeader(props: LandingHeaderProps) {
         </div>
 
         <div className="relative z-10 pt-[env(safe-area-inset-top)]">
-          {/* ✅ 3-column layout: left logo, centered nav, right actions */}
           <div
             className={cx(
               "mx-auto grid max-w-7xl items-center px-5 md:px-8",
@@ -497,7 +532,7 @@ export default function LandingHeader(props: LandingHeaderProps) {
             </div>
 
             {/* CENTER (Desktop Nav) */}
-            <div className="hidden md:flex items-center justify-center">
+            <div className="hidden items-center justify-center md:flex">
               <nav className={cx("flex items-center", inkText)}>
                 <div className="flex items-center gap-7">
                   {props.nav.slice(1).map((n) => {
@@ -589,6 +624,7 @@ export default function LandingHeader(props: LandingHeaderProps) {
                   <div className="text-lg font-semibold tracking-tight text-white">{brandName}</div>
                 )}
 
+                {/* ✅ X now always closes (uncontrolled or controlled) */}
                 <button
                   type="button"
                   onClick={closeMenu}
@@ -609,7 +645,7 @@ export default function LandingHeader(props: LandingHeaderProps) {
                         closeMenu();
                         setTimeout(() => onNav(n.id), 40);
                       }}
-                      className="flex items-center justify-between rounded-2xl px-4 py-3 bg-white/[0.03] ring-1 ring-white/10 hover:bg-white/[0.05] transition"
+                      className="flex items-center justify-between rounded-2xl bg-white/[0.03] px-4 py-3 ring-1 ring-white/10 transition hover:bg-white/[0.05]"
                     >
                       <span className="text-sm font-medium text-white">{n.label}</span>
                       <IconArrowUpRight className="h-5 w-5 text-white/60" />
