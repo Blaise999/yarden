@@ -344,6 +344,11 @@ export function Footer() {
             </a>
           </div>
         </div>
+
+        {/* Full copyright notice */}
+        <div className="mt-6 pt-6 border-t border-white/5 text-center text-xs text-white/40">
+          © 2026 Yarden. All rights reserved. Website operated in association with Etins Records.
+        </div>
       </div>
     </footer>
   );

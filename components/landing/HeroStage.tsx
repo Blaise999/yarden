@@ -197,10 +197,17 @@ export function HeroSection(props: {
 
   // load tracking (we only refresh after both images load once)
   const [loadedCount, setLoadedCount] = useState(0);
+  const [heroReady, setHeroReady] = useState(false);
   const loadedAOnce = useRef(false);
   const loadedBOnce = useRef(false);
   const refreshedOnce = useRef(false);
   const prevProgressRef = useRef(0);
+
+  // Ensure hero is visible after mount to prevent disappearing
+  useEffect(() => {
+    const timer = setTimeout(() => setHeroReady(true), 50);
+    return () => clearTimeout(timer);
+  }, []);
 
   // initial state for header
   useEffect(() => {
@@ -268,17 +275,18 @@ export function HeroSection(props: {
       ScrollTrigger.getById("hero-pin")?.kill(true);
 
       // Hard reset: ensures we never start with overlapping states
-      gsap.set([artA], { opacity: 1, visibility: "visible", scale: 1, y: 0, x: 0 });
-      gsap.set([artB], { opacity: 0, visibility: "visible", scale: 1.12, y: 60, x: 0 });
-      gsap.set(sceneA, { opacity: 1, y: 0 });
-      gsap.set(sceneB, { opacity: 0, y: 12 });
-      gsap.set(railA, { opacity: 1, y: 0 });
-      gsap.set(railB, { opacity: 0, y: 12 });
-      gsap.set(nowA, { opacity: 1, y: 0 });
-      gsap.set(nowB, { opacity: 0, y: 8 });
+      // Use immediateRender: false to prevent flash
+      gsap.set([artA], { opacity: 1, visibility: "visible", scale: 1, y: 0, x: 0, immediateRender: true });
+      gsap.set([artB], { opacity: 0, visibility: "visible", scale: 1.12, y: 60, x: 0, immediateRender: true });
+      gsap.set(sceneA, { opacity: 1, y: 0, immediateRender: true });
+      gsap.set(sceneB, { opacity: 0, y: 12, immediateRender: true });
+      gsap.set(railA, { opacity: 1, y: 0, immediateRender: true });
+      gsap.set(railB, { opacity: 0, y: 12, immediateRender: true });
+      gsap.set(nowA, { opacity: 1, y: 0, immediateRender: true });
+      gsap.set(nowB, { opacity: 0, y: 8, immediateRender: true });
 
-      if (pattern) gsap.set(pattern, { opacity: 0.16, scale: 1 });
-      if (glowFx) gsap.set(glowFx, { opacity: 0, scale: 0.92 });
+      if (pattern) gsap.set(pattern, { opacity: 0.16, scale: 1, immediateRender: true });
+      if (glowFx) gsap.set(glowFx, { opacity: 0, scale: 0.92, immediateRender: true });
 
       // Safari stability flags
       gsap.set([media, artA, artB, pattern, glowFx].filter(Boolean), {
@@ -486,7 +494,9 @@ export function HeroSection(props: {
         ref={sectionRef as any}
         className={cx(
           "relative overflow-x-hidden overflow-y-visible",
-          fullBleed && "relative left-1/2 right-1/2 w-[100vw] -ml-[50vw] -mr-[50vw]"
+          fullBleed && "relative left-1/2 right-1/2 w-[100vw] -ml-[50vw] -mr-[50vw]",
+          !heroReady && "opacity-0",
+          heroReady && "opacity-100 transition-opacity duration-300"
         )}
         style={{ isolation: "isolate" }}
       >

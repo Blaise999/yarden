@@ -1328,17 +1328,32 @@ export function ReleasesSection(props: {
 
                 const trackResolved = resolveTracklist(r);
 
+                // Check if this is Muse or The One Who Descends for special yellow gradient
+                const titleLower = r.title.toLowerCase();
+                const isSpecialRelease = titleLower.includes("muse") || titleLower.includes("the one who descends") || titleLower.includes("towd");
+
                 return (
                   <Card
                     key={`${r.title}-${idx}`}
                     className={cx(
-                      "overflow-hidden ring-1 ring-white/10 bg-white/[0.03]",
+                      "group/card overflow-hidden ring-1 ring-white/10 bg-white/[0.03]",
                       "shadow-[0_30px_90px_rgba(0,0,0,0.65)]",
-                      "will-change-transform [transform-style:preserve-3d]"
+                      "will-change-transform [transform-style:preserve-3d]",
+                      "relative transition-all duration-300",
+                      isSpecialRelease && "hover:ring-amber-500/30"
                     )}
                     data-release-card="true"
                   >
-                    <div className="grid md:grid-cols-[.92fr_1.08fr]">
+                    {/* Yellow/Gold gradient hover overlay for special releases */}
+                    {isSpecialRelease && (
+                      <div 
+                        className="absolute inset-0 z-0 opacity-0 group-hover/card:opacity-100 transition-opacity duration-300 pointer-events-none"
+                        style={{
+                          background: "radial-gradient(ellipse at 50% 0%, rgba(251, 191, 36, 0.15) 0%, rgba(245, 158, 11, 0.08) 35%, transparent 70%)",
+                        }}
+                      />
+                    )}
+                    <div className="grid md:grid-cols-[.92fr_1.08fr] relative z-10">
                       {/* Cover */}
                       <div className="relative">
                         <div className="relative aspect-[4/3] md:aspect-auto md:h-full overflow-hidden">
@@ -1357,6 +1372,16 @@ export function ReleasesSection(props: {
                           <div className="absolute inset-0 bg-gradient-to-r from-black/35 via-black/10 to-transparent" />
                           <div className="absolute inset-0 bg-gradient-to-t from-black/35 via-transparent to-transparent" />
 
+                          {/* Yellow glow on hover for special releases */}
+                          {isSpecialRelease && (
+                            <div
+                              className="pointer-events-none absolute inset-0 opacity-0 group-hover/card:opacity-100 transition-opacity duration-300"
+                              style={{
+                                background: "linear-gradient(135deg, rgba(251, 191, 36, 0.12) 0%, transparent 50%)",
+                              }}
+                            />
+                          )}
+
                           <div
                             data-release-shine="true"
                             className="pointer-events-none absolute inset-0 opacity-0"
@@ -1367,10 +1392,14 @@ export function ReleasesSection(props: {
                           />
                           <div
                             data-release-glow="true"
-                            className="pointer-events-none absolute left-1/2 top-1/2 h-40 w-40 -translate-x-1/2 -translate-y-1/2 rounded-full opacity-[0.32]"
+                            className={cx(
+                              "pointer-events-none absolute left-1/2 top-1/2 h-40 w-40 -translate-x-1/2 -translate-y-1/2 rounded-full opacity-[0.32]",
+                              "group-hover/card:opacity-[0.45] transition-opacity duration-300"
+                            )}
                             style={{
-                              background:
-                                "radial-gradient(circle, rgba(255,255,255,0.20), rgba(255,255,255,0.0) 70%)",
+                              background: isSpecialRelease
+                                ? "radial-gradient(circle, rgba(251, 191, 36, 0.25), rgba(245, 158, 11, 0.0) 70%)"
+                                : "radial-gradient(circle, rgba(255,255,255,0.20), rgba(255,255,255,0.0) 70%)",
                               filter: "blur(10px)",
                             }}
                           />

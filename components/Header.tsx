@@ -543,7 +543,7 @@ export default function LandingHeader(props: LandingHeaderProps) {
               </div>
 
               <div className="md:hidden">
-                <MenuButton open={menuOpen} onClick={toggleMenu} />
+                {!menuOpen && <MenuButton open={menuOpen} onClick={toggleMenu} />}
               </div>
             </div>
           </div>
