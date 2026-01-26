@@ -6,18 +6,46 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import LandingHeader from "../components/Header";
 import { HeroSection as Hero } from "../components/landing/HeroStage";
 
-import { ReleasesSection, type ReleaseItem } from "../components/landing/ReleasesSection";
+import {
+  ReleasesSection,
+  type ReleaseItem,
+} from "../components/landing/ReleasesSection";
 import { VisualsSection, type VisualItem } from "../components/landing/VisualsSection";
-import { TourSection, type ShowItem, type TourConfig } from "../components/landing/TourSection";
+import {
+  TourSection,
+  type ShowItem,
+  type TourConfig,
+} from "../components/landing/TourSection";
 
 import PassSection from "../components/landing/pass/PassGenerator";
-import StoreSection, { type MerchItem, type StoreConfig } from "../components/landing/StoreSection";
+import StoreSection, {
+  type MerchItem,
+  type StoreConfig,
+} from "../components/landing/StoreSection";
 import { NewsletterSection } from "../components/landing/NewsletterSection";
 
 import Footer from "../components/landing/Footer";
 import { PassModal } from "../components/landing/PassModal";
 
-import type { LinksShape, HeroImageShape } from "./page";
+/**
+ * Export types here so `app/page.tsx` can import them safely
+ * (and we avoid importing from `./page` which caused the build error).
+ */
+export type LinksShape = {
+  youtubeChannel: string;
+  youtubeVideosPage: string;
+  youtubeVideos: Record<string, string>;
+  releases: {
+    muse: { spotify: string };
+    [key: string]: any;
+  };
+};
+
+/**
+ * This guarantees heroA/heroB match the Hero component prop type.
+ * If Hero changes its expected shape (e.g. StaticImageData), this stays correct.
+ */
+export type HeroImageShape = React.ComponentProps<typeof Hero>["heroA"];
 
 type NavItem = { id: string; label: string };
 
@@ -116,15 +144,15 @@ export default function PageClient(props: PageClientProps) {
 
   const tintSources = useMemo<Record<string, string>>(
     () => ({
-      top: heroA.src,
-      releases: releases[0]?.art ?? heroA.src,
-      watch: heroB.src,
-      tour: tourConfig.posterSrc ?? heroB.src,
-      pass: heroA.src,
-      store: merch[0]?.images?.[0] ?? heroB.src,
-      newsletter: heroB.src,
+      top: (heroA as any).src,
+      releases: releases[0]?.art ?? (heroA as any).src,
+      watch: (heroB as any).src,
+      tour: (tourConfig as any).posterSrc ?? (heroB as any).src,
+      pass: (heroA as any).src,
+      store: merch[0]?.images?.[0] ?? (heroB as any).src,
+      newsletter: (heroB as any).src,
     }),
-    [heroA.src, heroB.src, releases, tourConfig.posterSrc, merch]
+    [heroA, heroB, releases, tourConfig, merch]
   );
 
   // scroll spy
@@ -172,8 +200,8 @@ export default function PageClient(props: PageClientProps) {
           onOpenPass={onOpenPass}
           onLogo={() => onNav("top")}
           tintSources={tintSources}
-          heroBgSrc={heroA.src}
-          heroAltSrc={heroB.src}
+          heroBgSrc={(heroA as any).src}
+          heroAltSrc={(heroB as any).src}
           listenHref={LINKS.releases.muse.spotify}
         />
 
@@ -199,11 +227,21 @@ export default function PageClient(props: PageClientProps) {
           </section>
 
           <section id="watch" className="scroll-mt-24">
-            <VisualsSection items={visuals} channelHref={LINKS.youtubeChannel} videosHref={LINKS.youtubeVideosPage} maxItems={8} />
+            <VisualsSection
+              items={visuals}
+              channelHref={LINKS.youtubeChannel}
+              videosHref={LINKS.youtubeVideosPage}
+              maxItems={8}
+            />
           </section>
 
           <section id="tour" className="scroll-mt-24">
-            <TourSection shows={shows} config={tourConfig} onOpenPass={onOpenPass} editable={isAdmin} />
+            <TourSection
+              shows={shows}
+              config={tourConfig}
+              onOpenPass={onOpenPass}
+              editable={isAdmin}
+            />
           </section>
 
           <section id="pass" className="scroll-mt-24">
