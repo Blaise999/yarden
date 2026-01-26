@@ -1,18 +1,24 @@
 // app/api/admin/cms/route.ts
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
-import { DEFAULT_CMS, CMS_KV_KEY, type CmsData } from "../../../../content/defaultCms";
+import { DEFAULT_CMS, type CmsData } from "../../../../content/defaultCms";
 
 export const runtime = "nodejs";
 
-// Simple in-memory storage for development (replace with proper DB/KV in production)
-let cmsCache: CmsData | null = null;
+// Global cache for sharing state between routes
+// In production, this would be a database or KV store
+declare global {
+  var cmsCache: CmsData | null;
+}
+
+if (!global.cmsCache) {
+  global.cmsCache = null;
+}
 
 async function isAdmin(): Promise<boolean> {
   try {
     const cookieStore = await cookies();
     const token = cookieStore.get("yard_admin_token");
-    // If token exists, user is authenticated
     return !!token?.value;
   } catch {
     return false;
@@ -24,9 +30,21 @@ export async function GET() {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  // Try to get from cache, otherwise use default
-  const data = cmsCache ?? DEFAULT_CMS;
-  return NextResponse.json({ cms: data });
+  // Return cached CMS or default
+  const data = global.cmsCache ?? { ...DEFAULT_CMS, updatedAt: Date.now() };
+  
+  // Ensure all required fields exist (migration support)
+  const migrated: CmsData = {
+    ...DEFAULT_CMS,
+    ...data,
+    releases: data.releases ?? DEFAULT_CMS.releases,
+    visuals: data.visuals ?? DEFAULT_CMS.visuals,
+    tour: data.tour ?? DEFAULT_CMS.tour,
+    store: data.store ?? DEFAULT_CMS.store,
+    newsletter: data.newsletter ?? DEFAULT_CMS.newsletter,
+  };
+
+  return NextResponse.json({ cms: migrated });
 }
 
 export async function PUT(req: Request) {
@@ -48,11 +66,12 @@ export async function PUT(req: Request) {
       updatedAt: Date.now(),
     };
 
-    // Store in cache (in production, use proper DB/KV)
-    cmsCache = next;
+    // Store in cache
+    global.cmsCache = next;
 
     return NextResponse.json({ ok: true, cms: next });
   } catch (error) {
+    console.error("CMS PUT error:", error);
     return NextResponse.json({ error: "Failed to update CMS" }, { status: 500 });
   }
 }

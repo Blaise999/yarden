@@ -1,15 +1,31 @@
+// app/api/admin/cms/public/route.ts
 import { NextResponse } from "next/server";
-import { kv } from "@vercel/kv";
-import { CMS_KV_KEY, DEFAULT_CMS, type CmsData } from "../../../../../content/defaultCms";
+import { DEFAULT_CMS, type CmsData } from "../../../../../content/defaultCms";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+// Import the cache from the main route (shared state)
+// In production, this would be a database or KV store
+declare global {
+  var cmsCache: CmsData | null;
+}
+
 export async function GET() {
-  const data = (await kv.get<CmsData>(CMS_KV_KEY)) ?? null;
-  if (!data) {
-    await kv.set(CMS_KV_KEY, DEFAULT_CMS);
-    return NextResponse.json({ cms: DEFAULT_CMS });
-  }
-  return NextResponse.json({ cms: data });
+  // Get from global cache or use defaults
+  const data = global.cmsCache ?? DEFAULT_CMS;
+  
+  // Ensure all required fields exist
+  const cms: CmsData = {
+    ...DEFAULT_CMS,
+    ...data,
+    releases: data.releases ?? DEFAULT_CMS.releases,
+    visuals: data.visuals ?? DEFAULT_CMS.visuals,
+    tour: data.tour ?? DEFAULT_CMS.tour,
+    store: data.store ?? DEFAULT_CMS.store,
+    newsletter: data.newsletter ?? DEFAULT_CMS.newsletter,
+    updatedAt: data.updatedAt || Date.now(),
+  };
+
+  return NextResponse.json({ cms });
 }

@@ -1,13 +1,23 @@
 // app/admin/passes/AdminPage.client.tsx
 "use client";
 
-import React, { useEffect, useState, useCallback, useMemo } from "react";
-
-import { TourSection, type ShowItem, type TourConfig } from "../../../components/landing/TourSection";
-import StoreSection, { type MerchItem, type StoreConfig } from "../../../components/landing/StoreSection";
-import { NewsletterSection } from "../../../components/landing/NewsletterSection";
-
+import React, { useEffect, useState, useCallback, useMemo, useRef } from "react";
 import { DEFAULT_CMS, type CmsData } from "../../../content/defaultCms";
+import type {
+  ReleaseItem,
+  VisualItem,
+  ShowItem,
+  TourConfig,
+  MerchItem,
+  StoreConfig,
+  PressItem,
+  EmbedVideo,
+  PlatformKey,
+} from "../../../content/cmsTypes";
+
+// ═══════════════════════════════════════════════════════════════════
+// TYPES
+// ═══════════════════════════════════════════════════════════════════
 
 interface YardPass {
   id: string;
@@ -26,12 +36,22 @@ interface YardPass {
 }
 
 type View = "login" | "dashboard";
-type Tab = "passes" | "cms";
+type Tab = "passes" | "releases" | "videos" | "tour" | "merch" | "newsletter";
 
-// ✅ infer the exact CMS newsletter item types
-type CmsNewsletter = CmsData["newsletter"];
-type CmsPressItem = CmsNewsletter["pressItems"][number];
-type CmsEmbedVideo = CmsNewsletter["videos"][number];
+const PLATFORM_OPTIONS: PlatformKey[] = [
+  "spotify", "apple", "youtube", "audiomack", "boomplay", "soundcloud", "deezer", "tidal"
+];
+
+const VIDEO_KINDS = [
+  "Official Video",
+  "Official Music Video", 
+  "Official Visualizer",
+  "Visualizer"
+] as const;
+
+// ═══════════════════════════════════════════════════════════════════
+// HELPERS
+// ═══════════════════════════════════════════════════════════════════
 
 function formatDate(iso: string) {
   try {
@@ -47,14 +67,34 @@ function formatDate(iso: string) {
   }
 }
 
+function generateId(prefix: string) {
+  return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+}
+
+function extractYouTubeId(url: string): string | null {
+  try {
+    const u = new URL(url);
+    if (u.hostname.includes("youtu.be")) {
+      return u.pathname.split("/").filter(Boolean)[0] || null;
+    }
+    const v = u.searchParams.get("v");
+    if (v) return v;
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// API FUNCTIONS
+// ═══════════════════════════════════════════════════════════════════
+
 async function apiGetAdminCms(): Promise<CmsData | null> {
   try {
     const res = await fetch("/api/admin/cms", { credentials: "include", cache: "no-store" });
     if (!res.ok) return null;
     const data = await res.json();
-    const cms = data?.cms as CmsData | undefined;
-    if (!cms || cms.version !== 1) return null;
-    return cms;
+    return data?.cms ?? null;
   } catch {
     return null;
   }
@@ -70,26 +110,619 @@ async function apiPutAdminCms(cms: CmsData): Promise<CmsData | null> {
     });
     if (!res.ok) return null;
     const data = await res.json();
-    const saved = data?.cms as CmsData | undefined;
-    if (!saved || saved.version !== 1) return null;
-    return saved;
+    return data?.cms ?? null;
   } catch {
     return null;
   }
 }
 
-async function apiResetAdminCms(): Promise<CmsData | null> {
+async function apiUploadImage(file: File): Promise<string | null> {
   try {
-    const res = await fetch("/api/admin/cms/reset", { method: "POST", credentials: "include" });
+    const formData = new FormData();
+    formData.append("file", file);
+    const res = await fetch("/api/admin/upload", {
+      method: "POST",
+      credentials: "include",
+      body: formData,
+    });
     if (!res.ok) return null;
     const data = await res.json();
-    const cms = data?.cms as CmsData | undefined;
-    if (!cms || cms.version !== 1) return null;
-    return cms;
+    return data?.url ?? null;
   } catch {
     return null;
   }
 }
+
+// ═══════════════════════════════════════════════════════════════════
+// COMPONENTS
+// ═══════════════════════════════════════════════════════════════════
+
+function ImageUploader({ 
+  value, 
+  onChange, 
+  label = "Image" 
+}: { 
+  value: string; 
+  onChange: (url: string) => void; 
+  label?: string;
+}) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
+  const [preview, setPreview] = useState(value);
+
+  useEffect(() => {
+    setPreview(value);
+  }, [value]);
+
+  const handleFile = async (file: File) => {
+    setUploading(true);
+    try {
+      // Show preview immediately
+      const reader = new FileReader();
+      reader.onload = () => setPreview(reader.result as string);
+      reader.readAsDataURL(file);
+      
+      // Upload
+      const url = await apiUploadImage(file);
+      if (url) {
+        onChange(url);
+        setPreview(url);
+      }
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  return (
+    <div className="space-y-2">
+      <label className="block text-xs text-gray-500 uppercase tracking-wide">{label}</label>
+      <div className="flex items-start gap-3">
+        <div 
+          className="relative w-24 h-24 rounded-xl bg-gray-100 overflow-hidden ring-1 ring-gray-200 cursor-pointer hover:ring-yellow-400 transition"
+          onClick={() => inputRef.current?.click()}
+        >
+          {preview ? (
+            <img src={preview} alt="" className="w-full h-full object-cover" />
+          ) : (
+            <div className="w-full h-full flex items-center justify-center text-gray-400">
+              <span className="text-3xl">+</span>
+            </div>
+          )}
+          {uploading && (
+            <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+              <div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin" />
+            </div>
+          )}
+        </div>
+        <div className="flex-1 space-y-2">
+          <input
+            ref={inputRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (file) handleFile(file);
+            }}
+          />
+          <input
+            type="text"
+            value={value}
+            onChange={(e) => onChange(e.target.value)}
+            placeholder="Or paste URL..."
+            className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm focus:border-yellow-500 focus:outline-none"
+          />
+          <button
+            type="button"
+            onClick={() => inputRef.current?.click()}
+            className="px-3 py-1.5 bg-gray-100 text-gray-700 rounded-lg text-xs font-semibold hover:bg-gray-200 transition"
+          >
+            {uploading ? "Uploading..." : "Upload from device"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function InputField({ 
+  label, 
+  value, 
+  onChange, 
+  placeholder,
+  type = "text",
+  rows,
+}: { 
+  label: string; 
+  value: string; 
+  onChange: (v: string) => void; 
+  placeholder?: string;
+  type?: string;
+  rows?: number;
+}) {
+  const Component = rows ? "textarea" : "input";
+  return (
+    <div>
+      <label className="block text-xs text-gray-500 uppercase tracking-wide mb-1">{label}</label>
+      <Component
+        type={type}
+        value={value}
+        onChange={(e: any) => onChange(e.target.value)}
+        placeholder={placeholder}
+        rows={rows}
+        className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm focus:border-yellow-500 focus:outline-none resize-none"
+      />
+    </div>
+  );
+}
+
+function SelectField({
+  label,
+  value,
+  onChange,
+  options,
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  options: { value: string; label: string }[];
+}) {
+  return (
+    <div>
+      <label className="block text-xs text-gray-500 uppercase tracking-wide mb-1">{label}</label>
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm focus:border-yellow-500 focus:outline-none bg-white"
+      >
+        {options.map((opt) => (
+          <option key={opt.value} value={opt.value}>{opt.label}</option>
+        ))}
+      </select>
+    </div>
+  );
+}
+
+function ToggleField({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: boolean;
+  onChange: (v: boolean) => void;
+}) {
+  return (
+    <label className="flex items-center gap-3 cursor-pointer">
+      <div
+        className={`w-10 h-6 rounded-full transition-colors ${value ? "bg-yellow-400" : "bg-gray-200"}`}
+        onClick={() => onChange(!value)}
+      >
+        <div
+          className={`w-5 h-5 mt-0.5 rounded-full bg-white shadow transition-transform ${
+            value ? "translate-x-4 ml-0.5" : "translate-x-0.5"
+          }`}
+        />
+      </div>
+      <span className="text-sm text-gray-700">{label}</span>
+    </label>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// RELEASE EDITOR
+// ═══════════════════════════════════════════════════════════════════
+
+function ReleaseEditor({
+  release,
+  onChange,
+  onRemove,
+}: {
+  release: ReleaseItem;
+  onChange: (r: ReleaseItem) => void;
+  onRemove: () => void;
+}) {
+  const [expanded, setExpanded] = useState(false);
+
+  return (
+    <div className="border border-gray-200 rounded-2xl overflow-hidden bg-white">
+      <div 
+        className="p-4 flex items-center gap-4 cursor-pointer hover:bg-gray-50"
+        onClick={() => setExpanded(!expanded)}
+      >
+        <div className="w-16 h-16 rounded-xl bg-gray-100 overflow-hidden ring-1 ring-gray-200 shrink-0">
+          {release.art && <img src={release.art} alt="" className="w-full h-full object-cover" />}
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2">
+            <h3 className="font-bold text-gray-900 truncate">{release.title || "Untitled"}</h3>
+            {release.enabled ? (
+              <span className="px-2 py-0.5 bg-green-100 text-green-700 rounded text-xs">Live</span>
+            ) : (
+              <span className="px-2 py-0.5 bg-gray-100 text-gray-500 rounded text-xs">Draft</span>
+            )}
+          </div>
+          <p className="text-sm text-gray-500">{release.year} • {release.format || "Release"}</p>
+        </div>
+        <span className="text-gray-400">{expanded ? "▲" : "▼"}</span>
+      </div>
+
+      {expanded && (
+        <div className="p-4 border-t border-gray-100 space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <InputField label="Title" value={release.title} onChange={(v) => onChange({ ...release, title: v })} placeholder="Muse" />
+            <InputField label="Subtitle" value={release.subtitle || ""} onChange={(v) => onChange({ ...release, subtitle: v })} placeholder="EP" />
+            <InputField label="Year" value={release.year || ""} onChange={(v) => onChange({ ...release, year: v })} placeholder="2025" />
+            <SelectField 
+              label="Format" 
+              value={release.format || ""} 
+              onChange={(v) => onChange({ ...release, format: v })}
+              options={[
+                { value: "", label: "Auto" },
+                { value: "EP", label: "EP" },
+                { value: "Album", label: "Album" },
+                { value: "Single", label: "Single" },
+                { value: "Mixtape", label: "Mixtape" },
+              ]}
+            />
+          </div>
+
+          <ImageUploader label="Cover Art" value={release.art} onChange={(v) => onChange({ ...release, art: v })} />
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <InputField label="Artwork Source Label" value={release.artSourceLabel || ""} onChange={(v) => onChange({ ...release, artSourceLabel: v })} placeholder="Apple Music" />
+            <InputField label="Artwork Source URL" value={release.artSourceHref || ""} onChange={(v) => onChange({ ...release, artSourceHref: v })} placeholder="https://..." />
+          </div>
+
+          <InputField label="Smart Link (Fanlink)" value={release.fanLink || ""} onChange={(v) => onChange({ ...release, fanLink: v })} placeholder="https://vyd.co/..." />
+
+          <InputField 
+            label="Chips (comma-separated)" 
+            value={(release.chips || []).join(", ")} 
+            onChange={(v) => onChange({ ...release, chips: v.split(",").map(s => s.trim()).filter(Boolean) })} 
+            placeholder="EP, 2025, New"
+          />
+
+          <div className="space-y-2">
+            <p className="text-xs text-gray-500 uppercase tracking-wide">Platform Links</p>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {PLATFORM_OPTIONS.map((platform) => (
+                <InputField
+                  key={platform}
+                  label={platform.charAt(0).toUpperCase() + platform.slice(1)}
+                  value={release.links[platform] || ""}
+                  onChange={(v) => onChange({ ...release, links: { ...release.links, [platform]: v || undefined } })}
+                  placeholder={`https://${platform}.com/...`}
+                />
+              ))}
+            </div>
+          </div>
+
+          <SelectField
+            label="Primary Platform"
+            value={release.primary || ""}
+            onChange={(v) => onChange({ ...release, primary: (v || undefined) as PlatformKey | undefined })}
+            options={[
+              { value: "", label: "Auto (first available)" },
+              ...PLATFORM_OPTIONS.map(p => ({ value: p, label: p.charAt(0).toUpperCase() + p.slice(1) }))
+            ]}
+          />
+
+          <div className="space-y-2">
+            <p className="text-xs text-gray-500 uppercase tracking-wide">Tracklist</p>
+            {(release.tracklist || []).map((track, i) => (
+              <div key={i} className="flex items-center gap-2">
+                <span className="text-xs text-gray-400 w-6">{i + 1}.</span>
+                <input
+                  value={track.title}
+                  onChange={(e) => {
+                    const newTracklist = [...(release.tracklist || [])];
+                    newTracklist[i] = { ...newTracklist[i], title: e.target.value };
+                    onChange({ ...release, tracklist: newTracklist });
+                  }}
+                  className="flex-1 px-3 py-2 rounded-lg border border-gray-200 text-sm focus:border-yellow-500 focus:outline-none"
+                  placeholder="Track title"
+                />
+                <input
+                  value={track.meta || ""}
+                  onChange={(e) => {
+                    const newTracklist = [...(release.tracklist || [])];
+                    newTracklist[i] = { ...newTracklist[i], meta: e.target.value };
+                    onChange({ ...release, tracklist: newTracklist });
+                  }}
+                  className="w-32 px-3 py-2 rounded-lg border border-gray-200 text-sm focus:border-yellow-500 focus:outline-none"
+                  placeholder="feat. ..."
+                />
+                <button
+                  onClick={() => {
+                    const newTracklist = (release.tracklist || []).filter((_, idx) => idx !== i);
+                    onChange({ ...release, tracklist: newTracklist });
+                  }}
+                  className="p-2 text-red-500 hover:bg-red-50 rounded-lg"
+                >
+                  ✕
+                </button>
+              </div>
+            ))}
+            <button
+              onClick={() => onChange({ ...release, tracklist: [...(release.tracklist || []), { title: "" }] })}
+              className="px-3 py-2 bg-gray-100 text-gray-700 rounded-lg text-sm font-semibold hover:bg-gray-200 transition"
+            >
+              + Add Track
+            </button>
+          </div>
+
+          <div className="flex items-center justify-between pt-4 border-t border-gray-100">
+            <ToggleField label="Enabled (visible on site)" value={release.enabled} onChange={(v) => onChange({ ...release, enabled: v })} />
+            <button
+              onClick={onRemove}
+              className="px-4 py-2 bg-red-50 text-red-600 rounded-lg text-sm font-semibold hover:bg-red-100 transition"
+            >
+              Delete Release
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// VIDEO EDITOR
+// ═══════════════════════════════════════════════════════════════════
+
+function VideoEditor({
+  video,
+  onChange,
+  onRemove,
+}: {
+  video: VisualItem;
+  onChange: (v: VisualItem) => void;
+  onRemove: () => void;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const youtubeId = extractYouTubeId(video.href);
+  const thumbnailUrl = youtubeId ? `https://i.ytimg.com/vi/${youtubeId}/mqdefault.jpg` : null;
+
+  return (
+    <div className="border border-gray-200 rounded-2xl overflow-hidden bg-white">
+      <div 
+        className="p-4 flex items-center gap-4 cursor-pointer hover:bg-gray-50"
+        onClick={() => setExpanded(!expanded)}
+      >
+        <div className="w-24 h-14 rounded-xl bg-gray-100 overflow-hidden ring-1 ring-gray-200 shrink-0">
+          {thumbnailUrl && <img src={thumbnailUrl} alt="" className="w-full h-full object-cover" />}
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2">
+            <h3 className="font-bold text-gray-900 truncate">{video.title || "Untitled"}</h3>
+            {video.enabled ? (
+              <span className="px-2 py-0.5 bg-green-100 text-green-700 rounded text-xs">Live</span>
+            ) : (
+              <span className="px-2 py-0.5 bg-gray-100 text-gray-500 rounded text-xs">Draft</span>
+            )}
+          </div>
+          <p className="text-sm text-gray-500">{video.year} • {video.kind}</p>
+        </div>
+        <span className="text-gray-400">{expanded ? "▲" : "▼"}</span>
+      </div>
+
+      {expanded && (
+        <div className="p-4 border-t border-gray-100 space-y-4">
+          <InputField label="Title" value={video.title} onChange={(v) => onChange({ ...video, title: v })} placeholder="ME & U (feat. Mellissa)" />
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <InputField label="Year" value={video.year} onChange={(v) => onChange({ ...video, year: v })} placeholder="2025" />
+            <SelectField 
+              label="Kind" 
+              value={video.kind} 
+              onChange={(v) => onChange({ ...video, kind: v as VisualItem["kind"] })}
+              options={VIDEO_KINDS.map(k => ({ value: k, label: k }))}
+            />
+          </div>
+
+          <InputField label="YouTube URL" value={video.href} onChange={(v) => onChange({ ...video, href: v })} placeholder="https://youtu.be/..." />
+          
+          {youtubeId && (
+            <div className="p-3 bg-green-50 rounded-lg">
+              <p className="text-xs text-green-700 font-medium">✓ YouTube video detected</p>
+              <p className="text-xs text-green-600 mt-1">ID: {youtubeId}</p>
+              {thumbnailUrl && (
+                <img src={thumbnailUrl} alt="" className="mt-2 rounded-lg w-40" />
+              )}
+            </div>
+          )}
+
+          <InputField label="Tag (optional)" value={video.tag || ""} onChange={(v) => onChange({ ...video, tag: v || undefined })} placeholder="New" />
+
+          <div className="flex items-center justify-between pt-4 border-t border-gray-100">
+            <ToggleField label="Enabled (visible on site)" value={video.enabled} onChange={(v) => onChange({ ...video, enabled: v })} />
+            <button
+              onClick={onRemove}
+              className="px-4 py-2 bg-red-50 text-red-600 rounded-lg text-sm font-semibold hover:bg-red-100 transition"
+            >
+              Delete Video
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// SHOW EDITOR
+// ═══════════════════════════════════════════════════════════════════
+
+function ShowEditor({
+  show,
+  onChange,
+  onRemove,
+}: {
+  show: ShowItem;
+  onChange: (s: ShowItem) => void;
+  onRemove: () => void;
+}) {
+  return (
+    <div className="p-4 border border-gray-200 rounded-xl bg-white">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <InputField label="Date" value={show.dateLabel} onChange={(v) => onChange({ ...show, dateLabel: v })} placeholder="APR 12" />
+        <InputField label="City" value={show.city} onChange={(v) => onChange({ ...show, city: v })} placeholder="Lagos" />
+        <InputField label="Venue" value={show.venue} onChange={(v) => onChange({ ...show, venue: v })} placeholder="— Venue TBA" />
+        <SelectField 
+          label="Status" 
+          value={show.status || "announce"} 
+          onChange={(v) => onChange({ ...show, status: v as ShowItem["status"] })}
+          options={[
+            { value: "announce", label: "Announced" },
+            { value: "onsale", label: "On Sale" },
+            { value: "soldout", label: "Sold Out" },
+          ]}
+        />
+      </div>
+      <div className="mt-3 flex items-center gap-3">
+        <div className="flex-1">
+          <InputField label="Ticket Link" value={show.href || ""} onChange={(v) => onChange({ ...show, href: v || undefined })} placeholder="https://..." />
+        </div>
+        <button
+          onClick={onRemove}
+          className="mt-5 p-2 text-red-500 hover:bg-red-50 rounded-lg"
+        >
+          ✕
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// MERCH EDITOR
+// ═══════════════════════════════════════════════════════════════════
+
+function MerchEditor({
+  item,
+  onChange,
+  onRemove,
+}: {
+  item: MerchItem;
+  onChange: (m: MerchItem) => void;
+  onRemove: () => void;
+}) {
+  const [expanded, setExpanded] = useState(false);
+
+  return (
+    <div className="border border-gray-200 rounded-2xl overflow-hidden bg-white">
+      <div 
+        className="p-4 flex items-center gap-4 cursor-pointer hover:bg-gray-50"
+        onClick={() => setExpanded(!expanded)}
+      >
+        <div className="w-16 h-16 rounded-xl bg-gray-100 overflow-hidden ring-1 ring-gray-200 shrink-0">
+          {item.images[0] && <img src={item.images[0]} alt="" className="w-full h-full object-cover" />}
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2">
+            <h3 className="font-bold text-gray-900 truncate">{item.name || "Untitled"}</h3>
+            {item.available ? (
+              <span className="px-2 py-0.5 bg-green-100 text-green-700 rounded text-xs">Available</span>
+            ) : (
+              <span className="px-2 py-0.5 bg-gray-100 text-gray-500 rounded text-xs">Coming Soon</span>
+            )}
+          </div>
+          <p className="text-sm text-gray-500">{item.price}</p>
+        </div>
+        <span className="text-gray-400">{expanded ? "▲" : "▼"}</span>
+      </div>
+
+      {expanded && (
+        <div className="p-4 border-t border-gray-100 space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <InputField label="Name" value={item.name} onChange={(v) => onChange({ ...item, name: v })} placeholder="Ankh Tee" />
+            <InputField label="Price" value={item.price} onChange={(v) => onChange({ ...item, price: v })} placeholder="₦15,000" />
+          </div>
+
+          <ImageUploader 
+            label="Product Image" 
+            value={item.images[0] || ""} 
+            onChange={(v) => onChange({ ...item, images: [v, ...item.images.slice(1)] })} 
+          />
+
+          <InputField label="Tag" value={item.tag || ""} onChange={(v) => onChange({ ...item, tag: v || undefined })} placeholder="New, Limited, etc." />
+
+          <div className="flex items-center justify-between pt-4 border-t border-gray-100">
+            <ToggleField label="Available for purchase" value={item.available} onChange={(v) => onChange({ ...item, available: v })} />
+            <button
+              onClick={onRemove}
+              className="px-4 py-2 bg-red-50 text-red-600 rounded-lg text-sm font-semibold hover:bg-red-100 transition"
+            >
+              Delete Item
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// PRESS EDITOR  
+// ═══════════════════════════════════════════════════════════════════
+
+function PressEditor({
+  item,
+  onChange,
+  onRemove,
+}: {
+  item: PressItem;
+  onChange: (p: PressItem) => void;
+  onRemove: () => void;
+}) {
+  const [expanded, setExpanded] = useState(false);
+
+  return (
+    <div className="border border-gray-200 rounded-2xl overflow-hidden bg-white">
+      <div 
+        className="p-4 flex items-center gap-4 cursor-pointer hover:bg-gray-50"
+        onClick={() => setExpanded(!expanded)}
+      >
+        <div className="w-16 h-16 rounded-xl bg-gray-100 overflow-hidden ring-1 ring-gray-200 shrink-0">
+          {item.image && <img src={item.image} alt="" className="w-full h-full object-cover" />}
+        </div>
+        <div className="flex-1 min-w-0">
+          <h3 className="font-bold text-gray-900 truncate">{item.title || "Untitled"}</h3>
+          <p className="text-sm text-gray-500">{item.outlet} • {item.date}</p>
+        </div>
+        <span className="text-gray-400">{expanded ? "▲" : "▼"}</span>
+      </div>
+
+      {expanded && (
+        <div className="p-4 border-t border-gray-100 space-y-4">
+          <InputField label="Title" value={item.title} onChange={(v) => onChange({ ...item, title: v })} />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <InputField label="Outlet" value={item.outlet} onChange={(v) => onChange({ ...item, outlet: v })} placeholder="Wonderland Magazine" />
+            <InputField label="Date" value={item.date} onChange={(v) => onChange({ ...item, date: v })} placeholder="Dec 1, 2023" />
+          </div>
+          <InputField label="URL" value={item.href} onChange={(v) => onChange({ ...item, href: v })} />
+          <ImageUploader label="Image" value={item.image || ""} onChange={(v) => onChange({ ...item, image: v || undefined })} />
+          <InputField label="Tag" value={item.tag || ""} onChange={(v) => onChange({ ...item, tag: v || undefined })} placeholder="Interview, Feature, etc." />
+          <InputField label="Excerpt" value={item.excerpt || ""} onChange={(v) => onChange({ ...item, excerpt: v || undefined })} rows={2} />
+          
+          <div className="flex justify-end pt-4 border-t border-gray-100">
+            <button
+              onClick={onRemove}
+              className="px-4 py-2 bg-red-50 text-red-600 rounded-lg text-sm font-semibold hover:bg-red-100 transition"
+            >
+              Delete Press Item
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// MAIN ADMIN PAGE
+// ═══════════════════════════════════════════════════════════════════
 
 export default function AdminPage() {
   const [view, setView] = useState<View>("login");
@@ -103,37 +736,11 @@ export default function AdminPage() {
 
   const [cms, setCms] = useState<CmsData>({ ...DEFAULT_CMS, updatedAt: Date.now() });
   const [cmsLoading, setCmsLoading] = useState(false);
+  const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved">("idle");
 
-  const [newsletterEditOpen, setNewsletterEditOpen] = useState(false);
-  const [newsletterDraft, setNewsletterDraft] = useState<CmsData["newsletter"]>(DEFAULT_CMS.newsletter);
-  const [newsletterSaving, setNewsletterSaving] = useState(false);
-
-  // ✅ blank templates built from DEFAULT_CMS so shapes always match CmsPressItem/CmsEmbedVideo
-  const makeBlankPress = useCallback((): CmsPressItem => {
-    const base = DEFAULT_CMS.newsletter.pressItems?.[0];
-    // if your DEFAULT_CMS has at least 1 item (it should), this stays fully typed
-    return {
-      ...(base as CmsPressItem),
-      title: "",
-      outlet: "",
-      date: "",
-      href: "",
-      image: (base as any)?.image ?? "/media/yarden/press/youtube.jpg",
-      tag: "",
-      excerpt: "",
-    };
-  }, []);
-
-  const makeBlankVideo = useCallback((): CmsEmbedVideo => {
-    const base = DEFAULT_CMS.newsletter.videos?.[0];
-    return {
-      ...(base as CmsEmbedVideo),
-      title: "",
-      meta: "",
-      youtubeId: "",
-      href: "",
-    };
-  }, []);
+  // ═══════════════════════════════════════════════════════════════════
+  // DATA LOADING
+  // ═══════════════════════════════════════════════════════════════════
 
   const loadCms = useCallback(async () => {
     setCmsLoading(true);
@@ -145,32 +752,16 @@ export default function AdminPage() {
     }
   }, []);
 
-  const publishCms = useCallback(async (next: CmsData) => {
+  const saveCms = useCallback(async (next: CmsData) => {
+    setSaveStatus("saving");
     setCmsLoading(true);
     try {
       const merged: CmsData = { ...next, version: 1, updatedAt: Date.now() };
       const saved = await apiPutAdminCms(merged);
       if (saved) setCms(saved);
       else setCms(merged);
-    } finally {
-      setCmsLoading(false);
-    }
-  }, []);
-
-  const patchCms = useCallback(
-    async (patch: Partial<CmsData>) => {
-      const next: CmsData = { ...cms, ...patch, version: 1, updatedAt: Date.now() };
-      await publishCms(next);
-    },
-    [cms, publishCms]
-  );
-
-  const resetCms = useCallback(async () => {
-    setCmsLoading(true);
-    try {
-      const fresh = await apiResetAdminCms();
-      if (fresh) setCms(fresh);
-      else setCms({ ...DEFAULT_CMS, updatedAt: Date.now() });
+      setSaveStatus("saved");
+      setTimeout(() => setSaveStatus("idle"), 2000);
     } finally {
       setCmsLoading(false);
     }
@@ -181,12 +772,10 @@ export default function AdminPage() {
     setError("");
     try {
       const res = await fetch("/api/admin/passes", { credentials: "include" });
-
       if (res.status === 401) {
         setView("login");
         return;
       }
-
       const data = await res.json();
       setPasses(data.passes || []);
     } catch {
@@ -213,6 +802,10 @@ export default function AdminPage() {
   useEffect(() => {
     checkAuth();
   }, [checkAuth]);
+
+  // ═══════════════════════════════════════════════════════════════════
+  // AUTH HANDLERS
+  // ═══════════════════════════════════════════════════════════════════
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -266,6 +859,10 @@ export default function AdminPage() {
     link.click();
   };
 
+  // ═══════════════════════════════════════════════════════════════════
+  // COMPUTED VALUES
+  // ═══════════════════════════════════════════════════════════════════
+
   const stats = useMemo(() => {
     const today = new Date().toDateString();
     const total = passes.length;
@@ -282,6 +879,10 @@ export default function AdminPage() {
       return String(cms.updatedAt);
     }
   }, [cms.updatedAt]);
+
+  // ═══════════════════════════════════════════════════════════════════
+  // LOGIN VIEW
+  // ═══════════════════════════════════════════════════════════════════
 
   if (view === "login") {
     return (
@@ -327,77 +928,73 @@ export default function AdminPage() {
                   Logging in...
                 </>
               ) : (
-                <>
-                  Enter Dashboard <span>→</span>
-                </>
+                <>Enter Dashboard →</>
               )}
             </button>
           </form>
-
-          <p className="mt-6 text-center text-xs text-gray-400">Set ADMIN_PASSWORD in your environment variables</p>
         </div>
       </div>
     );
   }
 
+  // ═══════════════════════════════════════════════════════════════════
+  // DASHBOARD VIEW
+  // ═══════════════════════════════════════════════════════════════════
+
   return (
     <div className="min-h-screen bg-gray-100">
+      {/* Header */}
       <header className="bg-black text-white sticky top-0 z-20 shadow-lg">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-yellow-400 rounded-xl flex items-center justify-center">
-              <span className="text-xl text-black">☥</span>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-yellow-400 rounded-xl flex items-center justify-center">
+                <span className="text-xl text-black">☥</span>
+              </div>
+              <div>
+                <h1 className="text-lg font-bold text-yellow-400">The Yard</h1>
+                <p className="text-xs text-gray-400">Admin Dashboard</p>
+              </div>
             </div>
-            <div>
-              <h1 className="text-lg font-bold text-yellow-400">The Yard</h1>
-              <p className="text-xs text-gray-400">Admin Dashboard</p>
+
+            <div className="flex items-center gap-2">
+              {saveStatus === "saving" && (
+                <span className="text-yellow-400 text-sm animate-pulse">Saving...</span>
+              )}
+              {saveStatus === "saved" && (
+                <span className="text-green-400 text-sm">✓ Saved</span>
+              )}
+              <button
+                onClick={handleLogout}
+                className="px-4 py-2 bg-red-500/20 text-red-400 rounded-lg text-sm font-semibold hover:bg-red-500/30 transition"
+              >
+                Logout
+              </button>
             </div>
           </div>
 
-          <div className="flex items-center gap-2 sm:gap-4">
-            <div className="hidden sm:block text-right">
-              <p className="text-xs text-gray-400">Total Passes</p>
-              <p className="text-xl font-bold text-yellow-400">{passes.length}</p>
-            </div>
-
-            <button
-              onClick={() => setTab("passes")}
-              className={`px-4 py-2 rounded-lg text-sm font-semibold transition ${
-                tab === "passes" ? "bg-yellow-400 text-black" : "bg-white/10 text-white hover:bg-white/15"
-              }`}
-            >
-              Passes
-            </button>
-
-            <button
-              onClick={() => setTab("cms")}
-              className={`px-4 py-2 rounded-lg text-sm font-semibold transition ${
-                tab === "cms" ? "bg-yellow-400 text-black" : "bg-white/10 text-white hover:bg-white/15"
-              }`}
-            >
-              CMS
-            </button>
-
-            <button
-              onClick={tab === "passes" ? fetchPasses : loadCms}
-              disabled={loading || cmsLoading}
-              className="px-4 py-2 bg-yellow-400/20 text-yellow-400 rounded-lg text-sm font-semibold hover:bg-yellow-400/30 transition disabled:opacity-50"
-            >
-              {loading || cmsLoading ? "..." : "Refresh"}
-            </button>
-
-            <button
-              onClick={handleLogout}
-              className="px-4 py-2 bg-red-500/20 text-red-400 rounded-lg text-sm font-semibold hover:bg-red-500/30 transition"
-            >
-              Logout
-            </button>
+          {/* Tabs */}
+          <div className="mt-4 flex gap-2 overflow-x-auto pb-2 -mb-2">
+            {(["passes", "releases", "videos", "tour", "merch", "newsletter"] as Tab[]).map((t) => (
+              <button
+                key={t}
+                onClick={() => setTab(t)}
+                className={`px-4 py-2 rounded-lg text-sm font-semibold whitespace-nowrap transition ${
+                  tab === t ? "bg-yellow-400 text-black" : "bg-white/10 text-white hover:bg-white/15"
+                }`}
+              >
+                {t.charAt(0).toUpperCase() + t.slice(1)}
+              </button>
+            ))}
           </div>
         </div>
       </header>
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 py-6">
-        {tab === "passes" ? (
+        {/* ═══════════════════════════════════════════════════════════════════ */}
+        {/* PASSES TAB */}
+        {/* ═══════════════════════════════════════════════════════════════════ */}
+        {tab === "passes" && (
           <>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
               <div className="bg-white rounded-2xl p-4 shadow-sm">
@@ -416,6 +1013,16 @@ export default function AdminPage() {
                 <p className="text-xs text-gray-500 uppercase tracking-wide">Today</p>
                 <p className="text-2xl font-black text-green-500">{stats.todayCount}</p>
               </div>
+            </div>
+
+            <div className="flex justify-end mb-4">
+              <button
+                onClick={fetchPasses}
+                disabled={loading}
+                className="px-4 py-2 bg-yellow-400 text-black rounded-lg text-sm font-bold hover:bg-yellow-500 transition disabled:opacity-50"
+              >
+                {loading ? "Loading..." : "Refresh"}
+              </button>
             </div>
 
             {loading && passes.length === 0 ? (
@@ -439,46 +1046,33 @@ export default function AdminPage() {
                         <th className="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase">Name</th>
                         <th className="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase">Contact</th>
                         <th className="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase">Type</th>
-                        <th className="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase">Pass ID</th>
                         <th className="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase">Actions</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100">
                       {passes.map((pass) => (
                         <tr key={pass.id} className="hover:bg-gray-50 transition-colors">
+                          <td className="px-4 py-4 text-sm text-gray-900">{formatDate(pass.createdAt)}</td>
+                          <td className="px-4 py-4 text-sm font-medium text-gray-900">{pass.name}</td>
+                          <td className="px-4 py-4 text-sm text-gray-500">{pass.email}</td>
                           <td className="px-4 py-4">
-                            <p className="text-sm text-gray-900 font-medium">{formatDate(pass.createdAt)}</p>
-                          </td>
-                          <td className="px-4 py-4">
-                            <p className="text-sm font-bold text-gray-900">{pass.name}</p>
-                          </td>
-                          <td className="px-4 py-4">
-                            <p className="text-sm text-gray-600">{pass.email}</p>
-                            <p className="text-xs text-gray-400">{pass.phone}</p>
-                          </td>
-                          <td className="px-4 py-4">
-                            <span
-                              className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold ${
-                                pass.gender === "female" ? "bg-pink-100 text-pink-700" : "bg-blue-100 text-blue-700"
-                              }`}
-                            >
-                              {pass.gender === "female" ? "👼" : "🧬"} {pass.gender === "female" ? "Angel" : "Descendant"}
+                            <span className={`px-2 py-1 rounded text-xs font-semibold ${
+                              pass.gender === "female" ? "bg-pink-100 text-pink-700" : "bg-blue-100 text-blue-700"
+                            }`}>
+                              {pass.title}
                             </span>
-                          </td>
-                          <td className="px-4 py-4">
-                            <code className="text-xs bg-gray-100 px-2 py-1 rounded font-mono">{pass.id}</code>
                           </td>
                           <td className="px-4 py-4">
                             <div className="flex gap-2">
                               <button
                                 onClick={() => setSelectedPass(pass)}
-                                className="px-3 py-1.5 bg-yellow-100 text-yellow-800 rounded-lg text-xs font-bold hover:bg-yellow-200 transition"
+                                className="px-3 py-1 bg-gray-100 text-gray-700 rounded text-xs font-semibold hover:bg-gray-200 transition"
                               >
                                 View
                               </button>
                               <button
                                 onClick={() => downloadPass(pass)}
-                                className="px-3 py-1.5 bg-gray-100 text-gray-700 rounded-lg text-xs font-bold hover:bg-gray-200 transition"
+                                className="px-3 py-1 bg-yellow-100 text-yellow-700 rounded text-xs font-semibold hover:bg-yellow-200 transition"
                               >
                                 Download
                               </button>
@@ -492,107 +1086,460 @@ export default function AdminPage() {
               </div>
             )}
           </>
-        ) : (
-          <>
-            <div className="bg-white rounded-2xl p-5 shadow-sm mb-6 flex flex-wrap items-center justify-between gap-3">
+        )}
+
+        {/* ═══════════════════════════════════════════════════════════════════ */}
+        {/* RELEASES TAB */}
+        {/* ═══════════════════════════════════════════════════════════════════ */}
+        {tab === "releases" && (
+          <div className="space-y-4">
+            <div className="bg-white rounded-2xl p-5 shadow-sm flex flex-wrap items-center justify-between gap-3">
               <div>
-                <p className="text-xs text-gray-500 uppercase tracking-wide">CMS Published</p>
-                <p className="text-sm font-bold text-gray-900">{cmsLoading ? "Loading..." : cmsUpdated}</p>
+                <h2 className="text-lg font-bold text-gray-900">Music Releases</h2>
+                <p className="text-sm text-gray-500">{cms.releases.length} releases • Last updated: {cmsUpdated}</p>
               </div>
-
-              <div className="flex flex-wrap gap-2">
-                <button
-                  onClick={loadCms}
-                  disabled={cmsLoading}
-                  className="px-4 py-2 bg-gray-100 text-gray-800 rounded-lg text-sm font-bold hover:bg-gray-200 transition disabled:opacity-50"
-                >
-                  Pull
-                </button>
-
-                <button
-                  onClick={resetCms}
-                  disabled={cmsLoading}
-                  className="px-4 py-2 bg-yellow-100 text-yellow-900 rounded-lg text-sm font-bold hover:bg-yellow-200 transition disabled:opacity-50"
-                >
-                  Reset CMS
-                </button>
-
-                <a
-                  href="/"
-                  className="px-4 py-2 bg-black text-yellow-400 rounded-lg text-sm font-bold hover:bg-gray-900 transition"
-                >
-                  Open Site
-                </a>
-              </div>
-            </div>
-
-            <div className="rounded-2xl overflow-hidden shadow-sm ring-1 ring-black/10 mb-6 bg-black">
-              <TourSection
-                id="admin-tour"
-                // ✅ FIX ts2322: CMS types vs component prop types
-                shows={cms.tour.shows as unknown as ShowItem[]}
-                config={cms.tour.config as unknown as TourConfig}
-                editable
-                onSave={async (payload: { shows: ShowItem[]; config: TourConfig }) => {
-                  await patchCms({ tour: payload as any });
-                }}
-              />
-            </div>
-
-            <div className="rounded-2xl overflow-hidden shadow-sm ring-1 ring-black/10 mb-6 bg-black">
-              <StoreSection
-                // ✅ FIX ts2322: CMS types vs component prop types
-                merch={cms.store.merch as unknown as MerchItem[]}
-                config={cms.store.config as unknown as StoreConfig}
-                editable
-                onSave={async (payload: { merch: MerchItem[]; config: StoreConfig }) => {
-                  await patchCms({ store: payload as any });
-                }}
-              />
-            </div>
-
-            <div className="bg-white rounded-2xl p-5 shadow-sm mb-4 flex flex-wrap items-center justify-between gap-3">
-              <div>
-                <p className="text-xs text-gray-500 uppercase tracking-wide">Newsletter</p>
-                <p className="text-sm font-bold text-gray-900">
-                  {cms.newsletter.pressItems.length} press • {cms.newsletter.videos.length} videos
-                </p>
-              </div>
-
-              <div className="flex flex-wrap gap-2">
+              <div className="flex gap-2">
                 <button
                   onClick={() => {
-                    setNewsletterDraft(cms.newsletter);
-                    setNewsletterEditOpen(true);
+                    const newRelease: ReleaseItem = {
+                      id: generateId("release"),
+                      title: "",
+                      subtitle: "",
+                      year: new Date().getFullYear().toString(),
+                      art: "",
+                      chips: [],
+                      links: {},
+                      enabled: false,
+                    };
+                    setCms(prev => ({ ...prev, releases: [newRelease, ...prev.releases] }));
                   }}
-                  className="px-4 py-2 bg-yellow-100 text-yellow-900 rounded-lg text-sm font-bold hover:bg-yellow-200 transition"
+                  className="px-4 py-2 bg-yellow-400 text-black rounded-lg text-sm font-bold hover:bg-yellow-500 transition"
                 >
-                  Edit Newsletter
+                  + Add Release
                 </button>
-
                 <button
-                  onClick={async () => {
-                    await patchCms({ newsletter: DEFAULT_CMS.newsletter });
-                  }}
-                  className="px-4 py-2 bg-gray-100 text-gray-800 rounded-lg text-sm font-bold hover:bg-gray-200 transition"
+                  onClick={() => saveCms(cms)}
+                  disabled={cmsLoading}
+                  className="px-4 py-2 bg-black text-yellow-400 rounded-lg text-sm font-bold hover:bg-gray-900 transition disabled:opacity-50"
                 >
-                  Reset Newsletter
+                  {cmsLoading ? "Saving..." : "Save Changes"}
                 </button>
               </div>
             </div>
 
-            <div className="rounded-2xl overflow-hidden shadow-sm ring-1 ring-black/10 bg-black">
-              <NewsletterSection
-                // ✅ avoid future ts2322 if NewsletterSection types differ
-                pressItems={cms.newsletter.pressItems as any}
-                videos={cms.newsletter.videos as any}
-                backgroundImage={cms.newsletter.backgroundImage}
+            <div className="space-y-3">
+              {cms.releases.map((release, idx) => (
+                <ReleaseEditor
+                  key={release.id}
+                  release={release}
+                  onChange={(r) => {
+                    const newReleases = [...cms.releases];
+                    newReleases[idx] = r;
+                    setCms(prev => ({ ...prev, releases: newReleases }));
+                  }}
+                  onRemove={() => {
+                    setCms(prev => ({ ...prev, releases: prev.releases.filter((_, i) => i !== idx) }));
+                  }}
+                />
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* ═══════════════════════════════════════════════════════════════════ */}
+        {/* VIDEOS TAB */}
+        {/* ═══════════════════════════════════════════════════════════════════ */}
+        {tab === "videos" && (
+          <div className="space-y-4">
+            <div className="bg-white rounded-2xl p-5 shadow-sm flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <h2 className="text-lg font-bold text-gray-900">Music Videos</h2>
+                <p className="text-sm text-gray-500">{cms.visuals.length} videos • YouTube thumbnails auto-imported</p>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => {
+                    const newVideo: VisualItem = {
+                      id: generateId("video"),
+                      title: "",
+                      kind: "Official Video",
+                      year: new Date().getFullYear().toString(),
+                      href: "",
+                      enabled: false,
+                    };
+                    setCms(prev => ({ ...prev, visuals: [newVideo, ...prev.visuals] }));
+                  }}
+                  className="px-4 py-2 bg-yellow-400 text-black rounded-lg text-sm font-bold hover:bg-yellow-500 transition"
+                >
+                  + Add Video
+                </button>
+                <button
+                  onClick={() => saveCms(cms)}
+                  disabled={cmsLoading}
+                  className="px-4 py-2 bg-black text-yellow-400 rounded-lg text-sm font-bold hover:bg-gray-900 transition disabled:opacity-50"
+                >
+                  {cmsLoading ? "Saving..." : "Save Changes"}
+                </button>
+              </div>
+            </div>
+
+            <div className="bg-blue-50 rounded-xl p-4">
+              <p className="text-sm text-blue-700">
+                <strong>💡 Tip:</strong> Just paste a YouTube URL and the thumbnail will be automatically imported. 
+                Supported formats: youtu.be/xxx, youtube.com/watch?v=xxx
+              </p>
+            </div>
+
+            <div className="space-y-3">
+              {cms.visuals.map((video, idx) => (
+                <VideoEditor
+                  key={video.id}
+                  video={video}
+                  onChange={(v) => {
+                    const newVisuals = [...cms.visuals];
+                    newVisuals[idx] = v;
+                    setCms(prev => ({ ...prev, visuals: newVisuals }));
+                  }}
+                  onRemove={() => {
+                    setCms(prev => ({ ...prev, visuals: prev.visuals.filter((_, i) => i !== idx) }));
+                  }}
+                />
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* ═══════════════════════════════════════════════════════════════════ */}
+        {/* TOUR TAB */}
+        {/* ═══════════════════════════════════════════════════════════════════ */}
+        {tab === "tour" && (
+          <div className="space-y-4">
+            <div className="bg-white rounded-2xl p-5 shadow-sm flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <h2 className="text-lg font-bold text-gray-900">Tour Dates</h2>
+                <p className="text-sm text-gray-500">{cms.tour.shows.length} shows</p>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => {
+                    const newShow: ShowItem = {
+                      id: generateId("show"),
+                      dateLabel: "",
+                      city: "",
+                      venue: "",
+                      status: "announce",
+                    };
+                    setCms(prev => ({ 
+                      ...prev, 
+                      tour: { ...prev.tour, shows: [...prev.tour.shows, newShow] }
+                    }));
+                  }}
+                  className="px-4 py-2 bg-yellow-400 text-black rounded-lg text-sm font-bold hover:bg-yellow-500 transition"
+                >
+                  + Add Show
+                </button>
+                <button
+                  onClick={() => saveCms(cms)}
+                  disabled={cmsLoading}
+                  className="px-4 py-2 bg-black text-yellow-400 rounded-lg text-sm font-bold hover:bg-gray-900 transition disabled:opacity-50"
+                >
+                  {cmsLoading ? "Saving..." : "Save Changes"}
+                </button>
+              </div>
+            </div>
+
+            <div className="bg-white rounded-2xl p-5 shadow-sm space-y-4">
+              <h3 className="font-bold text-gray-900">Tour Settings</h3>
+              <ImageUploader 
+                label="Tour Poster" 
+                value={cms.tour.config.posterSrc} 
+                onChange={(v) => setCms(prev => ({ 
+                  ...prev, 
+                  tour: { ...prev.tour, config: { ...prev.tour.config, posterSrc: v } }
+                }))} 
+              />
+              <InputField 
+                label="Headline" 
+                value={cms.tour.config.headline} 
+                onChange={(v) => setCms(prev => ({ 
+                  ...prev, 
+                  tour: { ...prev.tour, config: { ...prev.tour.config, headline: v } }
+                }))} 
+              />
+              <InputField 
+                label="Description" 
+                value={cms.tour.config.description} 
+                onChange={(v) => setCms(prev => ({ 
+                  ...prev, 
+                  tour: { ...prev.tour, config: { ...prev.tour.config, description: v } }
+                }))} 
+                rows={2}
+              />
+              <InputField 
+                label="Ticket Portal URL" 
+                value={cms.tour.config.ticketPortalHref || ""} 
+                onChange={(v) => setCms(prev => ({ 
+                  ...prev, 
+                  tour: { ...prev.tour, config: { ...prev.tour.config, ticketPortalHref: v || undefined } }
+                }))} 
               />
             </div>
-          </>
+
+            <div className="space-y-3">
+              {cms.tour.shows.map((show, idx) => (
+                <ShowEditor
+                  key={show.id}
+                  show={show}
+                  onChange={(s) => {
+                    const newShows = [...cms.tour.shows];
+                    newShows[idx] = s;
+                    setCms(prev => ({ ...prev, tour: { ...prev.tour, shows: newShows } }));
+                  }}
+                  onRemove={() => {
+                    setCms(prev => ({ 
+                      ...prev, 
+                      tour: { ...prev.tour, shows: prev.tour.shows.filter((_, i) => i !== idx) }
+                    }));
+                  }}
+                />
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* ═══════════════════════════════════════════════════════════════════ */}
+        {/* MERCH TAB */}
+        {/* ═══════════════════════════════════════════════════════════════════ */}
+        {tab === "merch" && (
+          <div className="space-y-4">
+            <div className="bg-white rounded-2xl p-5 shadow-sm flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <h2 className="text-lg font-bold text-gray-900">Merchandise</h2>
+                <p className="text-sm text-gray-500">{cms.store.merch.length} items</p>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => {
+                    const newItem: MerchItem = {
+                      id: generateId("merch"),
+                      name: "",
+                      price: "₦ —",
+                      images: [],
+                      available: false,
+                    };
+                    setCms(prev => ({ 
+                      ...prev, 
+                      store: { ...prev.store, merch: [newItem, ...prev.store.merch] }
+                    }));
+                  }}
+                  className="px-4 py-2 bg-yellow-400 text-black rounded-lg text-sm font-bold hover:bg-yellow-500 transition"
+                >
+                  + Add Item
+                </button>
+                <button
+                  onClick={() => saveCms(cms)}
+                  disabled={cmsLoading}
+                  className="px-4 py-2 bg-black text-yellow-400 rounded-lg text-sm font-bold hover:bg-gray-900 transition disabled:opacity-50"
+                >
+                  {cmsLoading ? "Saving..." : "Save Changes"}
+                </button>
+              </div>
+            </div>
+
+            <div className="bg-white rounded-2xl p-5 shadow-sm space-y-4">
+              <h3 className="font-bold text-gray-900">Store Settings</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <InputField 
+                  label="Title" 
+                  value={cms.store.config.title} 
+                  onChange={(v) => setCms(prev => ({ 
+                    ...prev, 
+                    store: { ...prev.store, config: { ...prev.store.config, title: v } }
+                  }))} 
+                />
+                <InputField 
+                  label="Store URL" 
+                  value={cms.store.config.storeHref || ""} 
+                  onChange={(v) => setCms(prev => ({ 
+                    ...prev, 
+                    store: { ...prev.store, config: { ...prev.store.config, storeHref: v || undefined } }
+                  }))} 
+                />
+              </div>
+              <InputField 
+                label="Description" 
+                value={cms.store.config.desc || ""} 
+                onChange={(v) => setCms(prev => ({ 
+                  ...prev, 
+                  store: { ...prev.store, config: { ...prev.store.config, desc: v || undefined } }
+                }))} 
+              />
+            </div>
+
+            <div className="space-y-3">
+              {cms.store.merch.map((item, idx) => (
+                <MerchEditor
+                  key={item.id}
+                  item={item}
+                  onChange={(m) => {
+                    const newMerch = [...cms.store.merch];
+                    newMerch[idx] = m;
+                    setCms(prev => ({ ...prev, store: { ...prev.store, merch: newMerch } }));
+                  }}
+                  onRemove={() => {
+                    setCms(prev => ({ 
+                      ...prev, 
+                      store: { ...prev.store, merch: prev.store.merch.filter((_, i) => i !== idx) }
+                    }));
+                  }}
+                />
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* ═══════════════════════════════════════════════════════════════════ */}
+        {/* NEWSLETTER TAB */}
+        {/* ═══════════════════════════════════════════════════════════════════ */}
+        {tab === "newsletter" && (
+          <div className="space-y-4">
+            <div className="bg-white rounded-2xl p-5 shadow-sm flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <h2 className="text-lg font-bold text-gray-900">Newsletter & Press</h2>
+                <p className="text-sm text-gray-500">
+                  {cms.newsletter.pressItems.length} press items • {cms.newsletter.videos.length} embed videos
+                </p>
+              </div>
+              <button
+                onClick={() => saveCms(cms)}
+                disabled={cmsLoading}
+                className="px-4 py-2 bg-black text-yellow-400 rounded-lg text-sm font-bold hover:bg-gray-900 transition disabled:opacity-50"
+              >
+                {cmsLoading ? "Saving..." : "Save Changes"}
+              </button>
+            </div>
+
+            <div className="bg-white rounded-2xl p-5 shadow-sm space-y-4">
+              <h3 className="font-bold text-gray-900">Background</h3>
+              <ImageUploader 
+                label="Background Image" 
+                value={cms.newsletter.backgroundImage || ""} 
+                onChange={(v) => setCms(prev => ({ 
+                  ...prev, 
+                  newsletter: { ...prev.newsletter, backgroundImage: v || undefined }
+                }))} 
+              />
+            </div>
+
+            <div className="bg-white rounded-2xl p-5 shadow-sm space-y-4">
+              <div className="flex items-center justify-between">
+                <h3 className="font-bold text-gray-900">Press Items</h3>
+                <button
+                  onClick={() => {
+                    const newItem: PressItem = {
+                      id: generateId("press"),
+                      title: "",
+                      outlet: "",
+                      date: "",
+                      href: "",
+                    };
+                    setCms(prev => ({ 
+                      ...prev, 
+                      newsletter: { ...prev.newsletter, pressItems: [newItem, ...prev.newsletter.pressItems] }
+                    }));
+                  }}
+                  className="px-3 py-1.5 bg-yellow-100 text-yellow-900 rounded-lg text-sm font-semibold hover:bg-yellow-200 transition"
+                >
+                  + Add Press
+                </button>
+              </div>
+              <div className="space-y-3">
+                {cms.newsletter.pressItems.map((item, idx) => (
+                  <PressEditor
+                    key={item.id}
+                    item={item}
+                    onChange={(p) => {
+                      const newItems = [...cms.newsletter.pressItems];
+                      newItems[idx] = p;
+                      setCms(prev => ({ ...prev, newsletter: { ...prev.newsletter, pressItems: newItems } }));
+                    }}
+                    onRemove={() => {
+                      setCms(prev => ({ 
+                        ...prev, 
+                        newsletter: { ...prev.newsletter, pressItems: prev.newsletter.pressItems.filter((_, i) => i !== idx) }
+                      }));
+                    }}
+                  />
+                ))}
+              </div>
+            </div>
+
+            <div className="bg-white rounded-2xl p-5 shadow-sm space-y-4">
+              <div className="flex items-center justify-between">
+                <h3 className="font-bold text-gray-900">Embed Videos</h3>
+                <button
+                  onClick={() => {
+                    const newVideo: EmbedVideo = {
+                      id: generateId("embed"),
+                      title: "",
+                      youtubeId: "",
+                    };
+                    setCms(prev => ({ 
+                      ...prev, 
+                      newsletter: { ...prev.newsletter, videos: [newVideo, ...prev.newsletter.videos] }
+                    }));
+                  }}
+                  className="px-3 py-1.5 bg-yellow-100 text-yellow-900 rounded-lg text-sm font-semibold hover:bg-yellow-200 transition"
+                >
+                  + Add Video
+                </button>
+              </div>
+              <div className="space-y-3">
+                {cms.newsletter.videos.map((video, idx) => (
+                  <div key={video.id} className="p-4 border border-gray-200 rounded-xl space-y-3">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      <InputField 
+                        label="Title" 
+                        value={video.title} 
+                        onChange={(v) => {
+                          const newVideos = [...cms.newsletter.videos];
+                          newVideos[idx] = { ...newVideos[idx], title: v };
+                          setCms(prev => ({ ...prev, newsletter: { ...prev.newsletter, videos: newVideos } }));
+                        }} 
+                      />
+                      <InputField 
+                        label="YouTube ID" 
+                        value={video.youtubeId} 
+                        onChange={(v) => {
+                          const newVideos = [...cms.newsletter.videos];
+                          newVideos[idx] = { ...newVideos[idx], youtubeId: v };
+                          setCms(prev => ({ ...prev, newsletter: { ...prev.newsletter, videos: newVideos } }));
+                        }} 
+                        placeholder="e.g. dQw4w9WgXcQ"
+                      />
+                    </div>
+                    <div className="flex justify-end">
+                      <button
+                        onClick={() => {
+                          setCms(prev => ({ 
+                            ...prev, 
+                            newsletter: { ...prev.newsletter, videos: prev.newsletter.videos.filter((_, i) => i !== idx) }
+                          }));
+                        }}
+                        className="px-3 py-1.5 text-red-600 hover:bg-red-50 rounded-lg text-sm"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
         )}
       </main>
 
+      {/* Pass Detail Modal */}
       {selectedPass && (
         <div
           className="fixed inset-0 bg-black/70 flex items-center justify-center p-4 z-50"
@@ -639,21 +1586,6 @@ export default function AdminPage() {
                   <p className="text-xs text-gray-500 uppercase tracking-wide">Phone</p>
                   <p className="text-sm font-medium text-gray-900">{selectedPass.phone}</p>
                 </div>
-                <div>
-                  <p className="text-xs text-gray-500 uppercase tracking-wide">Status</p>
-                  <p className="text-sm font-medium text-gray-900">{selectedPass.status}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-gray-500 uppercase tracking-wide">IP Address</p>
-                  <p className="text-sm font-medium text-gray-900">{selectedPass.ip}</p>
-                </div>
-              </div>
-
-              <div>
-                <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">User Agent</p>
-                <p className="text-xs font-mono text-gray-600 bg-white p-2 rounded-lg break-all">
-                  {selectedPass.userAgent}
-                </p>
               </div>
 
               <button
@@ -662,314 +1594,6 @@ export default function AdminPage() {
               >
                 Download Pass Image
               </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {newsletterEditOpen && (
-        <div
-          className="fixed inset-0 bg-black/70 flex items-center justify-center p-4 z-50"
-          onClick={() => (newsletterSaving ? null : setNewsletterEditOpen(false))}
-        >
-          <div
-            className="bg-white rounded-3xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-auto"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="p-6 border-b border-gray-100 flex items-center justify-between sticky top-0 bg-white rounded-t-3xl">
-              <div>
-                <h3 className="text-xl font-black text-gray-900">Edit Newsletter</h3>
-                <p className="text-sm text-gray-500">Last publish: {cmsUpdated}</p>
-              </div>
-              <button
-                onClick={() => (newsletterSaving ? null : setNewsletterEditOpen(false))}
-                className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition"
-              >
-                ✕
-              </button>
-            </div>
-
-            <div className="p-6 space-y-6">
-              <div className="bg-gray-50 rounded-2xl p-4">
-                <p className="text-xs text-gray-500 uppercase tracking-wide mb-2">Background image</p>
-                <input
-                  value={newsletterDraft.backgroundImage}
-                  onChange={(e) => setNewsletterDraft((d) => ({ ...d, backgroundImage: e.target.value }))}
-                  className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-yellow-500 focus:outline-none transition text-sm"
-                  placeholder="/media/yarden/newsletter.jpg or https://..."
-                />
-              </div>
-
-              <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
-                <div className="p-4 bg-gray-50 flex items-center justify-between">
-                  <div>
-                    <p className="text-xs text-gray-500 uppercase tracking-wide">Press</p>
-                    <p className="text-sm font-bold text-gray-900">{newsletterDraft.pressItems.length} items</p>
-                  </div>
-                  <button
-                    onClick={() =>
-                      setNewsletterDraft((d) => ({
-                        ...d,
-                        pressItems: [makeBlankPress(), ...d.pressItems],
-                      }))
-                    }
-                    className="px-4 py-2 bg-yellow-100 text-yellow-900 rounded-lg text-sm font-bold hover:bg-yellow-200 transition"
-                  >
-                    Add Press
-                  </button>
-                </div>
-
-                <div className="p-4 space-y-4">
-                  {newsletterDraft.pressItems.map((p, idx) => (
-                    <div key={`${p.href || "press"}_${idx}`} className="rounded-2xl border border-gray-200 p-4">
-                      <div className="flex items-center justify-between gap-3 mb-3">
-                        <p className="text-sm font-black text-gray-900">Press #{idx + 1}</p>
-                        <button
-                          onClick={() =>
-                            setNewsletterDraft((d) => ({
-                              ...d,
-                              pressItems: d.pressItems.filter((_, i) => i !== idx),
-                            }))
-                          }
-                          className="px-3 py-2 bg-gray-100 text-gray-700 rounded-lg text-xs font-bold hover:bg-gray-200 transition"
-                        >
-                          Remove
-                        </button>
-                      </div>
-
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                        <input
-                          value={p.title}
-                          onChange={(e) =>
-                            setNewsletterDraft((d) => {
-                              const next = [...d.pressItems];
-                              next[idx] = { ...next[idx], title: e.target.value };
-                              return { ...d, pressItems: next };
-                            })
-                          }
-                          className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-yellow-500 focus:outline-none transition text-sm"
-                          placeholder="Title"
-                        />
-                        <input
-                          value={(p as any).outlet ?? ""}
-                          onChange={(e) =>
-                            setNewsletterDraft((d) => {
-                              const next = [...d.pressItems];
-                              next[idx] = { ...next[idx], outlet: e.target.value } as any;
-                              return { ...d, pressItems: next };
-                            })
-                          }
-                          className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-yellow-500 focus:outline-none transition text-sm"
-                          placeholder="Outlet"
-                        />
-                        <input
-                          value={(p as any).date ?? ""}
-                          onChange={(e) =>
-                            setNewsletterDraft((d) => {
-                              const next = [...d.pressItems];
-                              next[idx] = { ...next[idx], date: e.target.value } as any;
-                              return { ...d, pressItems: next };
-                            })
-                          }
-                          className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-yellow-500 focus:outline-none transition text-sm"
-                          placeholder="Date"
-                        />
-                        <input
-                          value={(p as any).tag ?? ""}
-                          onChange={(e) =>
-                            setNewsletterDraft((d) => {
-                              const next = [...d.pressItems];
-                              next[idx] = { ...next[idx], tag: e.target.value } as any;
-                              return { ...d, pressItems: next };
-                            })
-                          }
-                          className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-yellow-500 focus:outline-none transition text-sm"
-                          placeholder="Tag"
-                        />
-                        <input
-                          value={p.href}
-                          onChange={(e) =>
-                            setNewsletterDraft((d) => {
-                              const next = [...d.pressItems];
-                              next[idx] = { ...next[idx], href: e.target.value };
-                              return { ...d, pressItems: next };
-                            })
-                          }
-                          className="md:col-span-2 w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-yellow-500 focus:outline-none transition text-sm"
-                          placeholder="Link (https://...)"
-                        />
-                        <input
-                          value={(p as any).image ?? ""}
-                          onChange={(e) =>
-                            setNewsletterDraft((d) => {
-                              const next = [...d.pressItems];
-                              next[idx] = { ...next[idx], image: e.target.value } as any;
-                              return { ...d, pressItems: next };
-                            })
-                          }
-                          className="md:col-span-2 w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-yellow-500 focus:outline-none transition text-sm"
-                          placeholder="Image (/public path or https://...)"
-                        />
-                        <textarea
-                          value={(p as any).excerpt ?? ""}
-                          onChange={(e) =>
-                            setNewsletterDraft((d) => {
-                              const next = [...d.pressItems];
-                              next[idx] = { ...next[idx], excerpt: e.target.value } as any;
-                              return { ...d, pressItems: next };
-                            })
-                          }
-                          className="md:col-span-2 w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-yellow-500 focus:outline-none transition text-sm"
-                          rows={2}
-                          placeholder="Excerpt"
-                        />
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
-                <div className="p-4 bg-gray-50 flex items-center justify-between">
-                  <div>
-                    <p className="text-xs text-gray-500 uppercase tracking-wide">Videos</p>
-                    <p className="text-sm font-bold text-gray-900">{newsletterDraft.videos.length} items</p>
-                  </div>
-                  <button
-                    onClick={() =>
-                      setNewsletterDraft((d) => ({
-                        ...d,
-                        videos: [makeBlankVideo(), ...d.videos],
-                      }))
-                    }
-                    className="px-4 py-2 bg-yellow-100 text-yellow-900 rounded-lg text-sm font-bold hover:bg-yellow-200 transition"
-                  >
-                    Add Video
-                  </button>
-                </div>
-
-                <div className="p-4 space-y-4">
-                  {newsletterDraft.videos.map((v, idx) => (
-                    <div key={`${(v as any).youtubeId || "vid"}_${idx}`} className="rounded-2xl border border-gray-200 p-4">
-                      <div className="flex items-center justify-between gap-3 mb-3">
-                        <p className="text-sm font-black text-gray-900">Video #{idx + 1}</p>
-                        <button
-                          onClick={() =>
-                            setNewsletterDraft((d) => ({
-                              ...d,
-                              videos: d.videos.filter((_, i) => i !== idx),
-                            }))
-                          }
-                          className="px-3 py-2 bg-gray-100 text-gray-700 rounded-lg text-xs font-bold hover:bg-gray-200 transition"
-                        >
-                          Remove
-                        </button>
-                      </div>
-
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                        <input
-                          value={(v as any).title ?? ""}
-                          onChange={(e) =>
-                            setNewsletterDraft((d) => {
-                              const next = [...d.videos];
-                              next[idx] = { ...next[idx], title: e.target.value } as any;
-                              return { ...d, videos: next };
-                            })
-                          }
-                          className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-yellow-500 focus:outline-none transition text-sm"
-                          placeholder="Title"
-                        />
-                        <input
-                          value={(v as any).meta ?? ""}
-                          onChange={(e) =>
-                            setNewsletterDraft((d) => {
-                              const next = [...d.videos];
-                              next[idx] = { ...next[idx], meta: e.target.value } as any;
-                              return { ...d, videos: next };
-                            })
-                          }
-                          className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-yellow-500 focus:outline-none transition text-sm"
-                          placeholder="Meta"
-                        />
-                        <input
-                          value={(v as any).youtubeId ?? ""}
-                          onChange={(e) =>
-                            setNewsletterDraft((d) => {
-                              const next = [...d.videos];
-                              next[idx] = { ...next[idx], youtubeId: e.target.value } as any;
-                              return { ...d, videos: next };
-                            })
-                          }
-                          className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-yellow-500 focus:outline-none transition text-sm"
-                          placeholder="YouTube ID"
-                        />
-                        <input
-                          value={(v as any).href ?? ""}
-                          onChange={(e) =>
-                            setNewsletterDraft((d) => {
-                              const next = [...d.videos];
-                              next[idx] = { ...next[idx], href: e.target.value } as any;
-                              return { ...d, videos: next };
-                            })
-                          }
-                          className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-yellow-500 focus:outline-none transition text-sm"
-                          placeholder="YouTube Link"
-                        />
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <button
-                  onClick={() => (newsletterSaving ? null : setNewsletterEditOpen(false))}
-                  className="px-4 py-2 bg-gray-100 text-gray-800 rounded-lg text-sm font-bold hover:bg-gray-200 transition"
-                >
-                  Cancel
-                </button>
-
-                <button
-                  onClick={async () => {
-                    setNewsletterSaving(true);
-                    try {
-                      const cleaned: CmsData["newsletter"] = {
-                        backgroundImage: (newsletterDraft.backgroundImage ?? "").trim(),
-                        pressItems: (newsletterDraft.pressItems ?? [])
-                          .map((p: any) => ({
-                            ...p,
-                            title: (p.title ?? "").trim(),
-                            outlet: (p.outlet ?? "").trim(),
-                            date: (p.date ?? "").trim(),
-                            href: (p.href ?? "").trim(),
-                            image: (p.image ?? "").trim(),
-                            tag: (p.tag ?? "").trim() || undefined,
-                            excerpt: (p.excerpt ?? "").trim() || undefined,
-                          }))
-                          .filter((p: any) => p.title || p.href),
-                        videos: (newsletterDraft.videos ?? [])
-                          .map((v: any) => ({
-                            ...v,
-                            title: (v.title ?? "").trim(),
-                            meta: (v.meta ?? "").trim() || undefined,
-                            youtubeId: (v.youtubeId ?? "").trim(),
-                            href: (v.href ?? "").trim() || undefined,
-                          }))
-                          .filter((v: any) => v.title && v.youtubeId),
-                      };
-
-                      await patchCms({ newsletter: cleaned });
-                      setNewsletterEditOpen(false);
-                    } finally {
-                      setNewsletterSaving(false);
-                    }
-                  }}
-                  disabled={newsletterSaving}
-                  className="px-5 py-3 bg-black text-yellow-400 rounded-xl text-sm font-black hover:bg-gray-900 transition disabled:opacity-60"
-                >
-                  {newsletterSaving ? "Saving..." : "Save & Publish"}
-                </button>
-              </div>
             </div>
           </div>
         </div>

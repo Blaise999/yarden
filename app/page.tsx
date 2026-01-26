@@ -1,218 +1,145 @@
-// app/page.tsx
-import type { ReleaseItem } from "../components/landing/ReleasesSection";
-import type { VisualItem } from "../components/landing/VisualsSection";
-import type { ShowItem, TourConfig } from "../components/landing/TourSection";
-import type { MerchItem, StoreConfig } from "../components/landing/StoreSection";
+// app/privacy/page.tsx
+import Link from "next/link";
+import type { Metadata } from "next";
 
-import PageClient from "./page.client";
-
-type NavItem = { id: string; label: string };
-
-export type LinksShape = {
-  youtubeChannel: string;
-  youtubeVideosPage: string;
-
-  youtubeVideos: {
-    meAndU: string;
-    time: string;
-    wait: string;
-    soul: string;
-    busyBody: string;
-    ifeoma: string;
-  };
-
-  releases: {
-    towd: {
-      spotify: string;
-      apple: string;
-      youtube: string;
-      audiomack: string;
-      boomplay: string;
-    };
-    muse: {
-      spotify: string;
-      apple: string;
-      youtube: string;
-      audiomack: string;
-    };
-  };
+export const metadata: Metadata = {
+  title: "Privacy Policy - Yarden",
+  description: "Privacy policy for Yarden's website and services.",
 };
 
-export type HeroImageShape = { src: string; alt: string };
-
-const HEADER_OFFSET = 84; // still used for Hero foreground padding
-
-export default function Page() {
-  // ---- OFFICIAL LINKS (static server data) ----
-  const LINKS: LinksShape = {
-    youtubeChannel: "https://www.youtube.com/@thisisyarden",
-    youtubeVideosPage: "https://www.youtube.com/@thisisyarden/videos",
-
-    youtubeVideos: {
-      meAndU: "https://youtu.be/jtwvI2wm7Kg?si=HKUa2gVrfVRmIIWL",
-      time: "https://youtu.be/t09I8srzieU",
-      wait: "https://youtu.be/hZ40sphEARA?si=1Aiz05OU8_UJOZAx",
-      soul: "https://youtu.be/sE2wMOVFuYY?si=V6NSy4CFpqZZgtnD",
-      busyBody: "https://youtu.be/E0h6P_blGig?si=GgtQAyOvaZ11BdIp",
-      ifeoma: "https://youtu.be/NWQGjtyS6Vk?si=HV0d292X2gxvvVLh",
-    },
-
-    releases: {
-      towd: {
-        spotify: "https://open.spotify.com/album/6y3G0lel5n8pd29aTR41d9",
-        apple: "https://music.apple.com/us/album/the-one-who-descends-ep/1716592249",
-        youtube:
-          "https://music.youtube.com/playlist?list=OLAK5uy_mzLBDEm-gHIRKRbNtZVJPUEBam7-4Q5rE",
-        audiomack: "https://audiomack.com/thisisyarden/album/the-one-who-descends",
-        boomplay: "https://www.boomplay.com/albums/80894900",
-      },
-      muse: {
-        spotify: "https://open.spotify.com/album/63Fi9c3GqnaR2aTbm4lR5D",
-        apple: "https://music.apple.com/us/album/muse-ep/1837991942",
-        youtube:
-          "https://music.youtube.com/playlist?list=OLAK5uy_ncEjd3gh9V6wfc5OxDBPQZ6r7b5fAkx7k",
-        audiomack: "https://audiomack.com/thisisyarden/album/muse",
-      },
-    },
-  };
-
-  const nav: NavItem[] = [
-    { id: "top", label: "Home" },
-    { id: "releases", label: "Music" },
-    { id: "watch", label: "Watch" },
-    { id: "tour", label: "Tour" },
-    { id: "pass", label: "Pass" },
-    { id: "store", label: "Store" },
-    { id: "newsletter", label: "News" },
-  ];
-
-  // ✅ hero images (public paths)
-  const heroA: HeroImageShape = { src: "/Pictures/hero.jpg", alt: "Yarden cover — clean" };
-  const heroB: HeroImageShape = { src: "/Pictures/hero3.jpg", alt: "Yarden cover — detailed" };
-
-  // ---- DATA ----
-  const releases: ReleaseItem[] = [
-    {
-      title: "The One Who Descends",
-      subtitle: "Debut EP",
-      year: "2023",
-      art: "/Pictures/towd.jpg",
-      artSource: "Press kit / assets",
-      chips: ["New nostalgia", "World-building"],
-      links: {
-        spotify: LINKS.releases.towd.spotify,
-        apple: LINKS.releases.towd.apple,
-        youtube: LINKS.releases.towd.youtube,
-        audiomack: LINKS.releases.towd.audiomack,
-        boomplay: LINKS.releases.towd.boomplay,
-      },
-      primary: "spotify",
-    },
-    {
-      title: "Muse",
-      subtitle: "EP",
-      year: "2025",
-      art: "/Pictures/muse.jpg",
-      artSource: "Press kit / assets",
-      chips: ["Aesthetic era", "Visual-first"],
-      links: {
-        spotify: LINKS.releases.muse.spotify,
-        apple: LINKS.releases.muse.apple,
-        youtube: LINKS.releases.muse.youtube,
-        audiomack: LINKS.releases.muse.audiomack,
-      },
-      primary: "youtube",
-    },
-  ];
-
-  const visuals: VisualItem[] = [
-    { title: "ME & U", kind: "Official Music Video", year: "2025", href: LINKS.youtubeVideos.meAndU, tag: "Official" },
-    { title: "Time", kind: "Official Video", year: "2024", href: LINKS.youtubeVideos.time, tag: "Official" },
-    { title: "Wait", kind: "Official Video", year: "2024", href: LINKS.youtubeVideos.wait, tag: "Official" },
-    { title: "Soul", kind: "Official Visualizer", year: "2024", href: LINKS.youtubeVideos.soul, tag: "Visualizer" },
-    { title: "Ifeoma", kind: "Visualizer", year: "2023", href: LINKS.youtubeVideos.ifeoma, tag: "Visualizer" },
-    { title: "Busy Body", kind: "Visualizer", year: "2023", href: LINKS.youtubeVideos.busyBody, tag: "Visualizer" },
-  ];
-
-  const tourConfig: TourConfig = {
-    posterSrc: "/Pictures/yarden4.png",
-    posterAlt: "Tour poster",
-    headline: "Live shows.",
-    description: "Dates coming soon.",
-    ticketPortalHref: "",
-    notifyCtaLabel: "Notify me",
-    providerHint: "Bandsintown",
-  };
-
-  const shows: ShowItem[] = [
-    { id: "lagos_1", dateLabel: "APR 12", city: "Lagos", venue: "TBA", status: "announce" },
-    { id: "abuja_1", dateLabel: "MAY 03", city: "Abuja", venue: "TBA", status: "announce" },
-    { id: "london_1", dateLabel: "JUN 21", city: "London", venue: "TBA", status: "announce" },
-    { id: "berlin_1", dateLabel: "JUL 09", city: "Berlin", venue: "TBA", status: "announce" },
-  ];
-
-  const storeConfig: StoreConfig = {
-    eyebrow: "Store",
-    title: "Official merch.",
-    desc: "Limited drops.",
-    storeHref: "#",
-  };
-
-  const merch: MerchItem[] = [
-    {
-      id: "tee_black",
-      name: "Ankh Tee (Black)",
-      price: "₦ —",
-      images: ["/media/yarden/merch-tee.jpg"],
-      tag: "Drop soon",
-      available: false,
-      links: [{ label: "Notify me", href: "#" }],
-    },
-    {
-      id: "poster_a2",
-      name: "Era Poster (A2)",
-      price: "₦ —",
-      images: ["/media/yarden/merch-poster.jpg"],
-      tag: "Limited",
-      available: false,
-      links: [{ label: "Notify me", href: "#" }],
-    },
-    {
-      id: "ankh_cap",
-      name: "Ankh Cap",
-      price: "₦ —",
-      images: ["/media/yarden/merch-cap.jpg"],
-      tag: "New",
-      available: false,
-      links: [{ label: "Notify me", href: "#" }],
-    },
-    {
-      id: "lanyard",
-      name: "Pass Holder Lanyard",
-      price: "₦ —",
-      images: ["/media/yarden/merch-lanyard.jpg"],
-      tag: "Exclusive",
-      available: false,
-      links: [{ label: "Notify me", href: "#" }],
-    },
-  ];
-
-  const isAdmin = false;
-
+export default function PrivacyPage() {
   return (
-    <PageClient
-      headerOffset={HEADER_OFFSET}
-      links={LINKS}
-      nav={nav}
-      heroA={heroA}
-      heroB={heroB}
-      releases={releases}
-      visuals={visuals}
-      tourConfig={tourConfig}
-      shows={shows}
-      storeConfig={storeConfig}
-      merch={merch}
-      isAdmin={isAdmin}
-    />
+    <div className="min-h-screen bg-[#05060A] text-white">
+      {/* Header */}
+      <header className="fixed top-0 left-0 right-0 z-50 border-b border-white/10 bg-black/80 backdrop-blur-xl">
+        <div className="mx-auto max-w-7xl px-5 py-4 md:px-8">
+          <div className="flex items-center justify-between">
+            <Link href="/" className="flex items-center gap-3">
+              <div className="grid h-10 w-10 place-items-center rounded-2xl border border-white/12 bg-white/5">
+                <span className="text-lg leading-none">☥</span>
+              </div>
+              <span className="text-lg font-semibold tracking-tight">Yarden</span>
+            </Link>
+            <Link 
+              href="/"
+              className="rounded-full border border-white/12 bg-white/5 px-4 py-2 text-sm font-medium text-white/80 hover:bg-white/10 transition"
+            >
+              ← Back Home
+            </Link>
+          </div>
+        </div>
+      </header>
+
+      {/* Main Content */}
+      <main className="pt-24 pb-16">
+        <div className="mx-auto max-w-4xl px-5 md:px-8">
+          {/* Hero Section */}
+          <div className="mb-12">
+            <div className="inline-flex items-center gap-2 rounded-full border border-white/12 bg-white/5 px-4 py-2 text-xs uppercase tracking-widest text-white/60 mb-6">
+              <span className="opacity-70">☥</span>
+              Legal
+            </div>
+            <h1 className="text-4xl md:text-5xl font-semibold tracking-tight mb-4">
+              Privacy Policy
+            </h1>
+            <p className="text-white/60">
+              Last updated: January 2026
+            </p>
+          </div>
+
+          {/* Content */}
+          <div className="space-y-8 text-white/70 leading-relaxed">
+            <section className="rounded-3xl border border-white/10 bg-white/[0.02] p-8">
+              <h2 className="text-xl font-semibold text-white mb-4">1. Introduction</h2>
+              <p className="mb-4">
+                Welcome to Yarden ("we," "our," or "us"). We are committed to protecting your personal 
+                information and your right to privacy. This Privacy Policy explains how we collect, use, 
+                disclose, and safeguard your information when you visit our website.
+              </p>
+              <p>
+                Please read this privacy policy carefully. If you do not agree with the terms of this 
+                privacy policy, please do not access the site.
+              </p>
+            </section>
+
+            <section className="rounded-3xl border border-white/10 bg-white/[0.02] p-8">
+              <h2 className="text-xl font-semibold text-white mb-4">2. Information We Collect</h2>
+              <p className="mb-4">We may collect information about you in a variety of ways:</p>
+              <ul className="list-disc list-inside space-y-2 ml-4">
+                <li><strong className="text-white">Personal Data:</strong> Name, email address, and other contact details you voluntarily provide.</li>
+                <li><strong className="text-white">Usage Data:</strong> Information about how you use our website, including IP address, browser type, and pages visited.</li>
+                <li><strong className="text-white">Newsletter Data:</strong> Email address when you subscribe to our newsletter.</li>
+                <li><strong className="text-white">Pass Data:</strong> Information related to your Yard Pass registration.</li>
+              </ul>
+            </section>
+
+            <section className="rounded-3xl border border-white/10 bg-white/[0.02] p-8">
+              <h2 className="text-xl font-semibold text-white mb-4">3. How We Use Your Information</h2>
+              <p className="mb-4">We use the information we collect to:</p>
+              <ul className="list-disc list-inside space-y-2 ml-4">
+                <li>Provide, operate, and maintain our website</li>
+                <li>Send you newsletters and promotional communications (with your consent)</li>
+                <li>Respond to your comments, questions, and requests</li>
+                <li>Monitor and analyze usage and trends</li>
+                <li>Improve our website and user experience</li>
+              </ul>
+            </section>
+
+            <section className="rounded-3xl border border-white/10 bg-white/[0.02] p-8">
+              <h2 className="text-xl font-semibold text-white mb-4">4. Sharing Your Information</h2>
+              <p>
+                We do not sell, trade, or otherwise transfer your personally identifiable information 
+                to outside parties except as described in this policy. We may share information with 
+                trusted third parties who assist us in operating our website, conducting our business, 
+                or serving our users, as long as those parties agree to keep this information confidential.
+              </p>
+            </section>
+
+            <section className="rounded-3xl border border-white/10 bg-white/[0.02] p-8">
+              <h2 className="text-xl font-semibold text-white mb-4">5. Cookies</h2>
+              <p>
+                Our website may use cookies to enhance your experience. Cookies are small files that a 
+                site or its service provider transfers to your computer's hard drive through your web 
+                browser that enables the site's or service provider's systems to recognize your browser 
+                and capture and remember certain information.
+              </p>
+            </section>
+
+            <section className="rounded-3xl border border-white/10 bg-white/[0.02] p-8">
+              <h2 className="text-xl font-semibold text-white mb-4">6. Your Rights</h2>
+              <p className="mb-4">Depending on your location, you may have the right to:</p>
+              <ul className="list-disc list-inside space-y-2 ml-4">
+                <li>Access the personal data we hold about you</li>
+                <li>Request correction of inaccurate data</li>
+                <li>Request deletion of your data</li>
+                <li>Object to processing of your data</li>
+                <li>Request restriction of processing</li>
+                <li>Data portability</li>
+                <li>Withdraw consent</li>
+              </ul>
+            </section>
+
+            <section className="rounded-3xl border border-white/10 bg-white/[0.02] p-8">
+              <h2 className="text-xl font-semibold text-white mb-4">7. Contact Us</h2>
+              <p className="mb-4">
+                If you have questions or comments about this policy, you may contact us at:
+              </p>
+              <p>
+                <a href="mailto:privacy@yarden.music" className="text-white underline underline-offset-4 hover:text-white/80 transition">
+                  privacy@yarden.music
+                </a>
+              </p>
+            </section>
+          </div>
+        </div>
+      </main>
+
+      {/* Footer */}
+      <footer className="border-t border-white/10 py-8">
+        <div className="mx-auto max-w-7xl px-5 md:px-8 text-center text-xs text-white/40">
+          © 2026 Yarden. All rights reserved. Website operated in association with Etins Records.
+        </div>
+      </footer>
+    </div>
   );
 }

@@ -1,36 +1,114 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Yarden Site - Updated
 
-## Getting Started
+## What's New
 
-First, run the development server:
+### 1. Release Section Color Themes
+- **Muse** - Yellow theme (golden glow effect on scroll)
+- **The One Who Descends** - Cream/amber theme (warm glow effect on scroll)
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+The colors morph as you scroll through the releases.
+
+### 2. Full CMS Admin Dashboard
+
+Access the admin panel at `/admin/passes`
+
+**Features by Section:**
+
+#### Releases Management
+- Add/edit/delete music releases
+- Upload cover art from phone (tap the image to upload)
+- Or paste image URL directly
+- Configure all streaming platform links (Spotify, Apple Music, YouTube, etc.)
+- Add tracklist with featured artists
+- Set release type (EP, Album, Single)
+- Toggle visibility (enabled/disabled)
+
+#### Videos Management
+- Add/edit/delete music videos
+- Paste YouTube URL and thumbnail auto-imports
+- Supports: youtu.be and youtube.com URLs
+- Set video type (Official Video, Music Video, Visualizer)
+- Add tags like "New"
+- Toggle visibility
+
+#### Tour Management
+- Add/edit/delete tour dates
+- Upload tour poster from phone
+- Set show status (Announced, On Sale, Sold Out)
+- Configure ticket portal link
+- Edit headline and description
+
+#### Merch Management
+- Add/edit/delete merchandise items
+- Upload product images from phone
+- Set price and availability
+- Add tags (New, Limited, etc.)
+
+#### Newsletter Management
+- Add/edit press items with images
+- Add embed videos with YouTube IDs
+- Upload background image
+
+### 3. Mobile-Friendly Image Upload
+All image fields support:
+- Tap to upload from device camera roll
+- Works on phones for easy content updates
+- Supported formats: JPEG, PNG, WebP, GIF
+- Max size: 10MB
+
+### 4. YouTube Auto-Import
+When you paste a YouTube URL in the videos section:
+- Thumbnail is automatically imported
+- Video ID is extracted and shown
+- Preview thumbnail displays in editor
+
+### 5. Pass Generator
+The pass generator is working:
+- Fill in name, email, phone
+- Select Angel or Descendant
+- Generates a unique pass with QR-like member mark
+- Saves to storage (in-memory for dev, Vercel KV for production)
+- Can download as PNG
+
+## Setup
+
+1. Extract the zip
+2. Run `npm install`
+3. Set `ADMIN_PASSWORD` in `.env.local`
+4. Run `npm run dev`
+5. Access admin at `http://localhost:3000/admin/passes`
+
+## Environment Variables
+
+```env
+# Required for admin access
+ADMIN_PASSWORD=your-secure-password
+
+# Optional: Vercel KV for production storage
+KV_REST_API_URL=...
+KV_REST_API_TOKEN=...
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Admin Login
+Use the password set in `ADMIN_PASSWORD` environment variable.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## File Structure
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
-
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```
+app/
+├── admin/passes/          # Admin dashboard
+├── api/
+│   ├── admin/
+│   │   ├── cms/           # CMS API routes
+│   │   ├── login/         # Admin auth
+│   │   ├── passes/        # Pass management
+│   │   └── upload/        # Image upload
+│   └── passes/            # Public pass API
+content/
+├── cmsTypes.ts           # TypeScript types for CMS
+└── defaultCms.ts         # Default content data
+components/landing/        # All section components
+libs/
+└── passStorage.ts        # Pass storage with fallback
+public/uploads/           # Uploaded images go here
+```
