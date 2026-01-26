@@ -22,9 +22,28 @@ export default function Page({ searchParams }: PageProps) {
     },
   };
 
-  // ✅ These casts keep TS happy even if Hero expects StaticImageData or a stricter object
-  const heroA = { src: "/images/hero-a.jpg", alt: "Hero A" } as unknown as HeroImageShape;
-  const heroB = { src: "/images/hero-b.jpg", alt: "Hero B" } as unknown as HeroImageShape;
+  // ✅ SAFE FALLBACKS (prevents TS underlines + runtime crashes)
+  const museSpotify =
+    links.releases?.muse?.spotify ??
+    links.releases?.spotify ??
+    links.spotify ??
+    "#";
+
+  const meAndU =
+    links.youtubeVideos?.meAndU ??
+    links.youtubeVideos?.["meAndU"] ??
+    "#";
+
+  /**
+   * ✅ IMPORTANT:
+   * Your Vercel is returning 400 for /images/hero-a.jpg and /images/hero-b.jpg
+   * That means the files likely don't exist in /public/images/.
+   *
+   * Use these built-in Next assets for now (they always exist),
+   * then switch back to /images/hero-a.jpg when you actually add the files.
+   */
+  const heroA = { src: "/vercel.svg", alt: "Hero A" } as unknown as HeroImageShape;
+  const heroB = { src: "/next.svg", alt: "Hero B" } as unknown as HeroImageShape;
 
   const nav = [
     { id: "top", label: "Home" },
@@ -36,13 +55,24 @@ export default function Page({ searchParams }: PageProps) {
     { id: "newsletter", label: "Newsletter" },
   ];
 
-  // Use `as any` until you paste the exact exported types from those sections
+  // Still `as any` until you paste your exact exported types
   const releases = [
-    { id: "muse", title: "Muse", year: "2026", art: "/images/releases/muse.jpg" },
+    {
+      id: "muse",
+      title: "Muse",
+      year: "2026",
+      art: "/images/releases/muse.jpg",
+      spotify: museSpotify,
+    },
   ] as any;
 
   const visuals = [
-    { id: "me-and-u", title: "ME & U", thumb: "/images/visuals/me-and-u.jpg", href: links.youtubeVideos.meAndU },
+    {
+      id: "me-and-u",
+      title: "ME & U",
+      thumb: "/images/visuals/me-and-u.jpg",
+      href: meAndU, // ✅ fixed (no underline)
+    },
   ] as any;
 
   const tourConfig = { posterSrc: "/images/tour/poster.jpg" } as any;

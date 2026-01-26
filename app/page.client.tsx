@@ -6,22 +6,12 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import LandingHeader from "../components/Header";
 import { HeroSection as Hero } from "../components/landing/HeroStage";
 
-import {
-  ReleasesSection,
-  type ReleaseItem,
-} from "../components/landing/ReleasesSection";
+import { ReleasesSection, type ReleaseItem } from "../components/landing/ReleasesSection";
 import { VisualsSection, type VisualItem } from "../components/landing/VisualsSection";
-import {
-  TourSection,
-  type ShowItem,
-  type TourConfig,
-} from "../components/landing/TourSection";
+import { TourSection, type ShowItem, type TourConfig } from "../components/landing/TourSection";
 
 import PassSection from "../components/landing/pass/PassGenerator";
-import StoreSection, {
-  type MerchItem,
-  type StoreConfig,
-} from "../components/landing/StoreSection";
+import StoreSection, { type MerchItem, type StoreConfig } from "../components/landing/StoreSection";
 import { NewsletterSection } from "../components/landing/NewsletterSection";
 
 import Footer from "../components/landing/Footer";
@@ -29,21 +19,21 @@ import { PassModal } from "../components/landing/PassModal";
 
 /**
  * Export types here so `app/page.tsx` can import them safely
- * (and we avoid importing from `./page` which caused the build error).
  */
 export type LinksShape = {
-  youtubeChannel: string;
-  youtubeVideosPage: string;
-  youtubeVideos: Record<string, string>;
-  releases: {
-    muse: { spotify: string };
+  youtubeChannel?: string;
+  youtubeVideosPage?: string;
+  youtubeVideos?: Record<string, string>;
+  releases?: {
+    muse?: { spotify?: string };
+    spotify?: string;
     [key: string]: any;
   };
+  spotify?: string;
 };
 
 /**
- * This guarantees heroA/heroB match the Hero component prop type.
- * If Hero changes its expected shape (e.g. StaticImageData), this stays correct.
+ * This keeps heroA/heroB aligned with the Hero component prop type.
  */
 export type HeroImageShape = React.ComponentProps<typeof Hero>["heroA"];
 
@@ -114,6 +104,26 @@ export default function PageClient(props: PageClientProps) {
     isAdmin,
   } = props;
 
+  // ✅ SAFETY: prevent runtime crash when links are missing/mismatched
+  const museSpotify =
+    (LINKS as any)?.releases?.muse?.spotify ??
+    (LINKS as any)?.releases?.spotify ??
+    (LINKS as any)?.spotify ??
+    "#";
+
+  const youtubeChannel =
+    (LINKS as any)?.youtubeChannel ??
+    "#";
+
+  const youtubeVideosPage =
+    (LINKS as any)?.youtubeVideosPage ??
+    "#";
+
+  const meAndU =
+    (LINKS as any)?.youtubeVideos?.meAndU ??
+    (LINKS as any)?.youtubeVideos?.["meAndU"] ??
+    "#";
+
   const [active, setActive] = useState<string>("top");
   const [menuOpen, setMenuOpen] = useState(false);
   const [passOpen, setPassOpen] = useState(false);
@@ -142,17 +152,21 @@ export default function PageClient(props: PageClientProps) {
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 
+  // ✅ SAFETY: heroA/heroB might be StaticImageData or string-based, so we normalize src
+  const heroASrc = (heroA as any)?.src ?? "";
+  const heroBSrc = (heroB as any)?.src ?? "";
+
   const tintSources = useMemo<Record<string, string>>(
     () => ({
-      top: (heroA as any).src,
-      releases: releases[0]?.art ?? (heroA as any).src,
-      watch: (heroB as any).src,
-      tour: (tourConfig as any).posterSrc ?? (heroB as any).src,
-      pass: (heroA as any).src,
-      store: merch[0]?.images?.[0] ?? (heroB as any).src,
-      newsletter: (heroB as any).src,
+      top: heroASrc,
+      releases: releases[0]?.art ?? heroASrc,
+      watch: heroBSrc,
+      tour: (tourConfig as any)?.posterSrc ?? heroBSrc,
+      pass: heroASrc,
+      store: merch[0]?.images?.[0] ?? heroBSrc,
+      newsletter: heroBSrc,
     }),
-    [heroA, heroB, releases, tourConfig, merch]
+    [heroASrc, heroBSrc, releases, tourConfig, merch]
   );
 
   // scroll spy
@@ -200,22 +214,22 @@ export default function PageClient(props: PageClientProps) {
           onOpenPass={onOpenPass}
           onLogo={() => onNav("top")}
           tintSources={tintSources}
-          heroBgSrc={(heroA as any).src}
-          heroAltSrc={(heroB as any).src}
-          listenHref={LINKS.releases.muse.spotify}
+          heroBgSrc={heroASrc}
+          heroAltSrc={heroBSrc}
+          listenHref={museSpotify} // ✅ fixed
         />
 
         <main id="top">
           <Hero
             heroA={heroA}
             heroB={heroB}
-            listenHref={LINKS.releases.muse.spotify}
-            followHref={LINKS.youtubeChannel}
+            listenHref={museSpotify} // ✅ fixed
+            followHref={youtubeChannel} // ✅ safe
             onOpenPass={onOpenPass}
             nowPlaying={{
               title: "ME & U",
               hint: "Official music video",
-              href: LINKS.youtubeVideos.meAndU,
+              href: meAndU, // ✅ fixed
             }}
             eraLabel="Muse"
             headerOffset={headerOffset}
@@ -229,19 +243,14 @@ export default function PageClient(props: PageClientProps) {
           <section id="watch" className="scroll-mt-24">
             <VisualsSection
               items={visuals}
-              channelHref={LINKS.youtubeChannel}
-              videosHref={LINKS.youtubeVideosPage}
+              channelHref={youtubeChannel} // ✅ safe
+              videosHref={youtubeVideosPage} // ✅ safe
               maxItems={8}
             />
           </section>
 
           <section id="tour" className="scroll-mt-24">
-            <TourSection
-              shows={shows}
-              config={tourConfig}
-              onOpenPass={onOpenPass}
-              editable={isAdmin}
-            />
+            <TourSection shows={shows} config={tourConfig} onOpenPass={onOpenPass} editable={isAdmin} />
           </section>
 
           <section id="pass" className="scroll-mt-24">
