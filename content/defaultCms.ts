@@ -367,7 +367,6 @@ export const DEFAULT_CMS: CmsData = {
         image:
           "https://image.api.sportal365.com/process/smp-images-production/pulse.ng/26072024/8fbde703-9a86-4aca-aff0-49d90c576d96",
         tag: "Press",
-        excerpt: 'Quick coverage that's easy to share when people ask "who\'s that?"',
       },
       {
         id: "youtube-channel",
