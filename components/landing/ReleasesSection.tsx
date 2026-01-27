@@ -115,8 +115,8 @@ const PLATFORM_LABEL: Record<PlatformKey, string> = {
 };
 
 function pickPrimaryLink(links: PlatformLinks, primary?: PlatformKey) {
-  if (primary && links[primary]) return { key: primary, href: links[primary]! };
-  for (const k of PLATFORM_ORDER) if (links[k]) return { key: k, href: links[k]! };
+  if (primary && links?.[primary]) return { key: primary, href: links[primary]! };
+  for (const k of PLATFORM_ORDER) if (links?.[k]) return { key: k, href: links[k]! };
   return null;
 }
 
@@ -174,22 +174,51 @@ function resolveTracklist(
   r: ReleaseItem
 ): { tracks: TrackItem[]; source?: LinkSource } | null {
   if (r.tracklist?.length) return { tracks: r.tracklist, source: r.tracklistSource };
-  const key = normalizeTitleKey(r.title);
-  return TRACKLIST_DB[key]
-    ? { tracks: TRACKLIST_DB[key].tracks, source: TRACKLIST_DB[key].source }
+
+  // ✅ try multiple keys (title + subtitle + art filename)
+  const blob = `${r.title ?? ""} ${r.subtitle ?? ""} ${filenameFromPath(r.art || "")}`;
+  const key = normalizeTitleKey(blob);
+
+  // handle some common variants
+  if (key.includes("muse")) return TRACKLIST_DB["muse"] ? TRACKLIST_DB["muse"] : null;
+  if (
+    key.includes("theonewhodescends") ||
+    key.includes("onewhodescends") ||
+    key.includes("towd") ||
+    key.includes("descends")
+  ) {
+    return TRACKLIST_DB["theonewhodescends"] ? TRACKLIST_DB["theonewhodescends"] : null;
+  }
+
+  const k2 = normalizeTitleKey(r.title);
+  return TRACKLIST_DB[k2]
+    ? { tracks: TRACKLIST_DB[k2].tracks, source: TRACKLIST_DB[k2].source }
     : null;
 }
 
+// ✅ stronger type inference so EP filter won't hide Muse
 function inferFormat(r: ReleaseItem) {
   if (r.format) return r.format;
+
   const chips = r.chips ?? [];
   const hit = chips.find((c) => /\b(ep|album|single|mixtape)\b/i.test(c));
   if (hit) return hit.toUpperCase() === "EP" ? "EP" : hit;
+
+  const blob = `${r.title ?? ""} ${r.subtitle ?? ""}`.toLowerCase();
+  if (/\bep\b/.test(blob)) return "EP";
+  if (/\balbum\b/.test(blob)) return "Album";
+  if (/\bsingle\b/.test(blob)) return "Single";
+
+  const tl = resolveTracklist(r)?.tracks?.length ?? 0;
+  if (tl >= 10) return "Album";
+  if (tl >= 4) return "EP";
+  if (tl > 0) return "Single";
+
   return undefined;
 }
 
 function availabilityLine(r: ReleaseItem) {
-  const platformCount = PLATFORM_ORDER.filter((k) => !!r.links[k]).length;
+  const platformCount = PLATFORM_ORDER.filter((k) => !!r.links?.[k]).length;
   const hasSmart = !!r.fanLink;
   const bits: string[] = [];
   if (hasSmart) bits.push("Smart link");
@@ -217,7 +246,7 @@ function isType(r: ReleaseItem, t: "ep" | "single" | "album") {
 }
 
 function countPlatforms(links: PlatformLinks) {
-  return PLATFORM_ORDER.filter((k) => !!links[k]).length;
+  return PLATFORM_ORDER.filter((k) => !!links?.[k]).length;
 }
 
 function useLockBody(locked: boolean) {
@@ -240,24 +269,24 @@ function useLockBody(locked: boolean) {
 
 /**
  * 🎛 Theme morph (scroll-driven)
- * Muse -> YELLOW, TOWD -> CREAM
- * We animate CSS var --morph (0..1) on wrappers that have data-theme.
+ * Muse -> yellow, TOWD -> cream
+ * We set CSS vars on the wrapper + flip --morph to 1/0 in ScrollTrigger callbacks.
  */
 type ThemeKey = "muse" | "towd";
 
 function themeKeyForRelease(r: ReleaseItem): ThemeKey | null {
-  const k = normalizeTitleKey(r.title);
+  const artName = filenameFromPath(r.art || "").toLowerCase();
+  const raw = `${r.title ?? ""} ${r.subtitle ?? ""} ${(r.chips ?? []).join(" ")} ${artName}`.toLowerCase();
+  const k = normalizeTitleKey(raw);
 
-  // ✅ Muse
-  if (k === "muse" || k.includes("muse")) return "muse";
+  // ✅ Muse (robust)
+  if (k.includes("muse")) return "muse";
 
-  // ✅ The One Who Descends (TOWD)
+  // ✅ TOWD (robust)
   if (
-    k === "theonewhodescends" ||
     k.includes("theonewhodescends") ||
     k.includes("onewhodescends") ||
     k.includes("towd") ||
-    k.endsWith("descends") ||
     k.includes("descends")
   )
     return "towd";
@@ -265,51 +294,45 @@ function themeKeyForRelease(r: ReleaseItem): ThemeKey | null {
   return null;
 }
 
+// ✅ IMPORTANT: CSS vars must be STRINGS (no px/unit issues)
 function themeVars(key: ThemeKey | null) {
   if (!key) return undefined;
 
-  // We store RGB as "r g b" so we can use rgb(var(--toneA) / alpha)
-  // Also: set a small non-zero base so the tint shows even before ScrollTrigger enters.
+  // Muse = yellow
   if (key === "muse") {
     return {
-      ["--morph" as any]: 0.14,
-      // Muse = punchy yellow (clean, premium)
-      ["--toneA" as any]: "255 214 10", // richer yellow
-      ["--toneB" as any]: "250 204 21", // yellow-400
+      ["--morph" as any]: "0",
+      ["--toneA" as any]: "255 214 10", // bright yellow
+      ["--toneB" as any]: "250 204 21", // deeper yellow
       ["--toneRing" as any]: "255 214 10",
     } as React.CSSProperties;
   }
 
-  // TOWD = warm cream
+  // TOWD = cream
   return {
-    ["--morph" as any]: 0.14,
-    ["--toneA" as any]: "255 248 220", // cornsilk-ish
-    ["--toneB" as any]: "254 243 199", // amber-100
+    ["--morph" as any]: "0",
+    ["--toneA" as any]: "255 248 220", // soft cream
+    ["--toneB" as any]: "254 243 199", // warm cream
     ["--toneRing" as any]: "255 237 185",
   } as React.CSSProperties;
 }
 
 function MorphSurfaceLayers() {
-  // uses CSS vars from wrapper:
-  // --morph (0..1), --toneA, --toneB, --toneRing
   return (
     <>
-      {/* surface tint */}
       <div
         className="pointer-events-none absolute inset-0 z-0 transition-opacity duration-500"
         style={{
-          // more reliable than "var(--morph)" on some mobile render paths
-          opacity: "calc(var(--morph) * 1)" as any,
+          opacity: "var(--morph)" as any,
           background:
-            "linear-gradient(145deg, rgb(var(--toneA) / 0.42) 0%, rgb(var(--toneB) / 0.20) 42%, transparent 82%)",
+            "linear-gradient(145deg, rgb(var(--toneA) / 0.38) 0%, rgb(var(--toneB) / 0.20) 40%, transparent 80%)",
         }}
       />
-      {/* ring tint */}
       <div
         className="pointer-events-none absolute inset-0 z-0 rounded-[28px] border transition-opacity duration-500"
         style={{
-          opacity: "calc(var(--morph) * 1)" as any,
-          borderColor: "rgb(var(--toneRing) / 0.42)" as any,
+          opacity: "var(--morph)" as any,
+          borderColor: "rgb(var(--toneRing) / 0.38)" as any,
         }}
       />
     </>
@@ -321,9 +344,9 @@ function MorphCoverWash() {
     <div
       className="pointer-events-none absolute inset-0 mix-blend-overlay transition-opacity duration-500"
       style={{
-        opacity: "calc(var(--morph) * 1)" as any,
+        opacity: "var(--morph)" as any,
         background:
-          "linear-gradient(180deg, rgb(var(--toneA) / 0.34) 0%, rgb(var(--toneB) / 0.16) 52%, transparent 100%)",
+          "linear-gradient(180deg, rgb(var(--toneA) / 0.32) 0%, rgb(var(--toneB) / 0.16) 50%, transparent 100%)",
       }}
     />
   );
@@ -334,16 +357,16 @@ function MorphGlow() {
     <div
       className="pointer-events-none absolute left-1/2 top-1/2 h-48 w-48 -translate-x-1/2 -translate-y-1/2 rounded-full transition-opacity duration-500"
       style={{
-        opacity: "calc(var(--morph) * 1)" as any,
-        background: "radial-gradient(circle, rgb(var(--toneA) / 0.50), transparent 70%)",
-        filter: "blur(22px)",
+        opacity: "var(--morph)" as any,
+        background: "radial-gradient(circle, rgb(var(--toneA) / 0.46), transparent 70%)",
+        filter: "blur(18px)",
       }}
     />
   );
 }
 
 /**
- * Clean “More platforms” dropdown: keeps cards readable.
+ * Clean “More platforms” dropdown
  */
 function MorePlatformsDropdown(props: {
   links: PlatformLinks;
@@ -355,7 +378,7 @@ function MorePlatformsDropdown(props: {
   const [open, setOpen] = useState(false);
 
   const items = useMemo(() => {
-    return PLATFORM_ORDER.filter((k) => !!props.links[k])
+    return PLATFORM_ORDER.filter((k) => !!props.links?.[k])
       .filter((k) => (props.excludeKey ? k !== props.excludeKey : true))
       .map((k) => ({
         key: k,
@@ -446,7 +469,7 @@ function StatChip(props: { label: string; value: string }) {
 }
 
 /**
- * 🔥 Upgraded “Details Sheet”
+ * 🔥 Details Sheet
  */
 function ReleaseDetailsSheet(props: {
   open: boolean;
@@ -493,7 +516,7 @@ function ReleaseDetailsSheet(props: {
   const coverLabel = normalizeSourceLabel(coverLabelRaw);
   const coverHref = r.artSourceHref;
 
-  const platformItems = PLATFORM_ORDER.filter((k) => !!r.links[k]).map((k) => ({
+  const platformItems = PLATFORM_ORDER.filter((k) => !!r.links?.[k]).map((k) => ({
     key: k,
     label: PLATFORM_LABEL[k],
     href: r.links[k]!,
@@ -588,13 +611,22 @@ function ReleaseDetailsSheet(props: {
           <div className="grid gap-4 md:grid-cols-[140px_1fr] md:items-start">
             <div className="relative overflow-hidden rounded-2xl ring-1 ring-white/10">
               <div className="relative aspect-square">
-                <Image src={r.art} alt={`${r.title} cover`} fill sizes="200px" className="object-cover" />
+                {/* ✅ Fix mobile blur: give correct responsive sizes */}
+                <Image
+                  src={r.art}
+                  alt={`${r.title} cover`}
+                  fill
+                  sizes="(max-width: 768px) 70vw, 200px"
+                  className="object-cover"
+                  quality={92}
+                />
               </div>
               <div className="absolute inset-0 bg-gradient-to-t from-black/45 via-transparent to-transparent" />
               <div
                 className="pointer-events-none absolute -left-10 -top-10 h-36 w-36 rounded-full opacity-[0.22]"
                 style={{
-                  background: "radial-gradient(circle, rgba(255,255,255,0.22), rgba(255,255,255,0.0) 70%)",
+                  background:
+                    "radial-gradient(circle, rgba(255,255,255,0.22), rgba(255,255,255,0.0) 70%)",
                   filter: "blur(12px)",
                 }}
               />
@@ -669,7 +701,9 @@ function ReleaseDetailsSheet(props: {
                 <div className="text-xs uppercase tracking-[0.22em] text-white/55">Tracklist</div>
                 <div className="mt-1 text-sm text-white/70">
                   {trackResolved?.tracks?.length
-                    ? `${trackResolved.tracks.length} track${trackResolved.tracks.length === 1 ? "" : "s"}`
+                    ? `${trackResolved.tracks.length} track${
+                        trackResolved.tracks.length === 1 ? "" : "s"
+                      }`
                     : "Tracklist not available yet"}
                 </div>
               </div>
@@ -690,9 +724,13 @@ function ReleaseDetailsSheet(props: {
                       </div>
                       <div className="min-w-0 flex-1">
                         <div className="truncate text-white">{t.title}</div>
-                        {t.meta ? <div className="mt-0.5 truncate text-xs text-white/55">{t.meta}</div> : null}
+                        {t.meta ? (
+                          <div className="mt-0.5 truncate text-xs text-white/55">{t.meta}</div>
+                        ) : null}
                       </div>
-                      {t.duration ? <div className="text-xs tabular-nums text-white/45">{t.duration}</div> : null}
+                      {t.duration ? (
+                        <div className="text-xs tabular-nums text-white/45">{t.duration}</div>
+                      ) : null}
                     </li>
                   ))}
                 </ol>
@@ -700,8 +738,8 @@ function ReleaseDetailsSheet(props: {
             ) : (
               <div className="mt-3 rounded-2xl bg-white/[0.02] p-4 ring-1 ring-white/10">
                 <div className="text-sm text-white/60">
-                  Add a <span className="text-white/85">tracklist</span> to the release item (or it will fall back to the
-                  internal DB when available).
+                  Add a <span className="text-white/85">tracklist</span> to the release item (or it will
+                  fall back to the internal DB when available).
                 </div>
               </div>
             )}
@@ -876,215 +914,228 @@ export function ReleasesSection(props: {
     const root = rootRef.current;
     if (!root) return;
 
+    const isMobile = window.matchMedia("(max-width: 767px)").matches;
+    const finePointer = window.matchMedia("(pointer: fine)").matches;
+
     const morphTriggers: ScrollTriggerType[] = [];
-    const mm = gsap.matchMedia();
+    const coverParallaxTriggers: ScrollTriggerType[] = [];
+
+    const setMorph = (el: HTMLElement, v: 0 | 1) => {
+      // ✅ zero unit bugs (no px) -> fixes "gradient not working"
+      el.style.setProperty("--morph", v === 1 ? "1" : "0");
+    };
 
     const ctx = gsap.context(() => {
-      const bg = root.querySelector<HTMLElement>("[data-releases-bg='true']");
-      if (bg) {
-        gsap.fromTo(
-          bg,
-          { y: 18, opacity: 0.9 },
-          {
-            y: -18,
-            opacity: 1,
-            ease: "none",
-            scrollTrigger: {
-              trigger: root,
+      // background parallax (skip mobile for crispness)
+      if (!isMobile) {
+        const bg = root.querySelector<HTMLElement>("[data-releases-bg='true']");
+        if (bg) {
+          gsap.fromTo(
+            bg,
+            { y: 18, opacity: 0.9 },
+            {
+              y: -18,
+              opacity: 1,
+              ease: "none",
+              scrollTrigger: {
+                trigger: root,
+                start: "top bottom",
+                end: "bottom top",
+                scrub: 0.5,
+              },
+            }
+          );
+        }
+      }
+
+      // featured reveal
+      const featuredWrap = root.querySelector<HTMLElement>("[data-featured-card='true']");
+      if (featuredWrap) {
+        if (isMobile) {
+          gsap.fromTo(
+            featuredWrap,
+            { y: 16, opacity: 0 },
+            {
+              y: 0,
+              opacity: 1,
+              duration: 0.65,
+              ease: "power3.out",
+              scrollTrigger: { trigger: featuredWrap, start: "top 85%", once: true },
+            }
+          );
+        } else {
+          gsap.fromTo(
+            featuredWrap,
+            { y: 24, opacity: 0, filter: "blur(10px)", clipPath: "inset(10% 8% 14% 8% round 28px)" },
+            {
+              y: 0,
+              opacity: 1,
+              filter: "blur(0px)",
+              clipPath: "inset(0% 0% 0% 0% round 28px)",
+              duration: 0.8,
+              ease: "power3.out",
+              scrollTrigger: { trigger: featuredWrap, start: "top 80%", once: true },
+              onComplete: () => gsap.set(featuredWrap, { clearProps: "filter,clipPath" }),
+            }
+          );
+        }
+      }
+
+      // catalog reveal
+      const cards = Array.from(root.querySelectorAll<HTMLElement>("[data-release-card='true']"));
+      ScrollTrigger.batch(cards, {
+        start: "top 84%",
+        once: true,
+        onEnter: (batch) => {
+          if (isMobile) {
+            gsap.fromTo(
+              batch,
+              { y: 14, opacity: 0 },
+              {
+                y: 0,
+                opacity: 1,
+                duration: 0.6,
+                ease: "power3.out",
+                stagger: 0.06,
+                overwrite: true,
+              }
+            );
+          } else {
+            gsap.fromTo(
+              batch,
+              { y: 22, opacity: 0, filter: "blur(10px)", clipPath: "inset(12% 10% 16% 10% round 26px)" },
+              {
+                y: 0,
+                opacity: 1,
+                filter: "blur(0px)",
+                clipPath: "inset(0% 0% 0% 0% round 26px)",
+                duration: 0.7,
+                ease: "power3.out",
+                stagger: 0.08,
+                overwrite: true,
+                onComplete: () => gsap.set(batch, { clearProps: "filter,clipPath" }),
+              }
+            );
+          }
+        },
+      });
+
+      // ✅ Scroll morph theme (Muse yellow / TOWD cream)
+      const themed = [
+        ...(featuredWrap ? [featuredWrap] : []),
+        ...cards,
+      ].filter((el) => !!el.getAttribute("data-theme"));
+
+      themed.forEach((el) => {
+        // ensure baseline is 0 (no tint)
+        setMorph(el, 0);
+
+        const t = ScrollTrigger.create({
+          trigger: el,
+          start: "top 74%",
+          end: "bottom 26%",
+          onEnter: () => setMorph(el, 1),
+          onEnterBack: () => setMorph(el, 1),
+          onLeave: () => setMorph(el, 0),
+          onLeaveBack: () => setMorph(el, 0),
+        });
+
+        morphTriggers.push(t);
+      });
+
+      // ✅ Cover parallax (skip on mobile for sharpness)
+      if (!isMobile) {
+        const tiltTargets = [
+          ...(featuredWrap ? [featuredWrap] : []),
+          ...cards,
+        ];
+
+        tiltTargets.forEach((card) => {
+          const cover = card.querySelector<HTMLElement>("[data-release-cover='true']");
+          if (cover) {
+            const st = ScrollTrigger.create({
+              trigger: card,
               start: "top bottom",
               end: "bottom top",
               scrub: 0.5,
-            },
+              onUpdate: (self) => {
+                // tiny y movement without fractional blur spikes
+                const y = gsap.utils.interpolate(10, -10, self.progress);
+                gsap.set(cover, { y: Math.round(y) });
+              },
+            });
+            coverParallaxTriggers.push(st);
           }
-        );
+        });
       }
 
-      const featuredWrap = root.querySelector<HTMLElement>("[data-featured-card='true']");
+      // Hover tilt (ONLY pointer fine; prevents mobile blur + weird touch states)
+      if (finePointer) {
+        const tiltTargets = [
+          ...(featuredWrap ? [featuredWrap] : []),
+          ...cards,
+        ];
 
-      // ✅ reveals: remove blur (mobile blur/raster issues)
-      mm.add(
-        {
-          isMd: "(min-width: 768px)",
-          isSm: "(max-width: 767px)",
-        },
-        (m) => {
-          if (featuredWrap) {
-            if (m.conditions?.isSm) {
-              gsap.fromTo(
-                featuredWrap,
-                { y: 18, opacity: 0, clipPath: "inset(10% 8% 14% 8% round 28px)" },
-                {
-                  y: 0,
-                  opacity: 1,
-                  clipPath: "inset(0% 0% 0% 0% round 28px)",
-                  duration: 0.75,
-                  ease: "power3.out",
-                  scrollTrigger: { trigger: featuredWrap, start: "top 88%", once: true },
-                }
-              );
-            } else {
-              gsap.fromTo(
-                featuredWrap,
-                { y: 22, opacity: 0, clipPath: "inset(10% 8% 14% 8% round 28px)" },
-                {
-                  y: 0,
-                  opacity: 1,
-                  clipPath: "inset(0% 0% 0% 0% round 28px)",
-                  duration: 0.8,
-                  ease: "power3.out",
-                  scrollTrigger: { trigger: featuredWrap, start: "top 80%", once: true },
-                }
-              );
+        tiltTargets.forEach((card) => {
+          const shine = card.querySelector<HTMLElement>("[data-release-shine='true']");
+          const glow = card.querySelector<HTMLElement>("[data-release-glow='true']");
+
+          const setRX = gsap.quickTo(card, "rotateX", { duration: 0.35, ease: "power3.out" });
+          const setRY = gsap.quickTo(card, "rotateY", { duration: 0.35, ease: "power3.out" });
+          const setS = gsap.quickTo(card, "scale", { duration: 0.35, ease: "power3.out" });
+
+          const setGlowX = glow ? gsap.quickTo(glow, "x", { duration: 0.25, ease: "power3.out" }) : null;
+          const setGlowY = glow ? gsap.quickTo(glow, "y", { duration: 0.25, ease: "power3.out" }) : null;
+          const setShine = shine ? gsap.quickTo(shine, "opacity", { duration: 0.25, ease: "power2.out" }) : null;
+
+          function onMove(e: PointerEvent) {
+            const r = card.getBoundingClientRect();
+            const px = (e.clientX - r.left) / r.width - 0.5;
+            const py = (e.clientY - r.top) / r.height - 0.5;
+
+            setRY(px * 6);
+            setRX(-py * 6);
+
+            if (setGlowX && setGlowY) {
+              setGlowX(px * 26);
+              setGlowY(py * 26);
             }
           }
 
-          const cards = Array.from(root.querySelectorAll<HTMLElement>("[data-release-card='true']"));
-          ScrollTrigger.batch(cards, {
-            start: m.conditions?.isSm ? "top 90%" : "top 82%",
-            once: true,
-            onEnter: (batch) => {
-              gsap.fromTo(
-                batch,
-                m.conditions?.isSm
-                  ? { y: 18, opacity: 0, clipPath: "inset(12% 10% 16% 10% round 26px)" }
-                  : { y: 22, opacity: 0, clipPath: "inset(12% 10% 16% 10% round 26px)" },
-                {
-                  y: 0,
-                  opacity: 1,
-                  clipPath: "inset(0% 0% 0% 0% round 26px)",
-                  duration: 0.7,
-                  ease: "power3.out",
-                  stagger: 0.08,
-                  overwrite: true,
-                }
-              );
-            },
-          });
+          function onEnter() {
+            setS(1.01);
+            setShine?.(1);
+            card.style.willChange = "transform";
+          }
 
-          // ✅ Scroll morph theme (Muse yellow / TOWD cream)
-          const themed = [
-            ...(featuredWrap ? [featuredWrap] : []),
-            ...cards,
-          ].filter((el) => !!el.getAttribute("data-theme"));
-
-          themed.forEach((el) => {
-            // set an initial value so tint is visible, but still morphs
-            gsap.set(el, { ["--morph" as any]: 0.14 });
-
-            const to = (v: number) =>
-              gsap.to(el, {
-                ["--morph" as any]: v,
-                duration: v >= 1 ? 0.85 : 0.55,
-                ease: v >= 1 ? "power3.out" : "power2.out",
-                overwrite: true,
-              });
-
-            const t = ScrollTrigger.create({
-              trigger: el,
-              // more forgiving ranges on mobile so it always enters
-              start: m.conditions?.isSm ? "top 86%" : "top 78%",
-              end: m.conditions?.isSm ? "bottom 14%" : "bottom 22%",
-              onEnter: () => to(1),
-              onEnterBack: () => to(1),
-              onLeave: () => to(0.14),
-              onLeaveBack: () => to(0.14),
-            });
-
-            morphTriggers.push(t);
-          });
-
-          // Hover tilt ONLY on hover/fine pointer (prevents mobile blur/raster)
-          const canHover = window.matchMedia("(hover:hover) and (pointer:fine)").matches;
-          if (!canHover) return;
-
-          const tiltTargets = [
-            ...(featuredWrap ? [featuredWrap] : []),
-            ...cards,
-          ];
-
-          tiltTargets.forEach((card) => {
-            const cover = card.querySelector<HTMLElement>("[data-release-cover='true']");
-            const shine = card.querySelector<HTMLElement>("[data-release-shine='true']");
-            const glow = card.querySelector<HTMLElement>("[data-release-glow='true']");
-
-            if (cover) {
-              gsap.fromTo(
-                cover,
-                { y: 10 },
-                {
-                  y: -10,
-                  ease: "none",
-                  scrollTrigger: {
-                    trigger: card,
-                    start: "top bottom",
-                    end: "bottom top",
-                    scrub: 0.5,
-                  },
-                }
-              );
+          function onLeave() {
+            setS(1);
+            setRX(0);
+            setRY(0);
+            setShine?.(0);
+            if (setGlowX && setGlowY) {
+              setGlowX(0);
+              setGlowY(0);
             }
+            card.style.willChange = "auto";
+          }
 
-            const setRX = gsap.quickTo(card, "rotateX", { duration: 0.35, ease: "power3.out" });
-            const setRY = gsap.quickTo(card, "rotateY", { duration: 0.35, ease: "power3.out" });
-            const setS = gsap.quickTo(card, "scale", { duration: 0.35, ease: "power3.out" });
+          card.addEventListener("pointermove", onMove);
+          card.addEventListener("pointerenter", onEnter);
+          card.addEventListener("pointerleave", onLeave);
 
-            const setGlowX = glow ? gsap.quickTo(glow, "x", { duration: 0.25, ease: "power3.out" }) : null;
-            const setGlowY = glow ? gsap.quickTo(glow, "y", { duration: 0.25, ease: "power3.out" }) : null;
-            const setShine = shine ? gsap.quickTo(shine, "opacity", { duration: 0.25, ease: "power2.out" }) : null;
-
-            function onMove(e: PointerEvent) {
-              const r = card.getBoundingClientRect();
-              const px = (e.clientX - r.left) / r.width - 0.5;
-              const py = (e.clientY - r.top) / r.height - 0.5;
-
-              setRY(px * 6);
-              setRX(-py * 6);
-
-              if (setGlowX && setGlowY) {
-                setGlowX(px * 26);
-                setGlowY(py * 26);
-              }
-            }
-
-            function onEnter() {
-              setS(1.01);
-              setShine?.(1);
-              card.style.willChange = "transform";
-            }
-
-            function onLeave() {
-              setS(1);
-              setRX(0);
-              setRY(0);
-              setShine?.(0);
-              if (setGlowX && setGlowY) {
-                setGlowX(0);
-                setGlowY(0);
-              }
-              card.style.willChange = "auto";
-            }
-
-            card.addEventListener("pointermove", onMove);
-            card.addEventListener("pointerenter", onEnter);
-            card.addEventListener("pointerleave", onLeave);
-
-            (card as any).__cleanup = () => {
-              card.removeEventListener("pointermove", onMove);
-              card.removeEventListener("pointerenter", onEnter);
-              card.removeEventListener("pointerleave", onLeave);
-            };
-          });
-        }
-      );
-
-      // ✅ refresh triggers after layout/images settle
-      requestAnimationFrame(() => ScrollTrigger.refresh());
-      window.addEventListener("load", () => ScrollTrigger.refresh(), { once: true });
+          (card as any).__cleanup = () => {
+            card.removeEventListener("pointermove", onMove);
+            card.removeEventListener("pointerenter", onEnter);
+            card.removeEventListener("pointerleave", onLeave);
+          };
+        });
+      }
     }, rootRef);
 
     return () => {
-      mm.revert();
       morphTriggers.forEach((t) => t.kill());
+      coverParallaxTriggers.forEach((t) => t.kill());
       const rootNow = rootRef.current;
       if (rootNow) {
         const cards = Array.from(rootNow.querySelectorAll<HTMLElement>("[data-release-card='true']"));
@@ -1096,12 +1147,14 @@ export function ReleasesSection(props: {
     };
   }, [reducedMotion]);
 
-  // Animate ONLY newly revealed cards when you expand (no blur to avoid mobile softness)
+  // Animate ONLY newly revealed cards when you expand
   useLayoutEffect(() => {
     if (reducedMotion) return;
 
     const root = rootRef.current;
     if (!root) return;
+
+    const isMobile = window.matchMedia("(max-width: 767px)").matches;
 
     const cards = Array.from(root.querySelectorAll<HTMLElement>("[data-release-card='true']"));
     const prev = prevVisibleCount.current;
@@ -1109,22 +1162,32 @@ export function ReleasesSection(props: {
 
     if (next > prev) {
       const newly = cards.slice(prev, next);
-      gsap.fromTo(
-        newly,
-        { y: 16, opacity: 0, clipPath: "inset(10% 10% 14% 10% round 24px)" },
-        {
-          y: 0,
-          opacity: 1,
-          clipPath: "inset(0% 0% 0% 0% round 24px)",
-          duration: 0.6,
-          ease: "power3.out",
-          stagger: 0.06,
-        }
-      );
+
+      if (isMobile) {
+        gsap.fromTo(
+          newly,
+          { y: 14, opacity: 0 },
+          { y: 0, opacity: 1, duration: 0.55, ease: "power3.out", stagger: 0.06 }
+        );
+      } else {
+        gsap.fromTo(
+          newly,
+          { y: 18, opacity: 0, filter: "blur(8px)", clipPath: "inset(10% 10% 14% 10% round 24px)" },
+          {
+            y: 0,
+            opacity: 1,
+            filter: "blur(0px)",
+            clipPath: "inset(0% 0% 0% 0% round 24px)",
+            duration: 0.6,
+            ease: "power3.out",
+            stagger: 0.06,
+            onComplete: () => gsap.set(newly, { clearProps: "filter,clipPath" }),
+          }
+        );
+      }
     }
 
     prevVisibleCount.current = next;
-    requestAnimationFrame(() => ScrollTrigger.refresh());
   }, [catalog.length, reducedMotion]);
 
   const renderFilters = (
@@ -1145,7 +1208,6 @@ export function ReleasesSection(props: {
               setFilter(t.k);
               setExpanded(false);
               prevVisibleCount.current = initialCount;
-              requestAnimationFrame(() => ScrollTrigger.refresh());
             }}
             className={cx(
               "rounded-full px-3 py-2 text-xs ring-1 transition",
@@ -1176,7 +1238,6 @@ export function ReleasesSection(props: {
                 setSort(t.k);
                 setExpanded(false);
                 prevVisibleCount.current = initialCount;
-                requestAnimationFrame(() => ScrollTrigger.refresh());
               }}
               className={cx(
                 "rounded-full px-3 py-2 text-xs transition",
@@ -1279,14 +1340,14 @@ export function ReleasesSection(props: {
               </button>
             </div>
 
-            {/* ✅ make 3D only on md+ to prevent mobile blur */}
             <div
               data-featured-card="true"
               data-theme={featuredTheme ?? undefined}
               style={featuredThemeVars ? (featuredThemeVars as any) : undefined}
               className={cx(
-                "group/card rounded-[28px]",
-                "md:[transform-style:preserve-3d] md:will-change-transform"
+                "group/card rounded-[28px] will-change-transform",
+                // ✅ reduce mobile blur (no 3D on mobile)
+                "md:[transform-style:preserve-3d]"
               )}
             >
               <Card
@@ -1352,7 +1413,9 @@ export function ReleasesSection(props: {
                       <div className="absolute bottom-5 left-5 right-5">
                         <div className="max-w-[520px]">
                           <div className="text-xs uppercase tracking-[0.22em] text-white/60">Featured release</div>
-                          <div className="mt-2 text-3xl font-semibold tracking-tight text-white">{featured.title}</div>
+                          <div className="mt-2 text-3xl font-semibold tracking-tight text-white">
+                            {featured.title}
+                          </div>
                           {featured.subtitle ? (
                             <div className="mt-1 text-sm text-white/65">{featured.subtitle}</div>
                           ) : null}
@@ -1366,7 +1429,9 @@ export function ReleasesSection(props: {
                               disabled={!pickPrimaryLink(featured.links, featured.primary)?.href}
                             >
                               {pickPrimaryLink(featured.links, featured.primary)
-                                ? `Open on ${PLATFORM_LABEL[pickPrimaryLink(featured.links, featured.primary)!.key]}`
+                                ? `Open on ${
+                                    PLATFORM_LABEL[pickPrimaryLink(featured.links, featured.primary)!.key]
+                                  }`
                                 : "Coming soon"}
                             </Button>
 
@@ -1517,8 +1582,8 @@ export function ReleasesSection(props: {
                     data-theme={themeKey ?? undefined}
                     style={themeStyleObj ? (themeStyleObj as any) : undefined}
                     className={cx(
-                      "group/card rounded-[28px]",
-                      "md:[transform-style:preserve-3d] md:will-change-transform"
+                      "group/card rounded-[28px] will-change-transform",
+                      "md:[transform-style:preserve-3d]" // ✅ no mobile 3D blur
                     )}
                   >
                     <Card
@@ -1542,7 +1607,7 @@ export function ReleasesSection(props: {
                                 sizes="(max-width: 768px) 100vw, 40vw"
                                 className="object-cover"
                                 priority={idx < 2 && !featured}
-                                quality={92}
+                                quality={90}
                               />
                             </div>
 
@@ -1587,7 +1652,9 @@ export function ReleasesSection(props: {
                             <div className="absolute bottom-4 left-4 right-4">
                               <div className="rounded-2xl bg-black/20 px-3 py-2 ring-1 ring-white/10 backdrop-blur-xl">
                                 <div className="truncate text-sm font-semibold text-white">{r.title}</div>
-                                {r.subtitle ? <div className="truncate text-xs text-white/60">{r.subtitle}</div> : null}
+                                {r.subtitle ? (
+                                  <div className="truncate text-xs text-white/60">{r.subtitle}</div>
+                                ) : null}
                               </div>
                             </div>
                           </div>
@@ -1714,7 +1781,6 @@ export function ReleasesSection(props: {
                           setExpanded((v) => {
                             const next = !v;
                             if (!next) prevVisibleCount.current = initialCount;
-                            requestAnimationFrame(() => ScrollTrigger.refresh());
                             return next;
                           });
                         }}
