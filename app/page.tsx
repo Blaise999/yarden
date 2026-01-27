@@ -40,10 +40,9 @@ export type LinksShape = {
 
 export type HeroImageShape = { src: string; alt: string };
 
-const HEADER_OFFSET = 84; // still used for Hero foreground padding
+const HEADER_OFFSET = 84;
 
 export default function Page() {
-  // ---- OFFICIAL LINKS (static server data) ----
   const LINKS: LinksShape = {
     youtubeChannel: "https://www.youtube.com/@thisisyarden",
     youtubeVideosPage: "https://www.youtube.com/@thisisyarden/videos",
@@ -86,7 +85,6 @@ export default function Page() {
     { id: "newsletter", label: "News" },
   ];
 
-  // ✅ hero images (public paths)
   const heroA: HeroImageShape = { src: "/Pictures/hero.jpg", alt: "Yarden cover — clean" };
   const heroB: HeroImageShape = { src: "/Pictures/hero3.jpg", alt: "Yarden cover — detailed" };
 
@@ -98,6 +96,7 @@ export default function Page() {
       year: "2023",
       art: "/Pictures/towd.jpg",
       artSource: "Press kit / assets",
+      format: "EP", // ✅ force EP so filters never hide it
       chips: ["New nostalgia", "World-building"],
       links: {
         spotify: LINKS.releases.towd.spotify,
@@ -114,6 +113,7 @@ export default function Page() {
       year: "2025",
       art: "/Pictures/muse.jpg",
       artSource: "Press kit / assets",
+      format: "EP", // ✅ THIS is the main guarantee Muse always shows under EPs
       chips: ["Aesthetic era", "Visual-first"],
       links: {
         spotify: LINKS.releases.muse.spotify,

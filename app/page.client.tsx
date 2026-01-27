@@ -111,13 +111,8 @@ export default function PageClient(props: PageClientProps) {
     (LINKS as any)?.spotify ??
     "#";
 
-  const youtubeChannel =
-    (LINKS as any)?.youtubeChannel ??
-    "#";
-
-  const youtubeVideosPage =
-    (LINKS as any)?.youtubeVideosPage ??
-    "#";
+  const youtubeChannel = (LINKS as any)?.youtubeChannel ?? "#";
+  const youtubeVideosPage = (LINKS as any)?.youtubeVideosPage ?? "#";
 
   const meAndU =
     (LINKS as any)?.youtubeVideos?.meAndU ??
@@ -152,7 +147,7 @@ export default function PageClient(props: PageClientProps) {
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 
-  // ✅ SAFETY: heroA/heroB might be StaticImageData or string-based, so we normalize src
+  // ✅ SAFETY: heroA/heroB might be StaticImageData or string-based
   const heroASrc = (heroA as any)?.src ?? "";
   const heroBSrc = (heroB as any)?.src ?? "";
 
@@ -216,20 +211,20 @@ export default function PageClient(props: PageClientProps) {
           tintSources={tintSources}
           heroBgSrc={heroASrc}
           heroAltSrc={heroBSrc}
-          listenHref={museSpotify} // ✅ fixed
+          listenHref={museSpotify}
         />
 
         <main id="top">
           <Hero
             heroA={heroA}
             heroB={heroB}
-            listenHref={museSpotify} // ✅ fixed
-            followHref={youtubeChannel} // ✅ safe
+            listenHref={museSpotify}
+            followHref={youtubeChannel}
             onOpenPass={onOpenPass}
             nowPlaying={{
               title: "ME & U",
               hint: "Official music video",
-              href: meAndU, // ✅ fixed
+              href: meAndU,
             }}
             eraLabel="Muse"
             headerOffset={headerOffset}
@@ -243,8 +238,8 @@ export default function PageClient(props: PageClientProps) {
           <section id="watch" className="scroll-mt-24">
             <VisualsSection
               items={visuals}
-              channelHref={youtubeChannel} // ✅ safe
-              videosHref={youtubeVideosPage} // ✅ safe
+              channelHref={youtubeChannel}
+              videosHref={youtubeVideosPage}
               maxItems={8}
             />
           </section>

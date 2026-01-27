@@ -279,10 +279,8 @@ function themeKeyForRelease(r: ReleaseItem): ThemeKey | null {
   const raw = `${r.title ?? ""} ${r.subtitle ?? ""} ${(r.chips ?? []).join(" ")} ${artName}`.toLowerCase();
   const k = normalizeTitleKey(raw);
 
-  // ✅ Muse (robust)
   if (k.includes("muse")) return "muse";
 
-  // ✅ TOWD (robust)
   if (
     k.includes("theonewhodescends") ||
     k.includes("onewhodescends") ||
@@ -294,25 +292,23 @@ function themeKeyForRelease(r: ReleaseItem): ThemeKey | null {
   return null;
 }
 
-// ✅ IMPORTANT: CSS vars must be STRINGS (no px/unit issues)
+// ✅ IMPORTANT: CSS vars must be STRINGS
 function themeVars(key: ThemeKey | null) {
   if (!key) return undefined;
 
-  // Muse = yellow
   if (key === "muse") {
     return {
       ["--morph" as any]: "0",
-      ["--toneA" as any]: "255 214 10", // bright yellow
-      ["--toneB" as any]: "250 204 21", // deeper yellow
+      ["--toneA" as any]: "255 214 10",
+      ["--toneB" as any]: "250 204 21",
       ["--toneRing" as any]: "255 214 10",
     } as React.CSSProperties;
   }
 
-  // TOWD = cream
   return {
     ["--morph" as any]: "0",
-    ["--toneA" as any]: "255 248 220", // soft cream
-    ["--toneB" as any]: "254 243 199", // warm cream
+    ["--toneA" as any]: "255 248 220",
+    ["--toneB" as any]: "254 243 199",
     ["--toneRing" as any]: "255 237 185",
   } as React.CSSProperties;
 }
@@ -611,7 +607,6 @@ function ReleaseDetailsSheet(props: {
           <div className="grid gap-4 md:grid-cols-[140px_1fr] md:items-start">
             <div className="relative overflow-hidden rounded-2xl ring-1 ring-white/10">
               <div className="relative aspect-square">
-                {/* ✅ Fix mobile blur: give correct responsive sizes */}
                 <Image
                   src={r.art}
                   alt={`${r.title} cover`}
@@ -919,9 +914,9 @@ export function ReleasesSection(props: {
 
     const morphTriggers: ScrollTriggerType[] = [];
     const coverParallaxTriggers: ScrollTriggerType[] = [];
+    const localTriggers: ScrollTriggerType[] = [];
 
     const setMorph = (el: HTMLElement, v: 0 | 1) => {
-      // ✅ zero unit bugs (no px) -> fixes "gradient not working"
       el.style.setProperty("--morph", v === 1 ? "1" : "0");
     };
 
@@ -948,37 +943,51 @@ export function ReleasesSection(props: {
         }
       }
 
-      // featured reveal
+      // featured reveal (play-on-enter so it can NEVER stay hidden)
       const featuredWrap = root.querySelector<HTMLElement>("[data-featured-card='true']");
       if (featuredWrap) {
-        if (isMobile) {
-          gsap.fromTo(
-            featuredWrap,
-            { y: 16, opacity: 0 },
-            {
-              y: 0,
-              opacity: 1,
-              duration: 0.65,
-              ease: "power3.out",
-              scrollTrigger: { trigger: featuredWrap, start: "top 85%", once: true },
+        const st = ScrollTrigger.create({
+          trigger: featuredWrap,
+          start: "top 80%",
+          once: true,
+          onEnter: () => {
+            if (isMobile) {
+              gsap.fromTo(
+                featuredWrap,
+                { y: 16, opacity: 0 },
+                {
+                  y: 0,
+                  opacity: 1,
+                  duration: 0.65,
+                  ease: "power3.out",
+                }
+              );
+            } else {
+              gsap.fromTo(
+                featuredWrap,
+                {
+                  y: 24,
+                  opacity: 0,
+                  filter: "blur(10px)",
+                  clipPath: "inset(10% 8% 14% 8% round 28px)",
+                },
+                {
+                  y: 0,
+                  opacity: 1,
+                  filter: "blur(0px)",
+                  clipPath: "inset(0% 0% 0% 0% round 28px)",
+                  duration: 0.8,
+                  ease: "power3.out",
+                  onComplete: () => {
+                    gsap.set(featuredWrap, { clearProps: "filter,clipPath" });
+                  },
+                }
+              );
             }
-          );
-        } else {
-          gsap.fromTo(
-            featuredWrap,
-            { y: 24, opacity: 0, filter: "blur(10px)", clipPath: "inset(10% 8% 14% 8% round 28px)" },
-            {
-              y: 0,
-              opacity: 1,
-              filter: "blur(0px)",
-              clipPath: "inset(0% 0% 0% 0% round 28px)",
-              duration: 0.8,
-              ease: "power3.out",
-              scrollTrigger: { trigger: featuredWrap, start: "top 80%", once: true },
-              onComplete: () => gsap.set(featuredWrap, { clearProps: "filter,clipPath" }),
-            }
-          );
-        }
+          },
+        });
+
+        localTriggers.push(st);
       }
 
       // catalog reveal
@@ -1003,7 +1012,12 @@ export function ReleasesSection(props: {
           } else {
             gsap.fromTo(
               batch,
-              { y: 22, opacity: 0, filter: "blur(10px)", clipPath: "inset(12% 10% 16% 10% round 26px)" },
+              {
+                y: 22,
+                opacity: 0,
+                filter: "blur(10px)",
+                clipPath: "inset(12% 10% 16% 10% round 26px)",
+              },
               {
                 y: 0,
                 opacity: 1,
@@ -1013,7 +1027,9 @@ export function ReleasesSection(props: {
                 ease: "power3.out",
                 stagger: 0.08,
                 overwrite: true,
-                onComplete: () => gsap.set(batch, { clearProps: "filter,clipPath" }),
+                onComplete: () => {
+                  gsap.set(batch, { clearProps: "filter,clipPath" });
+                },
               }
             );
           }
@@ -1027,7 +1043,6 @@ export function ReleasesSection(props: {
       ].filter((el) => !!el.getAttribute("data-theme"));
 
       themed.forEach((el) => {
-        // ensure baseline is 0 (no tint)
         setMorph(el, 0);
 
         const t = ScrollTrigger.create({
@@ -1059,7 +1074,6 @@ export function ReleasesSection(props: {
               end: "bottom top",
               scrub: 0.5,
               onUpdate: (self) => {
-                // tiny y movement without fractional blur spikes
                 const y = gsap.utils.interpolate(10, -10, self.progress);
                 gsap.set(cover, { y: Math.round(y) });
               },
@@ -1069,7 +1083,7 @@ export function ReleasesSection(props: {
         });
       }
 
-      // Hover tilt (ONLY pointer fine; prevents mobile blur + weird touch states)
+      // Hover tilt (ONLY pointer fine)
       if (finePointer) {
         const tiltTargets = [
           ...(featuredWrap ? [featuredWrap] : []),
@@ -1131,11 +1145,16 @@ export function ReleasesSection(props: {
           };
         });
       }
+
+      // refresh after layout settles (images)
+      requestAnimationFrame(() => ScrollTrigger.refresh());
     }, rootRef);
 
     return () => {
+      localTriggers.forEach((t) => t.kill());
       morphTriggers.forEach((t) => t.kill());
       coverParallaxTriggers.forEach((t) => t.kill());
+
       const rootNow = rootRef.current;
       if (rootNow) {
         const cards = Array.from(rootNow.querySelectorAll<HTMLElement>("[data-release-card='true']"));
@@ -1181,7 +1200,9 @@ export function ReleasesSection(props: {
             duration: 0.6,
             ease: "power3.out",
             stagger: 0.06,
-            onComplete: () => gsap.set(newly, { clearProps: "filter,clipPath" }),
+            onComplete: () => {
+              gsap.set(newly, { clearProps: "filter,clipPath" });
+            },
           }
         );
       }
@@ -1344,11 +1365,7 @@ export function ReleasesSection(props: {
               data-featured-card="true"
               data-theme={featuredTheme ?? undefined}
               style={featuredThemeVars ? (featuredThemeVars as any) : undefined}
-              className={cx(
-                "group/card rounded-[28px] will-change-transform",
-                // ✅ reduce mobile blur (no 3D on mobile)
-                "md:[transform-style:preserve-3d]"
-              )}
+              className={cx("group/card rounded-[28px] will-change-transform", "md:[transform-style:preserve-3d]")}
             >
               <Card
                 className={cx(
@@ -1581,10 +1598,7 @@ export function ReleasesSection(props: {
                     data-release-card="true"
                     data-theme={themeKey ?? undefined}
                     style={themeStyleObj ? (themeStyleObj as any) : undefined}
-                    className={cx(
-                      "group/card rounded-[28px] will-change-transform",
-                      "md:[transform-style:preserve-3d]" // ✅ no mobile 3D blur
-                    )}
+                    className={cx("group/card rounded-[28px] will-change-transform", "md:[transform-style:preserve-3d]")}
                   >
                     <Card
                       className={cx(
@@ -1789,7 +1803,11 @@ export function ReleasesSection(props: {
                         {expanded ? "Show less" : "See more"}
                       </Button>
 
-                      <Button variant="ghost" onClick={props.onOpenPass} iconLeft={<IconSpark className="h-4 w-4" />}>
+                      <Button
+                        variant="ghost"
+                        onClick={props.onOpenPass}
+                        iconLeft={<IconSpark className="h-4 w-4" />}
+                      >
                         Get the Pass
                       </Button>
                     </div>
