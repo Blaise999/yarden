@@ -1,6 +1,6 @@
 // app/api/admin/cms/public/route.ts
 import { NextResponse } from "next/server";
-import { DEFAULT_CMS, type CmsData } from "../../../../../content/defaultCms";
+import { DEFAULT_CMS, type CmsData } from "../../../../content/defaultCms";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
