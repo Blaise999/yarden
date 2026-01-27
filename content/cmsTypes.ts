@@ -44,6 +44,7 @@ export type ReleaseItem = {
   tracklistSource?: LinkSource;
   format?: string;
   enabled: boolean;
+  highlight?: boolean; // Featured/highlighted release
 };
 
 // ═══════════════════════════════════════════════════════════════════

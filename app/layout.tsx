@@ -1,25 +1,29 @@
 import "./globals.css";
-import type { Metadata, Viewport } from "next";
+import type { Metadata } from "next";
+import { Inter } from "next/font/google";
+
+const inter = Inter({ 
+  subsets: ["latin"],
+  display: "swap",
+  variable: "--font-inter",
+});
 
 export const metadata: Metadata = {
-  title: {
-    default: "Yarden",
-    template: "%s — Yarden",
+  title: "Yarden | Official Site",
+  description: "Official website for Yarden - Music, Visuals, and Live experiences",
+  icons: {
+    icon: "/favicon.ico",
   },
-  description: "Yarden — official artist hub.",
 };
 
-export const viewport: Viewport = {
-  themeColor: "#05060A",
-  width: "device-width",
-  initialScale: 1,
-  viewportFit: "cover",
-};
-
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   return (
-    <html lang="en">
-      <body className="min-h-screen bg-[#05060A] text-white antialiased">
+    <html lang="en" className={inter.variable}>
+      <body className={`${inter.className} antialiased bg-[#05060A] text-white min-h-screen`}>
         {children}
       </body>
     </html>

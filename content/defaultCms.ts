@@ -74,6 +74,7 @@ export const DEFAULT_CMS: CmsData = {
       ],
       format: "EP",
       enabled: true,
+      highlight: true,
     },
     {
       id: "towd-ep",

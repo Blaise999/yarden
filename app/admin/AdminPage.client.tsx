@@ -453,7 +453,10 @@ function ReleaseEditor({
           </div>
 
           <div className="flex items-center justify-between pt-4 border-t border-gray-100">
-            <ToggleField label="Enabled (visible on site)" value={release.enabled} onChange={(v) => onChange({ ...release, enabled: v })} />
+            <div className="flex items-center gap-4">
+              <ToggleField label="Enabled (visible on site)" value={release.enabled} onChange={(v) => onChange({ ...release, enabled: v })} />
+              <ToggleField label="Highlight (featured release)" value={(release as any).highlight ?? false} onChange={(v) => onChange({ ...release, highlight: v } as any)} />
+            </div>
             <button
               onClick={onRemove}
               className="px-4 py-2 bg-red-50 text-red-600 rounded-lg text-sm font-semibold hover:bg-red-100 transition"
