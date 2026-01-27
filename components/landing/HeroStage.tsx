@@ -1,5 +1,9 @@
-// HeroSection.tsx (FULL EDIT — fixes “hero disappears” via pin layer + overflow fix,
-// keeps hero-header event sync intact)
+// HeroSection.tsx (FULL EDIT — sharpness patch + pin layer + overflow fix)
+// - Adds Next/Image quality={95} to prevent mushy compression
+// - Uses safe sizes
+// - Reduces overscale a bit to avoid stretching small sources too hard
+// - Keeps hero-header event sync intact
+
 "use client";
 
 import React, { useEffect, useRef, useState } from "react";
@@ -76,6 +80,9 @@ export function HeroSection(props: {
   headerOffset?: number; // fallback only (CSS var --header-h is primary)
   fullBleed?: boolean;
 
+  // ✅ Optional override if you want
+  heroQuality?: number; // default 95
+
   headlineA?: string;
   subheadA?: string;
   headlineB?: string;
@@ -99,8 +106,15 @@ export function HeroSection(props: {
   const reducedMotion = usePrefersReducedMotion();
   const { isSafari, isIOS } = useSafariInfo();
 
-  const fallbackHeaderOffset = props.headerOffset ?? 84; // fallback if CSS var missing
+  const fallbackHeaderOffset = props.headerOffset ?? 84;
   const fullBleed = props.fullBleed ?? true;
+
+  // ✅ Keep images crisp
+  const HERO_QUALITY = typeof props.heroQuality === "number" ? props.heroQuality : 95;
+
+  // ✅ Correct for full-bleed hero
+  // If you ever change hero to be within a max-width container, we’ll tweak this.
+  const HERO_SIZES = "100vw";
 
   // Refs
   const rootRef = useRef<HTMLDivElement | null>(null);
@@ -221,7 +235,6 @@ export function HeroSection(props: {
 
   useGSAP(
     () => {
-      // If reduced motion, keep Scene A as default and don't create ScrollTrigger.
       if (reducedMotion) return;
 
       ScrollTrigger.config({
@@ -263,21 +276,21 @@ export function HeroSection(props: {
       }
 
       // --- ✅ Fix for “hero disappears” ---
-      // Keep pinned hero above the rest of the page while ScrollTrigger is active.
       const PIN_Z = 40;
       const setPinnedLayer = (pinned: boolean) => {
-        // section is relative already; pinEl becomes fixed/transform depending on pinType
         gsap.set(section, { zIndex: pinned ? PIN_Z : 0 });
         gsap.set(pinEl, { zIndex: pinned ? PIN_Z : 0 });
       };
 
-      // Kill old trigger cleanly (hot reload / re-mount)
       ScrollTrigger.getById("hero-pin")?.kill(true);
 
-      // Hard reset: ensures we never start with overlapping states
-      // Use immediateRender: false to prevent flash
+      // ✅ Reduce overscale slightly (helps blur if source isn't huge)
+      const isMobile = typeof window !== "undefined" ? window.innerWidth < 768 : false;
+      const ART_B_START_SCALE = isMobile ? 1.08 : 1.10; // was 1.12
+      const ART_A_OUT_SCALE = isMobile ? 1.12 : 1.14;   // was 1.2
+
       gsap.set([artA], { opacity: 1, visibility: "visible", scale: 1, y: 0, x: 0, immediateRender: true });
-      gsap.set([artB], { opacity: 0, visibility: "visible", scale: 1.12, y: 60, x: 0, immediateRender: true });
+      gsap.set([artB], { opacity: 0, visibility: "visible", scale: ART_B_START_SCALE, y: 60, x: 0, immediateRender: true });
       gsap.set(sceneA, { opacity: 1, y: 0, immediateRender: true });
       gsap.set(sceneB, { opacity: 0, y: 12, immediateRender: true });
       gsap.set(railA, { opacity: 1, y: 0, immediateRender: true });
@@ -288,14 +301,12 @@ export function HeroSection(props: {
       if (pattern) gsap.set(pattern, { opacity: 0.16, scale: 1, immediateRender: true });
       if (glowFx) gsap.set(glowFx, { opacity: 0, scale: 0.92, immediateRender: true });
 
-      // Safari stability flags
       gsap.set([media, artA, artB, pattern, glowFx].filter(Boolean), {
         backfaceVisibility: "hidden",
         webkitBackfaceVisibility: "hidden",
         transformStyle: isSafari ? "flat" : "preserve-3d",
       });
 
-      // Ensure the pinned block always keeps a stable composited layer
       gsap.set(pinEl, { willChange: "transform" });
       gsap.set(media, {
         borderRadius: 0,
@@ -304,7 +315,7 @@ export function HeroSection(props: {
         x: 0,
         willChange: "transform, opacity",
         transformOrigin: "50% 50%",
-        force3D: !isSafari, // Safari: keep lighter
+        force3D: !isSafari,
       });
 
       if (isSafari) {
@@ -313,7 +324,6 @@ export function HeroSection(props: {
         gsap.set([artA, artB], { force3D: true });
       }
 
-      // Pointer events switching (prevents ghost clicks)
       let inB = false;
       const setInB = (next: boolean) => {
         if (inB === next) return;
@@ -338,7 +348,7 @@ export function HeroSection(props: {
 
       masterTL.to(
         artA,
-        { opacity: 0, scale: 1.2, y: -60, duration: transitionDuration, ease: "expo.inOut" },
+        { opacity: 0, scale: ART_A_OUT_SCALE, y: -60, duration: transitionDuration, ease: "expo.inOut" },
         transitionStart
       );
       masterTL.to(
@@ -371,7 +381,6 @@ export function HeroSection(props: {
       masterTL.to(nowA, { opacity: 0, y: -6, duration: nowDur, ease: "power2.out" }, nowAStart);
       masterTL.to(nowB, { opacity: 1, y: 0, duration: nowDur, ease: "power2.out" }, nowBStart);
 
-      // threshold used only for header vibe + pointer-events swap
       const midTransition = transitionStart + transitionDuration / 2;
 
       const flash = () => {
@@ -385,7 +394,6 @@ export function HeroSection(props: {
         gsap.to(glowFx, { opacity: 0, duration: 0.35, ease: "power2.in", delay: 0.08 });
       };
 
-      // Ensure initial layer state
       setPinnedLayer(false);
 
       ScrollTrigger.create({
@@ -400,8 +408,6 @@ export function HeroSection(props: {
         scrub: isSafari ? 0.65 : 0.8,
         animation: masterTL,
 
-        // Safari: fixed pin + reparent can be stable; we keep it.
-        // The “disappearing hero” issue is typically z-index / overlap, fixed by setPinnedLayer().
         pinType: isSafari ? "fixed" : "transform",
         pinReparent: isSafari,
 
@@ -413,11 +419,11 @@ export function HeroSection(props: {
           setPinnedLayer(true);
           scheduleEmit({ stage: self.progress >= midTransition ? "B" : "A", progress: self.progress, inHero: true });
         },
-        onLeave: (self) => {
+        onLeave: () => {
           setPinnedLayer(false);
           scheduleEmit({ stage: "B", progress: 1, inHero: false });
         },
-        onLeaveBack: (self) => {
+        onLeaveBack: () => {
           setPinnedLayer(false);
           scheduleEmit({ stage: "A", progress: 0, inHero: false });
         },
@@ -427,8 +433,6 @@ export function HeroSection(props: {
           const next = p >= midTransition;
 
           setInB(next);
-
-          // hero-stage sync for header (tint + vibe only)
           scheduleEmit({ stage: next ? "B" : "A", progress: p, inHero: true });
 
           if (glowFx) {
@@ -441,11 +445,9 @@ export function HeroSection(props: {
         },
 
         onRefreshInit: () => {
-          // keep pinned layer correct during refresh passes
           const st = ScrollTrigger.getById("hero-pin");
           const pinned = !!st && st.isActive;
           setPinnedLayer(pinned);
-
           gsap.set([media, artA, artB], { x: 0 });
         },
         onRefresh: () => {
@@ -465,7 +467,7 @@ export function HeroSection(props: {
     { scope: rootRef, dependencies: [reducedMotion, pinDistance, isSafari] }
   );
 
-  // Refresh after both images load (prevents wrong pin start/end + overlap on first paint)
+  // Refresh after both images load
   useEffect(() => {
     if (reducedMotion || loadedCount < 2 || refreshedOnce.current) return;
     refreshedOnce.current = true;
@@ -476,14 +478,13 @@ export function HeroSection(props: {
   }, [loadedCount, reducedMotion]);
 
   // Safari filters can cause flicker while pinned; keep it simple.
+  // NOTE: filter doesn't blur, but it can make compression artifacts more visible.
   const imageFilter = isSafari ? "none" : "contrast(1.14) saturate(1.22) brightness(1.06)";
 
-  // Safe bottom space so the “Now / Featured” card never sits on top of text/rail.
   const safeBottomStyle: React.CSSProperties = {
     paddingBottom: "max(18rem, calc(15rem + env(safe-area-inset-bottom)))",
   };
 
-  // Header-synced top padding (CSS var driven) with fallback
   const topPadStyle: React.CSSProperties = {
     paddingTop: `calc(var(--header-h, ${fallbackHeaderOffset}px) + 22px)`,
   };
@@ -518,7 +519,7 @@ export function HeroSection(props: {
           <div
             ref={mediaRef}
             className={cx(
-              "absolute inset-0 z-0 overflow-hidden bg-black", // ✅ keep a real bg (no white flash)
+              "absolute inset-0 z-0 overflow-hidden bg-black",
               "shadow-[0_40px_100px_rgba(0,0,0,0.75)]",
               "ring-1 ring-white/10"
             )}
@@ -558,9 +559,13 @@ export function HeroSection(props: {
                 alt={props.heroA.alt}
                 fill
                 priority
-                sizes="100vw"
+                sizes={HERO_SIZES}
+                quality={HERO_QUALITY}
                 className="object-cover"
-                style={{ objectPosition: props.heroA.focus ?? "50% 35%", filter: imageFilter }}
+                style={{
+                  objectPosition: props.heroA.focus ?? "50% 35%",
+                  filter: imageFilter,
+                }}
                 onLoadingComplete={() => {
                   if (!loadedAOnce.current) {
                     loadedAOnce.current = true;
@@ -578,9 +583,13 @@ export function HeroSection(props: {
                 src={props.heroB.src}
                 alt={props.heroB.alt}
                 fill
-                sizes="100vw"
+                sizes={HERO_SIZES}
+                quality={HERO_QUALITY}
                 className="object-cover"
-                style={{ objectPosition: props.heroB.focus ?? "50% 35%", filter: imageFilter }}
+                style={{
+                  objectPosition: props.heroB.focus ?? "50% 35%",
+                  filter: imageFilter,
+                }}
                 onLoadingComplete={() => {
                   if (!loadedBOnce.current) {
                     loadedBOnce.current = true;
@@ -650,7 +659,10 @@ export function HeroSection(props: {
           </div>
 
           {/* FOREGROUND */}
-          <div className="relative z-10 mx-auto max-w-7xl px-4 sm:px-5 md:px-8" style={{ ...topPadStyle, ...safeBottomStyle }}>
+          <div
+            className="relative z-10 mx-auto max-w-7xl px-4 sm:px-5 md:px-8"
+            style={{ ...topPadStyle, ...safeBottomStyle }}
+          >
             <div className="pt-2">
               <div className="grid gap-10 md:grid-cols-[1.2fr_0.8fr] md:items-start">
                 {/* LEFT */}
