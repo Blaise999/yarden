@@ -85,7 +85,7 @@ export default function Page() {
     { id: "newsletter", label: "News" },
   ];
 
-  const heroA: HeroImageShape = { src: "/Pictures/Hero.png", alt: "Yarden cover — clean" };
+  const heroA: HeroImageShape = { src: "/Pictures/heroo.png", alt: "Yarden cover — clean" };
   const heroB: HeroImageShape = { src: "/Pictures/hero3.jpg", alt: "Yarden cover — detailed" };
 
   // ---- DATA ----
