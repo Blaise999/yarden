@@ -2,7 +2,7 @@
 "use client";
 
 import React, { useEffect, useState, useCallback, useMemo, useRef } from "react";
-import { DEFAULT_CMS, type CmsData } from "../../../content/defaultCms";
+import { DEFAULT_CMS, type CmsData } from "../../content/defaultCms";
 import type {
   ReleaseItem,
   VisualItem,
@@ -13,7 +13,7 @@ import type {
   PressItem,
   EmbedVideo,
   PlatformKey,
-} from "../../../content/cmsTypes";
+} from "../../content/cmsTypes";
 
 // ═══════════════════════════════════════════════════════════════════
 // TYPES
