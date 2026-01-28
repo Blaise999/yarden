@@ -1,31 +1,32 @@
-// app/api/admin/cms/public/route.ts
 import { NextResponse } from "next/server";
+import { kv } from "@vercel/kv";
 import { DEFAULT_CMS, type CmsData } from "../../../../../content/defaultCms";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-// Import the cache from the main route (shared state)
-// In production, this would be a database or KV store
-declare global {
-  var cmsCache: CmsData | null;
+const CMS_KEY = "yarden:cms:v1";
+
+function normalize(data: Partial<CmsData> | null | undefined): CmsData {
+  const base = (data ?? {}) as CmsData;
+
+  return {
+    ...DEFAULT_CMS,
+    ...base,
+    releases: base.releases ?? DEFAULT_CMS.releases,
+    visuals: base.visuals ?? DEFAULT_CMS.visuals,
+    tour: base.tour ?? DEFAULT_CMS.tour,
+    store: base.store ?? DEFAULT_CMS.store,
+    newsletter: base.newsletter ?? DEFAULT_CMS.newsletter,
+    updatedAt: base.updatedAt || Date.now(),
+  };
 }
 
 export async function GET() {
-  // Get from global cache or use defaults
-  const data = global.cmsCache ?? DEFAULT_CMS;
-  
-  // Ensure all required fields exist
-  const cms: CmsData = {
-    ...DEFAULT_CMS,
-    ...data,
-    releases: data.releases ?? DEFAULT_CMS.releases,
-    visuals: data.visuals ?? DEFAULT_CMS.visuals,
-    tour: data.tour ?? DEFAULT_CMS.tour,
-    store: data.store ?? DEFAULT_CMS.store,
-    newsletter: data.newsletter ?? DEFAULT_CMS.newsletter,
-    updatedAt: data.updatedAt || Date.now(),
-  };
+  const stored = (await kv.get(CMS_KEY)) as CmsData | null;
+  const cms = normalize(stored ?? DEFAULT_CMS);
 
-  return NextResponse.json({ cms });
+  const res = NextResponse.json({ cms });
+  res.headers.set("Cache-Control", "no-store");
+  return res;
 }

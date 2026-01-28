@@ -1,15 +1,13 @@
 // app/api/admin/cms/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
+import { kv } from "@vercel/kv";
 import { DEFAULT_CMS, type CmsData } from "../../../../content/defaultCms";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-declare global {
-  // eslint-disable-next-line no-var
-  var cmsCache: CmsData | null;
-}
+const CMS_KEY = "yarden:cms:v1";
 
 function isAdmin(): boolean {
   return !!cookies().get("yard_admin_token")?.value;
@@ -30,41 +28,59 @@ function normalize(data: Partial<CmsData> | null | undefined): CmsData {
   };
 }
 
-// optional admin GET
 export async function GET() {
-  const cms = normalize(global.cmsCache ?? DEFAULT_CMS);
-  return NextResponse.json({ ok: true, cms });
+  try {
+    const stored = (await kv.get(CMS_KEY)) as CmsData | null;
+    const cms = normalize(stored ?? DEFAULT_CMS);
+
+    const res = NextResponse.json({ ok: true, cms });
+    res.headers.set("Cache-Control", "no-store");
+    return res;
+  } catch (e) {
+    console.error("CMS GET error:", e);
+    return NextResponse.json({ error: "Failed to load CMS" }, { status: 500 });
+  }
 }
 
-// ✅ this is what your frontend needs
 export async function PUT(req: NextRequest) {
   if (!isAdmin()) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   try {
     const body = (await req.json()) as { cms?: Partial<CmsData> } | Partial<CmsData>;
-
-    // accept either {cms:{...}} or direct {...}
-    const incoming = "cms" in (body as any) ? (body as any).cms : body;
+    const incoming = (body as any)?.cms ?? body;
 
     if (!incoming || typeof incoming !== "object") {
       return NextResponse.json({ error: "Invalid CMS payload" }, { status: 400 });
     }
 
-    const next = normalize({ ...(global.cmsCache ?? DEFAULT_CMS), ...(incoming as any) });
-    global.cmsCache = next;
+    const prev = (await kv.get(CMS_KEY)) as CmsData | null;
 
-    return NextResponse.json({ ok: true, cms: next });
+    // merge + normalize so missing fields never break the site
+    const next = normalize({ ...(prev ?? DEFAULT_CMS), ...(incoming as any) });
+
+    await kv.set(CMS_KEY, next);
+
+    const res = NextResponse.json({ ok: true, cms: next });
+    res.headers.set("Cache-Control", "no-store");
+    return res;
   } catch (e) {
     console.error("CMS PUT error:", e);
     return NextResponse.json({ error: "Failed to save CMS" }, { status: 500 });
   }
 }
 
-// keep POST as reset-to-default if you use it
 export async function POST() {
   if (!isAdmin()) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const next = normalize(DEFAULT_CMS);
-  global.cmsCache = next;
-  return NextResponse.json({ ok: true, cms: next });
+  try {
+    const next = normalize(DEFAULT_CMS);
+    await kv.set(CMS_KEY, next);
+
+    const res = NextResponse.json({ ok: true, cms: next });
+    res.headers.set("Cache-Control", "no-store");
+    return res;
+  } catch (e) {
+    console.error("CMS POST error:", e);
+    return NextResponse.json({ error: "Failed to reset CMS" }, { status: 500 });
+  }
 }
