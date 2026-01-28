@@ -1,79 +1,48 @@
 // app/page.tsx
+import { headers, cookies } from "next/headers";
+
 import type { ReleaseItem } from "../components/landing/ReleasesSection";
 import type { VisualItem } from "../components/landing/VisualsSection";
 import type { ShowItem, TourConfig } from "../components/landing/TourSection";
 import type { MerchItem, StoreConfig } from "../components/landing/StoreSection";
 
+import { DEFAULT_CMS, type CmsData } from "../content/defaultCms";
 import PageClient from "./page.client";
+
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 type NavItem = { id: string; label: string };
 
-export type LinksShape = {
-  youtubeChannel: string;
-  youtubeVideosPage: string;
-
-  youtubeVideos: {
-    meAndU: string;
-    time: string;
-    wait: string;
-    soul: string;
-    busyBody: string;
-    ifeoma: string;
-  };
-
-  releases: {
-    towd: {
-      spotify: string;
-      apple: string;
-      youtube: string;
-      audiomack: string;
-      boomplay: string;
-    };
-    muse: {
-      spotify: string;
-      apple: string;
-      youtube: string;
-      audiomack: string;
-    };
-  };
-};
-
-export type HeroImageShape = { src: string; alt: string };
-
 const HEADER_OFFSET = 84;
 
-export default function Page() {
-  const LINKS: LinksShape = {
-    youtubeChannel: "https://www.youtube.com/@thisisyarden",
-    youtubeVideosPage: "https://www.youtube.com/@thisisyarden/videos",
+async function getPublicCms(): Promise<CmsData> {
+  try {
+    const h = headers();
+    const host =
+      h.get("x-forwarded-host") ??
+      h.get("host") ??
+      process.env.VERCEL_URL ??
+      "localhost:3000";
 
-    youtubeVideos: {
-      meAndU: "https://youtu.be/jtwvI2wm7Kg?si=HKUa2gVrfVRmIIWL",
-      time: "https://youtu.be/t09I8srzieU",
-      wait: "https://youtu.be/hZ40sphEARA?si=1Aiz05OU8_UJOZAx",
-      soul: "https://youtu.be/sE2wMOVFuYY?si=V6NSy4CFpqZZgtnD",
-      busyBody: "https://youtu.be/E0h6P_blGig?si=GgtQAyOvaZ11BdIp",
-      ifeoma: "https://youtu.be/NWQGjtyS6Vk?si=HV0d292X2gxvvVLh",
-    },
+    const proto =
+      h.get("x-forwarded-proto") ??
+      (host.startsWith("localhost") || host.startsWith("127.0.0.1") ? "http" : "https");
 
-    releases: {
-      towd: {
-        spotify: "https://open.spotify.com/album/6y3G0lel5n8pd29aTR41d9",
-        apple: "https://music.apple.com/us/album/the-one-who-descends-ep/1716592249",
-        youtube:
-          "https://music.youtube.com/playlist?list=OLAK5uy_mzLBDEm-gHIRKRbNtZVJPUEBam7-4Q5rE",
-        audiomack: "https://audiomack.com/thisisyarden/album/the-one-who-descends",
-        boomplay: "https://www.boomplay.com/albums/80894900",
-      },
-      muse: {
-        spotify: "https://open.spotify.com/album/63Fi9c3GqnaR2aTbm4lR5D",
-        apple: "https://music.apple.com/us/album/muse-ep/1837991942",
-        youtube:
-          "https://music.youtube.com/playlist?list=OLAK5uy_ncEjd3gh9V6wfc5OxDBPQZ6r7b5fAkx7k",
-        audiomack: "https://audiomack.com/thisisyarden/album/muse",
-      },
-    },
-  };
+    const base = host.startsWith("http") ? host : `${proto}://${host}`;
+
+    const res = await fetch(`${base}/api/admin/cms/public`, { cache: "no-store" });
+    if (!res.ok) return DEFAULT_CMS;
+
+    const json = await res.json();
+    return (json?.cms as CmsData) ?? DEFAULT_CMS;
+  } catch {
+    return DEFAULT_CMS;
+  }
+}
+
+export default async function Page() {
+  const cms = await getPublicCms();
 
   const nav: NavItem[] = [
     { id: "top", label: "Home" },
@@ -85,127 +54,42 @@ export default function Page() {
     { id: "newsletter", label: "News" },
   ];
 
-  const heroA: HeroImageShape = { src: "/Pictures/heroo.png", alt: "Yarden cover — clean" };
-  const heroB: HeroImageShape = { src: "/Pictures/hero3.jpg", alt: "Yarden cover — detailed" };
+  // Keep your hero images static (or move into CMS later)
+  const heroA = { src: "/Pictures/heroo.png", alt: "Yarden cover — clean" };
+  const heroB = { src: "/Pictures/hero3.jpg", alt: "Yarden cover — detailed" };
 
-  // ---- DATA ----
-  const releases: ReleaseItem[] = [
-    {
-      title: "The One Who Descends",
-      subtitle: "Debut EP",
-      year: "2023",
-      art: "/Pictures/towd.jpg",
-      artSource: "Press kit / assets",
-      format: "EP", // ✅ force EP so filters never hide it
-      chips: ["New nostalgia", "World-building"],
-      links: {
-        spotify: LINKS.releases.towd.spotify,
-        apple: LINKS.releases.towd.apple,
-        youtube: LINKS.releases.towd.youtube,
-        audiomack: LINKS.releases.towd.audiomack,
-        boomplay: LINKS.releases.towd.boomplay,
-      },
-      primary: "spotify",
-    },
-    {
-      title: "Muse",
-      subtitle: "EP",
-      year: "2025",
-      art: "/Pictures/muse.jpg",
-      artSource: "Press kit / assets",
-      format: "EP", // ✅ THIS is the main guarantee Muse always shows under EPs
-      chips: ["Aesthetic era", "Visual-first"],
-      links: {
-        spotify: LINKS.releases.muse.spotify,
-        apple: LINKS.releases.muse.apple,
-        youtube: LINKS.releases.muse.youtube,
-        audiomack: LINKS.releases.muse.audiomack,
-      },
-      primary: "youtube",
-    },
-  ];
+  // ✅ Use CMS data (fallback to defaults)
+  const releases = ((cms.releases ?? DEFAULT_CMS.releases).filter((r: any) => r?.enabled !== false) ??
+    []) as unknown as ReleaseItem[];
 
-  const visuals: VisualItem[] = [
-    { title: "ME & U", kind: "Official Music Video", year: "2025", href: LINKS.youtubeVideos.meAndU, tag: "Official" },
-    { title: "Time", kind: "Official Video", year: "2024", href: LINKS.youtubeVideos.time, tag: "Official" },
-    { title: "Wait", kind: "Official Video", year: "2024", href: LINKS.youtubeVideos.wait, tag: "Official" },
-    { title: "Soul", kind: "Official Visualizer", year: "2024", href: LINKS.youtubeVideos.soul, tag: "Visualizer" },
-    { title: "Ifeoma", kind: "Visualizer", year: "2023", href: LINKS.youtubeVideos.ifeoma, tag: "Visualizer" },
-    { title: "Busy Body", kind: "Visualizer", year: "2023", href: LINKS.youtubeVideos.busyBody, tag: "Visualizer" },
-  ];
+  const visuals = ((cms.visuals ?? DEFAULT_CMS.visuals).filter((v: any) => v?.enabled !== false) ??
+    []) as unknown as VisualItem[];
 
-  const tourConfig: TourConfig = {
-    posterSrc: "/Pictures/yarden4.png",
-    posterAlt: "Tour poster",
-    headline: "Shows that feel like chapters.",
-    description: "Right now it’s placeholders. Later, admin updates dates instantly — no redesign needed.",
-    ticketPortalHref: "",
-    notifyCtaLabel: "Get alerts",
-    providerHint: "Bandsintown",
+  const tourConfig = (cms.tour?.config ?? DEFAULT_CMS.tour.config) as unknown as TourConfig;
+  const shows = (cms.tour?.shows ?? DEFAULT_CMS.tour.shows) as unknown as ShowItem[];
+
+  const storeConfig = (cms.store?.config ?? DEFAULT_CMS.store.config) as unknown as StoreConfig;
+  const merch = (cms.store?.merch ?? DEFAULT_CMS.store.merch) as unknown as MerchItem[];
+
+  // ✅ If you want admin editing on the live site:
+  const isAdmin = !!cookies().get("yard_admin_token")?.value;
+
+  // links object (you can keep your old hardcoded LINKS, but it’s not needed for CMS rendering)
+  const LINKS: any = {
+    youtubeChannel: "https://www.youtube.com/@thisisyarden",
+    youtubeVideosPage: "https://www.youtube.com/@thisisyarden/videos",
+    youtubeVideos: {},
+    releases: {},
+    spotify: releases?.[0]?.links?.spotify ?? "#",
   };
-
-  const shows: ShowItem[] = [
-    { id: "lagos_1", dateLabel: "APR 12", city: "Lagos", venue: "— Venue TBA", status: "announce" },
-    { id: "abuja_1", dateLabel: "MAY 03", city: "Abuja", venue: "— Venue TBA", status: "announce" },
-    { id: "london_1", dateLabel: "JUN 21", city: "London", venue: "— Venue TBA", status: "announce" },
-    { id: "berlin_1", dateLabel: "JUL 09", city: "Berlin", venue: "— Venue TBA", status: "announce" },
-  ];
-
-  const storeConfig: StoreConfig = {
-    eyebrow: "Store",
-    title: "Merch that matches the era.",
-    desc: "Official drops and limited pieces.",
-    storeHref: "#",
-  };
-
-  const merch: MerchItem[] = [
-    {
-      id: "tee_black",
-      name: "Ankh Tee (Black)",
-      price: "₦ —",
-      images: ["/media/yarden/merch-tee.jpg"],
-      tag: "Drop soon",
-      available: false,
-      links: [{ label: "Notify me", href: "#" }],
-    },
-    {
-      id: "poster_a2",
-      name: "Era Poster (A2)",
-      price: "₦ —",
-      images: ["/media/yarden/merch-poster.jpg"],
-      tag: "Limited",
-      available: false,
-      links: [{ label: "Notify me", href: "#" }],
-    },
-    {
-      id: "ankh_cap",
-      name: "Ankh Cap",
-      price: "₦ —",
-      images: ["/media/yarden/merch-cap.jpg"],
-      tag: "New",
-      available: false,
-      links: [{ label: "Notify me", href: "#" }],
-    },
-    {
-      id: "lanyard",
-      name: "Pass Holder Lanyard",
-      price: "₦ —",
-      images: ["/media/yarden/merch-lanyard.jpg"],
-      tag: "Exclusive",
-      available: false,
-      links: [{ label: "Notify me", href: "#" }],
-    },
-  ];
-
-  const isAdmin = false;
 
   return (
     <PageClient
       headerOffset={HEADER_OFFSET}
       links={LINKS}
       nav={nav}
-      heroA={heroA}
-      heroB={heroB}
+      heroA={heroA as any}
+      heroB={heroB as any}
       releases={releases}
       visuals={visuals}
       tourConfig={tourConfig}
