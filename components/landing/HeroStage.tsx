@@ -1,8 +1,7 @@
-// HeroSection.tsx (FULL EDIT — sharpness patch + pin layer + overflow fix)
-// - Adds Next/Image quality={95} to prevent mushy compression
-// - Uses safe sizes
-// - Reduces overscale a bit to avoid stretching small sources too hard
-// - Keeps hero-header event sync intact
+// HeroSection.tsx (FULL EDIT — stage timing fix + snap states + no “blank” after B)
+// - Makes Stage B happen near the END of the pin scroll (so after A+B you immediately reach next section)
+// - Adds hard “snap” state onLeave/onLeaveBack/onRefresh to prevent any chance of both layers being hidden
+// - Keeps your sharpness settings (quality + sizes) and all header sync intact
 
 "use client";
 
@@ -80,7 +79,6 @@ export function HeroSection(props: {
   headerOffset?: number; // fallback only (CSS var --header-h is primary)
   fullBleed?: boolean;
 
-  // ✅ Optional override if you want
   heroQuality?: number; // default 95
 
   headlineA?: string;
@@ -109,11 +107,7 @@ export function HeroSection(props: {
   const fallbackHeaderOffset = props.headerOffset ?? 84;
   const fullBleed = props.fullBleed ?? true;
 
-  // ✅ Keep images crisp
   const HERO_QUALITY = typeof props.heroQuality === "number" ? props.heroQuality : 95;
-
-  // ✅ Correct for full-bleed hero
-  // If you ever change hero to be within a max-width container, we’ll tweak this.
   const HERO_SIZES = "100vw";
 
   // Refs
@@ -165,8 +159,8 @@ export function HeroSection(props: {
 
   const [pinDistance, setPinDistance] = useState<number>(() => {
     if (typeof props.pinDistance === "number") return props.pinDistance;
-    if (typeof window === "undefined") return 1400;
-    return window.innerWidth < 768 ? 980 : 1550;
+    if (typeof window === "undefined") return 1200;
+    return window.innerWidth < 768 ? 900 : 1200;
   });
 
   useEffect(() => {
@@ -176,7 +170,7 @@ export function HeroSection(props: {
     }
     let raf = 0;
     const onResize = () => {
-      const next = window.innerWidth < 768 ? 980 : 1550;
+      const next = window.innerWidth < 768 ? 900 : 1200;
       setPinDistance((prev) => {
         if (prev === next) return prev;
         cancelAnimationFrame(raf);
@@ -209,7 +203,7 @@ export function HeroSection(props: {
 
   const eraLabel = props.eraLabel?.trim();
 
-  // load tracking (we only refresh after both images load once)
+  // load tracking (refresh after both images load once)
   const [loadedCount, setLoadedCount] = useState(0);
   const [heroReady, setHeroReady] = useState(false);
   const loadedAOnce = useRef(false);
@@ -217,7 +211,7 @@ export function HeroSection(props: {
   const refreshedOnce = useRef(false);
   const prevProgressRef = useRef(0);
 
-  // Ensure hero is visible after mount to prevent disappearing
+  // Ensure hero is visible after mount
   useEffect(() => {
     const timer = setTimeout(() => setHeroReady(true), 50);
     return () => clearTimeout(timer);
@@ -275,22 +269,77 @@ export function HeroSection(props: {
         return;
       }
 
-      // --- ✅ Fix for “hero disappears” ---
+      // --- ✅ Fix for “hero covers next sections / weird stacking” ---
       const PIN_Z = 40;
       const setPinnedLayer = (pinned: boolean) => {
-        gsap.set(section, { zIndex: pinned ? PIN_Z : 0 });
-        gsap.set(pinEl, { zIndex: pinned ? PIN_Z : 0 });
+        if (pinned) {
+          section.style.zIndex = String(PIN_Z);
+          pinEl.style.zIndex = String(PIN_Z);
+        } else {
+          section.style.removeProperty("z-index");
+          pinEl.style.removeProperty("z-index");
+        }
       };
 
       ScrollTrigger.getById("hero-pin")?.kill(true);
 
-      // ✅ Reduce overscale slightly (helps blur if source isn't huge)
       const isMobile = typeof window !== "undefined" ? window.innerWidth < 768 : false;
-      const ART_B_START_SCALE = isMobile ? 1.08 : 1.10; // was 1.12
-      const ART_A_OUT_SCALE = isMobile ? 1.12 : 1.14;   // was 1.2
 
+      // ✅ Slightly safer scales (less “stretch blur”)
+      const ART_B_START_SCALE = isMobile ? 1.06 : 1.08;
+      const ART_A_OUT_SCALE = isMobile ? 1.12 : 1.14;
+
+      // ✅ TIMING FIX:
+      // Make Stage B arrive very close to the end so once you’ve seen both, the next section comes immediately.
+      const transitionStart = isMobile ? 0.60 : 0.62;
+      const transitionDuration = isMobile ? 0.30 : 0.28;
+      const midTransition = transitionStart + transitionDuration * 0.5;
+
+      const setInB = (next: boolean) => {
+        sceneA.style.pointerEvents = next ? "none" : "auto";
+        railA.style.pointerEvents = next ? "none" : "auto";
+        nowA.style.pointerEvents = next ? "none" : "auto";
+
+        sceneB.style.pointerEvents = next ? "auto" : "none";
+        railB.style.pointerEvents = next ? "auto" : "none";
+        nowB.style.pointerEvents = next ? "auto" : "none";
+      };
+
+      // ✅ Hard snap states (prevents any “both invisible” edge case)
+      const snapStage = (stage: "A" | "B") => {
+        if (stage === "A") {
+          setInB(false);
+          gsap.set(artA, { opacity: 1, scale: 1, y: 0, x: 0, clearProps: "transform" });
+          gsap.set(artB, { opacity: 0, scale: ART_B_START_SCALE, y: 60, x: 0, clearProps: "transform" });
+
+          gsap.set(sceneA, { opacity: 1, y: 0, clearProps: "transform" });
+          gsap.set(sceneB, { opacity: 0, y: 12, clearProps: "transform" });
+
+          gsap.set(railA, { opacity: 1, y: 0, clearProps: "transform" });
+          gsap.set(railB, { opacity: 0, y: 12, clearProps: "transform" });
+
+          gsap.set(nowA, { opacity: 1, y: 0, clearProps: "transform" });
+          gsap.set(nowB, { opacity: 0, y: 8, clearProps: "transform" });
+        } else {
+          setInB(true);
+          gsap.set(artA, { opacity: 0, scale: ART_A_OUT_SCALE, y: -60, x: 0, clearProps: "transform" });
+          gsap.set(artB, { opacity: 1, scale: 1, y: 0, x: 0, clearProps: "transform" });
+
+          gsap.set(sceneA, { opacity: 0, y: -10, clearProps: "transform" });
+          gsap.set(sceneB, { opacity: 1, y: 0, clearProps: "transform" });
+
+          gsap.set(railA, { opacity: 0, y: -10, clearProps: "transform" });
+          gsap.set(railB, { opacity: 1, y: 0, clearProps: "transform" });
+
+          gsap.set(nowA, { opacity: 0, y: -6, clearProps: "transform" });
+          gsap.set(nowB, { opacity: 1, y: 0, clearProps: "transform" });
+        }
+      };
+
+      // ✅ Base defaults (always safe)
       gsap.set([artA], { opacity: 1, visibility: "visible", scale: 1, y: 0, x: 0, immediateRender: true });
       gsap.set([artB], { opacity: 0, visibility: "visible", scale: ART_B_START_SCALE, y: 60, x: 0, immediateRender: true });
+
       gsap.set(sceneA, { opacity: 1, y: 0, immediateRender: true });
       gsap.set(sceneB, { opacity: 0, y: 12, immediateRender: true });
       gsap.set(railA, { opacity: 1, y: 0, immediateRender: true });
@@ -324,28 +373,14 @@ export function HeroSection(props: {
         gsap.set([artA, artB], { force3D: true });
       }
 
-      let inB = false;
-      const setInB = (next: boolean) => {
-        if (inB === next) return;
-        inB = next;
-        sceneA.style.pointerEvents = next ? "none" : "auto";
-        railA.style.pointerEvents = next ? "none" : "auto";
-        nowA.style.pointerEvents = next ? "none" : "auto";
-
-        sceneB.style.pointerEvents = next ? "auto" : "none";
-        railB.style.pointerEvents = next ? "auto" : "none";
-        nowB.style.pointerEvents = next ? "auto" : "none";
-      };
       setInB(false);
 
       const masterTL = gsap.timeline({ defaults: { overwrite: "auto" } });
 
-      const transitionStart = 0.45;
-      const transitionDuration = 0.25;
-      const sf = transitionDuration;
-
+      // subtle drift to keep it alive while pinned
       masterTL.to(media, { scale: 0.995, duration: 1, ease: "none" }, 0);
 
+      // Stage switch (near end)
       masterTL.to(
         artA,
         { opacity: 0, scale: ART_A_OUT_SCALE, y: -60, duration: transitionDuration, ease: "expo.inOut" },
@@ -360,28 +395,26 @@ export function HeroSection(props: {
       if (pattern) {
         masterTL.to(
           pattern,
-          { opacity: 0.32, scale: 1.08, duration: 0.85 * sf, ease: "expo.out" },
-          transitionStart + 0.05 * sf
+          { opacity: 0.32, scale: 1.08, duration: transitionDuration * 0.9, ease: "expo.out" },
+          transitionStart + transitionDuration * 0.08
         );
       }
 
-      const switchDur = 0.6 * sf;
-      const switchAStart = transitionStart + 0.08 * sf;
-      const switchBStart = transitionStart + 0.16 * sf;
+      const switchDur = transitionDuration * 0.62;
+      const switchAStart = transitionStart + transitionDuration * 0.12;
+      const switchBStart = transitionStart + transitionDuration * 0.24;
 
       masterTL.to(sceneA, { opacity: 0, y: -10, duration: switchDur, ease: "expo.out" }, switchAStart);
       masterTL.to(sceneB, { opacity: 1, y: 0, duration: switchDur, ease: "expo.out" }, switchBStart);
       masterTL.to(railA, { opacity: 0, y: -10, duration: switchDur, ease: "expo.out" }, switchAStart);
       masterTL.to(railB, { opacity: 1, y: 0, duration: switchDur, ease: "expo.out" }, switchBStart);
 
-      const nowDur = 0.45 * sf;
-      const nowAStart = transitionStart + 0.12 * sf;
-      const nowBStart = transitionStart + 0.18 * sf;
+      const nowDur = transitionDuration * 0.52;
+      const nowAStart = transitionStart + transitionDuration * 0.18;
+      const nowBStart = transitionStart + transitionDuration * 0.28;
 
       masterTL.to(nowA, { opacity: 0, y: -6, duration: nowDur, ease: "power2.out" }, nowAStart);
       masterTL.to(nowB, { opacity: 1, y: 0, duration: nowDur, ease: "power2.out" }, nowBStart);
-
-      const midTransition = transitionStart + transitionDuration / 2;
 
       const flash = () => {
         if (!glowFx) return;
@@ -413,18 +446,26 @@ export function HeroSection(props: {
 
         onEnter: (self) => {
           setPinnedLayer(true);
-          scheduleEmit({ stage: self.progress >= midTransition ? "B" : "A", progress: self.progress, inHero: true });
+          const next = self.progress >= midTransition;
+          setInB(next);
+          scheduleEmit({ stage: next ? "B" : "A", progress: self.progress, inHero: true });
         },
         onEnterBack: (self) => {
           setPinnedLayer(true);
-          scheduleEmit({ stage: self.progress >= midTransition ? "B" : "A", progress: self.progress, inHero: true });
+          const next = self.progress >= midTransition;
+          setInB(next);
+          scheduleEmit({ stage: next ? "B" : "A", progress: self.progress, inHero: true });
         },
+
+        // ✅ When leaving the pin, HARD snap to correct final stage (no blank possible)
         onLeave: () => {
           setPinnedLayer(false);
+          snapStage("B");
           scheduleEmit({ stage: "B", progress: 1, inHero: false });
         },
         onLeaveBack: () => {
           setPinnedLayer(false);
+          snapStage("A");
           scheduleEmit({ stage: "A", progress: 0, inHero: false });
         },
 
@@ -444,11 +485,19 @@ export function HeroSection(props: {
           prevProgressRef.current = p;
         },
 
+        // ✅ Refresh safety: snap to whichever stage matches current progress
         onRefreshInit: () => {
           const st = ScrollTrigger.getById("hero-pin");
           const pinned = !!st && st.isActive;
           setPinnedLayer(pinned);
-          gsap.set([media, artA, artB], { x: 0 });
+
+          // When refresh happens mid-scroll, force state to match.
+          if (st) {
+            const next = st.progress >= midTransition;
+            snapStage(next ? "B" : "A");
+          } else {
+            snapStage("A");
+          }
         },
         onRefresh: () => {
           const st = ScrollTrigger.getById("hero-pin");
@@ -461,6 +510,7 @@ export function HeroSection(props: {
         masterTL.kill();
         ScrollTrigger.getById("hero-pin")?.kill(true);
         setPinnedLayer(false);
+        snapStage("A");
         scheduleEmit({ stage: "A", progress: 0, inHero: false });
       };
     },
@@ -477,8 +527,6 @@ export function HeroSection(props: {
     });
   }, [loadedCount, reducedMotion]);
 
-  // Safari filters can cause flicker while pinned; keep it simple.
-  // NOTE: filter doesn't blur, but it can make compression artifacts more visible.
   const imageFilter = isSafari ? "none" : "contrast(1.14) saturate(1.22) brightness(1.06)";
 
   const safeBottomStyle: React.CSSProperties = {
