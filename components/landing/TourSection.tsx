@@ -27,10 +27,18 @@ export type ShowStatus = "tickets" | "soldout" | "announce";
 
 export type ShowItem = {
   id: string;
+
+  // minimal show info
   dateISO?: string; // "2026-04-12"
   dateLabel?: string; // fallback like "APR 12"
-  city: string;
-  venue: string;
+  city: string; // location
+  venue: string; // show/venue
+
+  // per-show poster (✅ what you asked for)
+  posterSrc?: string;
+  posterAlt?: string;
+
+  // optional link + status (kept for later, but UI stays simple)
   href?: string;
   status?: ShowStatus; // "announce" = coming soon
 };
@@ -39,7 +47,8 @@ export type TourConfig = {
   headline?: string;
   description?: string;
 
-  posterSrc: string;
+  // ✅ fallback poster if a show doesn’t have one
+  posterSrc?: string;
   posterAlt?: string;
 
   ticketPortalHref?: string;
@@ -48,21 +57,9 @@ export type TourConfig = {
   ticketPortalLabel?: string;
   passCtaLabel?: string;
 
-  // ✅ strict union (avoids CMS mismatch)
-  providerHint?: "Bandsintown" | "Seated" | "Custom";
-  // ✅ optional custom display label (safe for CMS)
-  providerLabel?: string;
-
-  // poster copy
-  posterKicker?: string;
-  posterTitle?: string;
-  posterBody?: string;
-
-  // empty state copy (coming soon)
-  emptyKicker?: string;
+  // optional copy
   emptyTitle?: string;
   emptyBody?: string;
-
   footerLine?: string;
 };
 
@@ -82,8 +79,10 @@ function clamp(n: number, a: number, b: number) {
 
 function isEmptyRow(s: ShowItem) {
   const hasDate = Boolean((s.dateISO ?? "").trim() || (s.dateLabel ?? "").trim());
-  const hasText = Boolean((s.city ?? "").trim() || (s.venue ?? "").trim() || (s.href ?? "").trim());
-  return !hasDate && !hasText;
+  const hasText = Boolean((s.city ?? "").trim() || (s.venue ?? "").trim());
+  const hasMedia = Boolean((s.posterSrc ?? "").trim());
+  const hasLink = Boolean((s.href ?? "").trim());
+  return !hasDate && !hasText && !hasMedia && !hasLink;
 }
 
 function sortByDate(shows: ShowItem[]) {
@@ -97,12 +96,6 @@ function sortByDate(shows: ShowItem[]) {
     return aK.localeCompare(bK);
   });
   return clone;
-}
-
-function parseDateISO(dateISO?: string) {
-  if (!dateISO) return null;
-  const t = Date.parse(dateISO + "T00:00:00");
-  return Number.isFinite(t) ? new Date(t) : null;
 }
 
 function formatShortDate(show: ShowItem) {
@@ -126,13 +119,6 @@ function formatShortDate(show: ShowItem) {
   return { month: "—", day: "—" };
 }
 
-function statusPill(status?: ShowStatus) {
-  const s = (status ?? "announce") as ShowStatus;
-  if (s === "soldout") return <Pill tone="muted">Sold out</Pill>;
-  if (s === "tickets") return <Pill tone="brand">Tickets</Pill>;
-  return <Pill tone="ghost">Coming soon</Pill>;
-}
-
 function hasLiveSignals(shows: ShowItem[]) {
   return shows.some((s) => {
     const st = (s.status ?? "announce") as ShowStatus;
@@ -141,93 +127,114 @@ function hasLiveSignals(shows: ShowItem[]) {
   });
 }
 
-function uniqCities(shows: ShowItem[]) {
-  const set = new Set<string>();
-  const out: string[] = [];
-  shows.forEach((s) => {
-    const c = (s.city ?? "").trim();
-    if (!c) return;
-    const key = c.toLowerCase();
-    if (set.has(key)) return;
-    set.add(key);
-    out.push(c);
-  });
-  return out;
-}
+const STORAGE_KEY = "yarden:tour:draft:v7";
 
-const STORAGE_KEY = "yarden:tour:draft:v6";
-
-// Demo data used ONLY when editable and there is no incoming list.
-// All announce (coming soon).
+// demo shows (only when editable + nothing passed in)
 const DEMO_SHOWS: Omit<ShowItem, "id">[] = [
-  { dateISO: "2026-03-22", city: "Lagos", venue: "Eko Convention Centre", status: "announce" },
-  { dateISO: "2026-03-29", city: "Accra", venue: "AICC", status: "announce" },
-  { dateISO: "2026-04-12", city: "London", venue: "O2 Academy Brixton", status: "announce" },
-  { dateISO: "2026-04-19", city: "Paris", venue: "L’Olympia", status: "announce" },
-  { dateISO: "2026-04-26", city: "Amsterdam", venue: "AFAS Live", status: "announce" },
+  {
+    dateISO: "2026-03-22",
+    city: "Lagos",
+    venue: "Eko Convention Centre",
+    status: "announce",
+    posterSrc: "/Pictures/tour/lagos.jpg",
+  },
+  {
+    dateISO: "2026-03-29",
+    city: "Accra",
+    venue: "AICC",
+    status: "announce",
+    posterSrc: "/Pictures/tour/accra.jpg",
+  },
+  {
+    dateISO: "2026-04-12",
+    city: "London",
+    venue: "O2 Academy Brixton",
+    status: "announce",
+    posterSrc: "/Pictures/tour/london.jpg",
+  },
 ];
 
-function LivePreviewCard(props: { config: TourConfig; shows: ShowItem[] }) {
-  const cfg = props.config;
-  const sorted = sortByDate(props.shows);
+function StatusDot({ status }: { status?: ShowStatus }) {
+  const s = (status ?? "announce") as ShowStatus;
+  if (s === "tickets") return <Pill tone="brand">Tickets</Pill>;
+  if (s === "soldout") return <Pill tone="muted">Sold out</Pill>;
+  return <Pill tone="ghost">Soon</Pill>;
+}
 
-  const posterKicker = cfg.posterKicker ?? "TOUR";
-  const posterTitle = cfg.posterTitle ?? "Coming soon.";
-  const posterBody =
-    cfg.posterBody ??
-    "This is the official board — cities, venues, and ticket links appear here the moment they’re confirmed.";
+function ShowPosterCard(props: {
+  show: ShowItem;
+  fallbackPosterSrc?: string;
+  fallbackPosterAlt?: string;
+}) {
+  const { show } = props;
+  const d = formatShortDate(show);
 
-  const emptyKicker = cfg.emptyKicker ?? "Coming soon";
-  const emptyTitle = cfg.emptyTitle ?? "No dates announced yet.";
-  const emptyBody = cfg.emptyBody ?? "Get alerts for the first drop. Tour updates only.";
+  const src = (show.posterSrc || props.fallbackPosterSrc || "").trim();
+  const alt = show.posterAlt || props.fallbackPosterAlt || `${show.city} show poster`;
 
-  const cities = uniqCities(sorted).slice(0, 10);
+  const href = (show.href ?? "").trim();
+  const clickable = Boolean(href);
+
+  const Wrapper: any = clickable ? "a" : "div";
+  const wrapperProps = clickable
+    ? { href, target: "_blank", rel: "noreferrer", "aria-label": `${show.city} details` }
+    : {};
 
   return (
-    <div className="overflow-hidden rounded-3xl bg-white/[0.03] ring-1 ring-white/10">
-      <div className="relative aspect-[16/10]">
-        {cfg.posterSrc?.trim() ? (
-          <Image src={cfg.posterSrc} alt={cfg.posterAlt ?? "Tour poster"} fill sizes="40vw" className="object-cover" />
-        ) : (
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_25%_20%,rgba(255,255,255,0.10),transparent_55%)]" />
-        )}
-        <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/25 to-transparent" />
+    <Wrapper
+      {...wrapperProps}
+      data-show-card="true"
+      className={cx("group block", clickable ? "cursor-pointer" : "cursor-default")}
+    >
+      <div className="relative overflow-hidden rounded-3xl bg-white/[0.03] ring-1 ring-white/10">
+        <div className="relative aspect-[4/5]">
+          {src ? (
+            <Image
+              src={src}
+              alt={alt}
+              fill
+              sizes="(max-width: 1024px) 100vw, 33vw"
+              className="object-cover"
+              priority={false}
+            />
+          ) : (
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_25%_20%,rgba(255,255,255,0.10),transparent_55%)]" />
+          )}
 
-        <div className="absolute bottom-4 left-4 right-4 rounded-3xl bg-black/40 p-4 ring-1 ring-white/10 backdrop-blur-xl">
-          <div className="flex items-center justify-between gap-3">
-            <div className="text-xs uppercase tracking-[0.28em] text-white/60">{posterKicker}</div>
-            <Pill tone="ghost">Coming soon</Pill>
+          <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/25 to-transparent" />
+
+          {/* date chip */}
+          <div className="absolute left-4 top-4 rounded-2xl bg-black/45 px-3 py-2 ring-1 ring-white/10 backdrop-blur-xl">
+            <div className="text-[10px] font-semibold tracking-[0.18em] text-white/70">{d.month}</div>
+            <div className="text-base font-semibold leading-none text-white">{d.day}</div>
           </div>
-          <div className="mt-2 text-base font-semibold text-white">{posterTitle}</div>
-          <p className="mt-1 text-sm text-white/60">{posterBody}</p>
-        </div>
-      </div>
 
-      <div className="p-4">
-        <div className="flex items-center gap-2">
-          <IconAnkh className="h-4 w-4 text-white/70" />
-          <div className="text-xs uppercase tracking-widest text-white/60">{emptyKicker}</div>
-        </div>
-        <div className="mt-2 text-sm font-semibold text-white">{emptyTitle}</div>
-        <p className="mt-1 text-sm text-white/60">{emptyBody}</p>
+          {/* status (small) */}
+          <div className="absolute right-4 top-4">{<StatusDot status={show.status} />}</div>
 
-        {cities.length ? (
-          <div className="mt-4">
-            <div className="text-xs uppercase tracking-widest text-white/55">Cities in rotation</div>
-            <div className="mt-2 flex flex-wrap gap-2">
-              {cities.map((c) => (
-                <span
-                  key={c}
-                  className="inline-flex items-center rounded-full bg-white/[0.04] px-3 py-1.5 text-xs text-white/75 ring-1 ring-white/10"
-                >
-                  {c}
-                </span>
-              ))}
+          {/* bottom info */}
+          <div className="absolute bottom-0 left-0 right-0 p-4">
+            <div className="rounded-3xl bg-black/35 p-4 ring-1 ring-white/10 backdrop-blur-xl">
+              {/* “show” */}
+              <div className="truncate text-sm font-semibold text-white">
+                {show.venue?.trim() ? show.venue : "Venue TBA"}
+              </div>
+              {/* location */}
+              <div className="mt-1 truncate text-xs text-white/65">
+                {show.city?.trim() ? show.city : "—"}
+              </div>
+
+              {clickable ? (
+                <div className="mt-3 inline-flex items-center gap-2 text-xs text-white/70">
+                  <span>Details</span>
+                  <IconArrowUpRight className="h-4 w-4 opacity-70 transition group-hover:opacity-100" />
+                </div>
+              ) : null}
             </div>
           </div>
-        ) : null}
+        </div>
       </div>
-    </div>
+    </Wrapper>
   );
 }
 
@@ -244,11 +251,7 @@ export function TourSection(props: {
 }) {
   const reducedMotion = usePrefersReducedMotion();
   const id = props.id ?? "shows";
-
   const rootRef = useRef<HTMLDivElement | null>(null);
-
-  const [query, setQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState<"all" | ShowStatus>("all");
 
   const [editOpen, setEditOpen] = useState(false);
   const [draftShows, setDraftShows] = useState<ShowItem[]>(props.shows);
@@ -271,19 +274,8 @@ export function TourSection(props: {
 
   const sortedShows = useMemo(() => sortByDate(effectiveShows), [effectiveShows]);
 
-  // coming soon mode = no “live” signals yet
+  // coming soon mode = no “live” signals yet (still shows posters + info)
   const comingSoonMode = useMemo(() => !hasLiveSignals(sortedShows), [sortedShows]);
-
-  // for later (when any show becomes live)
-  const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    return sortedShows.filter((s) => {
-      const matchesQuery = !q || `${s.city} ${s.venue}`.toLowerCase().includes(q);
-      const st = (s.status ?? "announce") as ShowStatus;
-      const matchesStatus = statusFilter === "all" || st === statusFilter;
-      return matchesQuery && matchesStatus;
-    });
-  }, [sortedShows, query, statusFilter]);
 
   // sync draft when not editing
   useEffect(() => {
@@ -321,6 +313,8 @@ export function TourSection(props: {
       dateLabel: "",
       city: "",
       venue: "",
+      posterSrc: "",
+      posterAlt: "",
       href: "",
       status: "announce",
     };
@@ -360,11 +354,17 @@ export function TourSection(props: {
       const cleaned = sortByDate(
         draftShows
           .filter((s) => !isEmptyRow(s))
-          .map((s) => ({ ...s, status: (s.status ?? "announce") as ShowStatus }))
+          .map((s) => ({
+            ...s,
+            status: (s.status ?? "announce") as ShowStatus,
+            city: (s.city ?? "").trim(),
+            venue: (s.venue ?? "").trim(),
+            posterSrc: (s.posterSrc ?? "").trim(),
+            href: (s.href ?? "").trim(),
+          }))
       );
 
       const cfg: TourConfig = { ...draftConfig };
-
       persistDraft(cleaned, cfg);
       if (props.onSave) await props.onSave({ shows: cleaned, config: cfg });
 
@@ -382,8 +382,7 @@ export function TourSection(props: {
       if (!root) return;
 
       const shell = root.querySelector<HTMLElement>("[data-tour-shell='true']");
-      const poster = root.querySelector<HTMLElement>("[data-tour-poster='true']");
-      const rows = Array.from(root.querySelectorAll<HTMLElement>("[data-show-row='true']"));
+      const cards = Array.from(root.querySelectorAll<HTMLElement>("[data-show-card='true']"));
 
       if (shell) {
         gsap.fromTo(
@@ -400,24 +399,9 @@ export function TourSection(props: {
         );
       }
 
-      if (poster) {
+      if (cards.length) {
         gsap.fromTo(
-          poster,
-          { y: 16, opacity: 0, filter: "blur(10px)" },
-          {
-            y: 0,
-            opacity: 1,
-            filter: "blur(0px)",
-            duration: 0.95,
-            ease: "power3.out",
-            scrollTrigger: { trigger: root, start: "top 75%", once: true },
-          }
-        );
-      }
-
-      if (rows.length) {
-        gsap.fromTo(
-          rows,
+          cards,
           { y: 10, opacity: 0 },
           {
             y: 0,
@@ -432,31 +416,26 @@ export function TourSection(props: {
     }, rootRef);
 
     return () => ctx.revert();
-  }, [reducedMotion, filtered.length]);
+  }, [reducedMotion, sortedShows.length]);
 
   const cfg = props.config;
 
-  const totalStops = sortedShows.length;
-  const cities = uniqCities(sortedShows);
   const notifyLabel = cfg.notifyCtaLabel ?? "Get alerts";
   const ticketPortalLabel = cfg.ticketPortalLabel ?? "Ticket portal";
   const passLabel = cfg.passCtaLabel ?? "Pass perks";
   const ticketPortalHref = (cfg.ticketPortalHref ?? "").trim();
 
-  const posterKicker = cfg.posterKicker ?? "TOUR";
-  const posterTitle = cfg.posterTitle ?? "Coming soon.";
-  const posterBody =
-    cfg.posterBody ??
-    "This is the official board — cities, venues, and ticket links appear here the moment they’re confirmed.";
+  const totalStops = sortedShows.length;
 
-  const emptyKicker = cfg.emptyKicker ?? "Coming soon";
   const emptyTitle = cfg.emptyTitle ?? "Tour dates aren’t announced yet.";
   const emptyBody =
-    cfg.emptyBody ?? "Get alerts for the first drop. Cities, venues, and tickets will post here as soon as they’re live.";
-
-  const hasPoster = Boolean((cfg.posterSrc ?? "").trim());
+    cfg.emptyBody ??
+    "When dates go live, you’ll see the poster + show + location + date right here.";
 
   const onNotify = () => props.onNotify?.();
+
+  const fallbackPosterSrc = (cfg.posterSrc ?? "").trim();
+  const fallbackPosterAlt = cfg.posterAlt ?? "Tour poster";
 
   return (
     <section id={id} className="relative py-20 md:py-24">
@@ -468,8 +447,8 @@ export function TourSection(props: {
       <div ref={rootRef} className="mx-auto max-w-7xl px-5 md:px-8">
         <SectionHeader
           eyebrow="Tour"
-          title={cfg.headline ?? "Coming soon."}
-          desc={cfg.description ?? "The official tour board — announcements post here first."}
+          title={cfg.headline ?? "Tour board."}
+          desc={cfg.description ?? "Posters + show + location + date."}
           right={
             <div className="flex flex-wrap gap-2">
               {props.editable ? (
@@ -497,11 +476,15 @@ export function TourSection(props: {
         />
 
         <div className="mb-6 grid gap-4 lg:grid-cols-[1fr_1fr_1.25fr]">
-          <Stat label="Mode" value={comingSoonMode ? "Coming soon" : "Live"} hint={comingSoonMode ? "Announcements pending" : "Tickets / sold-out"} />
-          <Stat label="Stops" value={String(totalStops)} hint={totalStops ? "On deck" : "To be announced"} />
+          <Stat
+            label="Mode"
+            value={comingSoonMode ? "Coming soon" : "Live"}
+            hint={comingSoonMode ? "Announcements pending" : "Links / tickets available"}
+          />
+          <Stat label="Stops" value={String(totalStops)} hint={totalStops ? "Listed" : "To be announced"} />
           <div className="rounded-2xl bg-white/[0.04] p-5 ring-1 ring-white/10">
             <div className="text-xs uppercase tracking-widest text-white/60">Alerts</div>
-            <div className="mt-2 text-sm text-white/70">Tour updates only — dates, cities, tickets.</div>
+            <div className="mt-2 text-sm text-white/70">Tour updates only — no spam.</div>
             <div className="mt-4 flex flex-wrap gap-2">
               <Button variant="primary" onClick={onNotify}>
                 {notifyLabel}
@@ -514,209 +497,49 @@ export function TourSection(props: {
         </div>
 
         <Card className="overflow-hidden" data-tour-shell="true">
-          <div className="grid lg:grid-cols-[1.2fr_.8fr]">
-            {/* LEFT */}
-            <div className="p-6 md:p-8">
-              <div className="flex flex-wrap items-center gap-2">
-                <Badge>Official board</Badge>
-                <Badge>{comingSoonMode ? "Coming soon" : "Live"}</Badge>
-                {cities.length ? (
-                  <Badge>
-                    {cities[0]}
-                    {cities.length > 1 ? ` +${cities.length - 1}` : ""}
-                  </Badge>
-                ) : null}
-              </div>
-
-              {/* COMING SOON */}
-              {comingSoonMode ? (
-                <div className="mt-6">
-                  <div className="rounded-3xl bg-white/[0.03] p-7 ring-1 ring-white/10">
-                    <div className="flex items-center gap-2 text-white/70">
-                      <IconAnkh className="h-5 w-5" />
-                      <div className="text-xs uppercase tracking-widest">{emptyKicker}</div>
-                    </div>
-
-                    <div className="mt-4 text-lg font-semibold text-white">{emptyTitle}</div>
-                    <p className="mt-2 text-sm leading-relaxed text-white/60">{emptyBody}</p>
-
-                    {cities.length ? (
-                      <div className="mt-5">
-                        <div className="text-xs uppercase tracking-widest text-white/55">Cities in rotation</div>
-                        <div className="mt-2 flex flex-wrap gap-2">
-                          {cities.slice(0, 10).map((c) => (
-                            <span
-                              key={c}
-                              className="inline-flex items-center rounded-full bg-white/[0.04] px-3 py-2 text-xs text-white/75 ring-1 ring-white/10"
-                            >
-                              {c}
-                            </span>
-                          ))}
-                        </div>
-                      </div>
-                    ) : null}
-
-                    <div className="mt-6 flex flex-wrap gap-2">
-                      <Button variant="primary" onClick={onNotify}>
-                        {notifyLabel}
-                      </Button>
-                      <Button variant="secondary" onClick={() => props.onOpenPass?.()}>
-                        {passLabel}
-                      </Button>
-                      {ticketPortalHref ? (
-                        <Button variant="ghost" href={ticketPortalHref} target="_blank" iconRight={<IconArrowUpRight className="h-4 w-4" />}>
-                          {ticketPortalLabel}
-                        </Button>
-                      ) : null}
-                    </div>
-                  </div>
-
-                  <Divider />
-
-                  <div className="grid gap-4 md:grid-cols-3">
-                    <Card className="p-5">
-                      <div className="text-xs uppercase tracking-widest text-white/60">Drop board</div>
-                      <div className="mt-2 text-sm text-white/70">Announcements land here first.</div>
-                    </Card>
-                    <Card className="p-5">
-                      <div className="text-xs uppercase tracking-widest text-white/60">Alerts</div>
-                      <div className="mt-2 text-sm text-white/70">One tap, tour updates only.</div>
-                    </Card>
-                    <Card className="p-5">
-                      <div className="text-xs uppercase tracking-widest text-white/60">Tickets</div>
-                      <div className="mt-2 text-sm text-white/70">Links go live when confirmed.</div>
-                    </Card>
-                  </div>
-
-                  {cfg.footerLine ? <div className="mt-5 text-xs text-white/45">{cfg.footerLine}</div> : null}
-                </div>
-              ) : (
-                /* LIVE LAYOUT (activates automatically when admin adds links or sets tickets/soldout) */
-                <div className="mt-6">
-                  <div className="mb-5 grid gap-3 sm:grid-cols-2">
-                    <input
-                      value={query}
-                      onChange={(e) => setQuery(e.target.value)}
-                      placeholder="Search city or venue…"
-                      className={cx(
-                        "w-full rounded-2xl bg-white/[0.04] px-4 py-3 text-sm text-white placeholder:text-white/35",
-                        "ring-1 ring-white/10 outline-none focus:ring-2 focus:ring-white/30"
-                      )}
-                    />
-                    <select
-                      value={statusFilter}
-                      onChange={(e) => setStatusFilter(e.target.value as any)}
-                      className={cx(
-                        "w-full rounded-2xl bg-white/[0.04] px-4 py-3 text-sm text-white",
-                        "ring-1 ring-white/10 outline-none focus:ring-2 focus:ring-white/30"
-                      )}
-                    >
-                      <option value="all" className="bg-[#0B0B10]">
-                        All
-                      </option>
-                      <option value="tickets" className="bg-[#0B0B10]">
-                        Tickets
-                      </option>
-                      <option value="announce" className="bg-[#0B0B10]">
-                        Coming soon
-                      </option>
-                      <option value="soldout" className="bg-[#0B0B10]">
-                        Sold out
-                      </option>
-                    </select>
-                  </div>
-
-                  <div className="divide-y divide-white/10">
-                    {filtered.map((s) => {
-                      const d = formatShortDate(s);
-                      const st = (s.status ?? "announce") as ShowStatus;
-                      const link = (s.href || ticketPortalHref || "").trim();
-                      const hasLink = Boolean(link);
-
-                      return (
-                        <div key={s.id} className="flex items-center justify-between gap-6 py-5" data-show-row="true">
-                          <div className="flex items-center gap-5 min-w-0">
-                            <div className="grid h-14 w-14 place-items-center rounded-2xl bg-white/[0.04] ring-1 ring-white/10">
-                              <div className="text-center">
-                                <div className="text-xs font-semibold tracking-wide text-white/80">{d.month}</div>
-                                <div className="text-base font-semibold tracking-tight text-white">{d.day}</div>
-                              </div>
-                            </div>
-
-                            <div className="min-w-0">
-                              <div className="truncate text-base font-semibold text-white">{s.city || "—"}</div>
-                              <div className="mt-0.5 truncate text-sm text-white/60">{s.venue || "Venue TBA"}</div>
-                            </div>
-                          </div>
-
-                          <div className="flex items-center gap-3">
-                            {statusPill(st)}
-                            <Button
-                              variant="ghost"
-                              href={hasLink ? link : "#"}
-                              target={hasLink ? "_blank" : undefined}
-                              iconRight={<IconArrowUpRight className="h-4 w-4" />}
-                              className="px-4 py-2"
-                              disabled={!hasLink}
-                            >
-                              Details
-                            </Button>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* RIGHT */}
-            <div className="relative min-h-[360px]" data-tour-poster="true">
-              {hasPoster ? (
-                <>
-                  <Image
-                    src={cfg.posterSrc}
-                    alt={cfg.posterAlt ?? "Tour poster"}
-                    fill
-                    sizes="(max-width: 1024px) 100vw, 40vw"
-                    className="object-cover"
-                    priority={false}
+          <div className="p-6 md:p-8">
+            {sortedShows.length ? (
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                {sortedShows.map((s) => (
+                  <ShowPosterCard
+                    key={s.id}
+                    show={s}
+                    fallbackPosterSrc={fallbackPosterSrc}
+                    fallbackPosterAlt={fallbackPosterAlt}
                   />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/25 to-transparent" />
-                </>
-              ) : (
-                <>
-                  <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(255,255,255,0.10),transparent_55%)]" />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/25 to-transparent" />
-                </>
-              )}
-
-              <div className="absolute bottom-6 left-6 right-6">
-                <div className="rounded-3xl bg-black/40 p-5 ring-1 ring-white/10 backdrop-blur-xl">
-                  <div className="flex items-center justify-between gap-3">
-                    <div className="text-xs uppercase tracking-[0.28em] text-white/60">{posterKicker}</div>
-                    <Pill tone="ghost">Coming soon</Pill>
-                  </div>
-                  <div className="mt-2 text-lg font-semibold text-white">{posterTitle}</div>
-                  <p className="mt-2 text-sm text-white/60">{posterBody}</p>
-
-                  <div className="mt-4 flex flex-wrap gap-2">
-                    <Button variant="primary" onClick={onNotify} iconRight={<IconChevron className="h-4 w-4" />}>
-                      {notifyLabel}
-                    </Button>
-                    <Button variant="secondary" onClick={() => props.onOpenPass?.()}>
-                      {passLabel}
-                    </Button>
-
-                    {ticketPortalHref ? (
-                      <Button variant="ghost" href={ticketPortalHref} target="_blank" iconRight={<IconArrowUpRight className="h-4 w-4" />}>
-                        {ticketPortalLabel}
-                      </Button>
-                    ) : null}
-                  </div>
-                </div>
+                ))}
               </div>
-            </div>
+            ) : (
+              <div className="rounded-3xl bg-white/[0.03] p-7 ring-1 ring-white/10">
+                <div className="flex items-center gap-2 text-white/70">
+                  <IconAnkh className="h-5 w-5" />
+                  <div className="text-xs uppercase tracking-widest">Coming soon</div>
+                </div>
+                <div className="mt-4 text-lg font-semibold text-white">{emptyTitle}</div>
+                <p className="mt-2 text-sm leading-relaxed text-white/60">{emptyBody}</p>
+
+                <div className="mt-6 flex flex-wrap gap-2">
+                  <Button variant="primary" onClick={onNotify}>
+                    {notifyLabel}
+                  </Button>
+                  <Button variant="secondary" onClick={() => props.onOpenPass?.()}>
+                    {passLabel}
+                  </Button>
+                  {ticketPortalHref ? (
+                    <Button
+                      variant="ghost"
+                      href={ticketPortalHref}
+                      target="_blank"
+                      iconRight={<IconArrowUpRight className="h-4 w-4" />}
+                    >
+                      {ticketPortalLabel}
+                    </Button>
+                  ) : null}
+                </div>
+
+                {cfg.footerLine ? <div className="mt-5 text-xs text-white/45">{cfg.footerLine}</div> : null}
+              </div>
+            )}
           </div>
         </Card>
 
@@ -729,11 +552,11 @@ export function TourSection(props: {
                 <div className="flex items-center justify-between gap-3">
                   <div>
                     <div className="text-xs uppercase tracking-widest text-white/60">Section copy</div>
-                    <div className="mt-1 text-sm text-white/70">Headline, description, CTAs.</div>
+                    <div className="mt-1 text-sm text-white/70">Keep it short.</div>
                   </div>
                   <div className="flex items-center gap-2">
                     <Badge>Draft</Badge>
-                    <Badge>{draftShows.filter((s) => !isEmptyRow(s)).length} items</Badge>
+                    <Badge>{draftShows.filter((s) => !isEmptyRow(s)).length} shows</Badge>
                   </div>
                 </div>
 
@@ -747,7 +570,7 @@ export function TourSection(props: {
                         setDraftConfig(next);
                         persistDraft(draftShows, next);
                       }}
-                      placeholder="Coming soon."
+                      placeholder="Tour board."
                       className={cx(
                         "mt-2 w-full rounded-2xl bg-white/[0.04] px-4 py-3 text-sm text-white placeholder:text-white/35",
                         "ring-1 ring-white/10 outline-none focus:ring-2 focus:ring-white/30"
@@ -757,17 +580,16 @@ export function TourSection(props: {
 
                   <label className="block">
                     <span className="text-xs uppercase tracking-widest text-white/60">Description</span>
-                    <textarea
+                    <input
                       value={draftConfig.description ?? ""}
                       onChange={(e) => {
                         const next = { ...draftConfig, description: e.target.value };
                         setDraftConfig(next);
                         persistDraft(draftShows, next);
                       }}
-                      rows={3}
-                      placeholder="The official tour board — announcements post here first."
+                      placeholder="Posters + show + location + date."
                       className={cx(
-                        "mt-2 w-full resize-none rounded-2xl bg-white/[0.04] px-4 py-3 text-sm text-white placeholder:text-white/35",
+                        "mt-2 w-full rounded-2xl bg-white/[0.04] px-4 py-3 text-sm text-white placeholder:text-white/35",
                         "ring-1 ring-white/10 outline-none focus:ring-2 focus:ring-white/30"
                       )}
                     />
@@ -792,23 +614,6 @@ export function TourSection(props: {
                     </label>
 
                     <label className="block">
-                      <span className="text-xs uppercase tracking-widest text-white/60">Portal label</span>
-                      <input
-                        value={draftConfig.ticketPortalLabel ?? ""}
-                        onChange={(e) => {
-                          const next = { ...draftConfig, ticketPortalLabel: e.target.value };
-                          setDraftConfig(next);
-                          persistDraft(draftShows, next);
-                        }}
-                        placeholder="Ticket portal"
-                        className={cx(
-                          "mt-2 w-full rounded-2xl bg-white/[0.04] px-4 py-3 text-sm text-white placeholder:text-white/35",
-                          "ring-1 ring-white/10 outline-none focus:ring-2 focus:ring-white/30"
-                        )}
-                      />
-                    </label>
-
-                    <label className="block">
                       <span className="text-xs uppercase tracking-widest text-white/60">Pass label</span>
                       <input
                         value={draftConfig.passCtaLabel ?? ""}
@@ -818,6 +623,23 @@ export function TourSection(props: {
                           persistDraft(draftShows, next);
                         }}
                         placeholder="Pass perks"
+                        className={cx(
+                          "mt-2 w-full rounded-2xl bg-white/[0.04] px-4 py-3 text-sm text-white placeholder:text-white/35",
+                          "ring-1 ring-white/10 outline-none focus:ring-2 focus:ring-white/30"
+                        )}
+                      />
+                    </label>
+
+                    <label className="block">
+                      <span className="text-xs uppercase tracking-widest text-white/60">Portal label</span>
+                      <input
+                        value={draftConfig.ticketPortalLabel ?? ""}
+                        onChange={(e) => {
+                          const next = { ...draftConfig, ticketPortalLabel: e.target.value };
+                          setDraftConfig(next);
+                          persistDraft(draftShows, next);
+                        }}
+                        placeholder="Ticket portal"
                         className={cx(
                           "mt-2 w-full rounded-2xl bg-white/[0.04] px-4 py-3 text-sm text-white placeholder:text-white/35",
                           "ring-1 ring-white/10 outline-none focus:ring-2 focus:ring-white/30"
@@ -843,31 +665,12 @@ export function TourSection(props: {
                     />
                   </label>
 
-                  <label className="block">
-                    <span className="text-xs uppercase tracking-widest text-white/60">Footer line (optional)</span>
-                    <input
-                      value={draftConfig.footerLine ?? ""}
-                      onChange={(e) => {
-                        const next = { ...draftConfig, footerLine: e.target.value };
-                        setDraftConfig(next);
-                        persistDraft(draftShows, next);
-                      }}
-                      placeholder="More cities soon."
-                      className={cx(
-                        "mt-2 w-full rounded-2xl bg-white/[0.04] px-4 py-3 text-sm text-white placeholder:text-white/35",
-                        "ring-1 ring-white/10 outline-none focus:ring-2 focus:ring-white/30"
-                      )}
-                    />
-                  </label>
-                </div>
-              </Card>
+                  <Divider />
 
-              <Card className="p-5">
-                <div className="text-xs uppercase tracking-widest text-white/60">Poster</div>
-
-                <div className="mt-4 grid gap-4">
                   <label className="block">
-                    <span className="text-xs uppercase tracking-widest text-white/60">Poster image</span>
+                    <span className="text-xs uppercase tracking-widest text-white/60">
+                      Default poster (fallback if a show has none)
+                    </span>
                     <input
                       value={draftConfig.posterSrc ?? ""}
                       onChange={(e) => {
@@ -875,121 +678,13 @@ export function TourSection(props: {
                         setDraftConfig(next);
                         persistDraft(draftShows, next);
                       }}
-                      placeholder="/Pictures/yarden4.png"
+                      placeholder="/Pictures/tour/default.jpg"
                       className={cx(
                         "mt-2 w-full rounded-2xl bg-white/[0.04] px-4 py-3 text-sm text-white placeholder:text-white/35",
                         "ring-1 ring-white/10 outline-none focus:ring-2 focus:ring-white/30"
                       )}
                     />
                   </label>
-
-                  <div className="grid gap-3 md:grid-cols-2">
-                    <label className="block">
-                      <span className="text-xs uppercase tracking-widest text-white/60">Poster kicker</span>
-                      <input
-                        value={draftConfig.posterKicker ?? ""}
-                        onChange={(e) => {
-                          const next = { ...draftConfig, posterKicker: e.target.value };
-                          setDraftConfig(next);
-                          persistDraft(draftShows, next);
-                        }}
-                        placeholder="TOUR"
-                        className={cx(
-                          "mt-2 w-full rounded-2xl bg-white/[0.04] px-4 py-3 text-sm text-white placeholder:text-white/35",
-                          "ring-1 ring-white/10 outline-none focus:ring-2 focus:ring-white/30"
-                        )}
-                      />
-                    </label>
-
-                    <label className="block">
-                      <span className="text-xs uppercase tracking-widest text-white/60">Poster title</span>
-                      <input
-                        value={draftConfig.posterTitle ?? ""}
-                        onChange={(e) => {
-                          const next = { ...draftConfig, posterTitle: e.target.value };
-                          setDraftConfig(next);
-                          persistDraft(draftShows, next);
-                        }}
-                        placeholder="Coming soon."
-                        className={cx(
-                          "mt-2 w-full rounded-2xl bg-white/[0.04] px-4 py-3 text-sm text-white placeholder:text-white/35",
-                          "ring-1 ring-white/10 outline-none focus:ring-2 focus:ring-white/30"
-                        )}
-                      />
-                    </label>
-                  </div>
-
-                  <label className="block">
-                    <span className="text-xs uppercase tracking-widest text-white/60">Poster body</span>
-                    <textarea
-                      value={draftConfig.posterBody ?? ""}
-                      onChange={(e) => {
-                        const next = { ...draftConfig, posterBody: e.target.value };
-                        setDraftConfig(next);
-                        persistDraft(draftShows, next);
-                      }}
-                      rows={3}
-                      placeholder="This is the official board — cities, venues, and ticket links appear here the moment they’re confirmed."
-                      className={cx(
-                        "mt-2 w-full resize-none rounded-2xl bg-white/[0.04] px-4 py-3 text-sm text-white placeholder:text-white/35",
-                        "ring-1 ring-white/10 outline-none focus:ring-2 focus:ring-white/30"
-                      )}
-                    />
-                  </label>
-
-                  <div className="grid gap-3 md:grid-cols-3">
-                    <label className="block md:col-span-1">
-                      <span className="text-xs uppercase tracking-widest text-white/60">Empty kicker</span>
-                      <input
-                        value={draftConfig.emptyKicker ?? ""}
-                        onChange={(e) => {
-                          const next = { ...draftConfig, emptyKicker: e.target.value };
-                          setDraftConfig(next);
-                          persistDraft(draftShows, next);
-                        }}
-                        placeholder="Coming soon"
-                        className={cx(
-                          "mt-2 w-full rounded-2xl bg-white/[0.04] px-4 py-3 text-sm text-white placeholder:text-white/35",
-                          "ring-1 ring-white/10 outline-none focus:ring-2 focus:ring-white/30"
-                        )}
-                      />
-                    </label>
-
-                    <label className="block md:col-span-2">
-                      <span className="text-xs uppercase tracking-widest text-white/60">Empty title</span>
-                      <input
-                        value={draftConfig.emptyTitle ?? ""}
-                        onChange={(e) => {
-                          const next = { ...draftConfig, emptyTitle: e.target.value };
-                          setDraftConfig(next);
-                          persistDraft(draftShows, next);
-                        }}
-                        placeholder="Tour dates aren’t announced yet."
-                        className={cx(
-                          "mt-2 w-full rounded-2xl bg-white/[0.04] px-4 py-3 text-sm text-white placeholder:text-white/35",
-                          "ring-1 ring-white/10 outline-none focus:ring-2 focus:ring-white/30"
-                        )}
-                      />
-                    </label>
-
-                    <label className="block md:col-span-3">
-                      <span className="text-xs uppercase tracking-widest text-white/60">Empty body</span>
-                      <textarea
-                        value={draftConfig.emptyBody ?? ""}
-                        onChange={(e) => {
-                          const next = { ...draftConfig, emptyBody: e.target.value };
-                          setDraftConfig(next);
-                          persistDraft(draftShows, next);
-                        }}
-                        rows={3}
-                        placeholder="Get alerts for the first drop. Cities, venues, and tickets will post here as soon as they’re live."
-                        className={cx(
-                          "mt-2 w-full resize-none rounded-2xl bg-white/[0.04] px-4 py-3 text-sm text-white placeholder:text-white/35",
-                          "ring-1 ring-white/10 outline-none focus:ring-2 focus:ring-white/30"
-                        )}
-                      />
-                    </label>
-                  </div>
                 </div>
               </Card>
 
@@ -1016,137 +711,179 @@ export function TourSection(props: {
                 </div>
 
                 <div className="mt-4 grid gap-3">
-                  {draftShows.map((s) => (
-                    <div key={s.id} className="rounded-2xl bg-white/[0.03] p-4 ring-1 ring-white/10">
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="flex items-center gap-2">
-                          <Pill tone="ghost">Coming soon</Pill>
-                          <Pill tone="muted">Show</Pill>
+                  {draftShows.map((s) => {
+                    const previewPoster = (s.posterSrc || draftConfig.posterSrc || "").trim();
+                    return (
+                      <div key={s.id} className="rounded-2xl bg-white/[0.03] p-4 ring-1 ring-white/10">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="flex items-center gap-2">
+                            <Pill tone="muted">Show</Pill>
+                            <StatusDot status={s.status} />
+                          </div>
+
+                          <div className="flex items-center gap-1">
+                            <button
+                              type="button"
+                              onClick={() => moveShow(s.id, -1)}
+                              className="rounded-full px-2 py-1 text-xs text-white/70 hover:bg-white/10 hover:text-white"
+                              aria-label="Move up"
+                            >
+                              ↑
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => moveShow(s.id, 1)}
+                              className="rounded-full px-2 py-1 text-xs text-white/70 hover:bg-white/10 hover:text-white"
+                              aria-label="Move down"
+                            >
+                              ↓
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => removeShow(s.id)}
+                              className="rounded-full p-2 text-white/60 hover:bg-white/10 hover:text-white"
+                              aria-label="Remove show"
+                            >
+                              <IconClose className="h-5 w-5" />
+                            </button>
+                          </div>
                         </div>
 
-                        <div className="flex items-center gap-1">
-                          <button
-                            type="button"
-                            onClick={() => moveShow(s.id, -1)}
-                            className="rounded-full px-2 py-1 text-xs text-white/70 hover:bg-white/10 hover:text-white"
-                            aria-label="Move up"
-                          >
-                            ↑
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => moveShow(s.id, 1)}
-                            className="rounded-full px-2 py-1 text-xs text-white/70 hover:bg-white/10 hover:text-white"
-                            aria-label="Move down"
-                          >
-                            ↓
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => removeShow(s.id)}
-                            className="rounded-full p-2 text-white/60 hover:bg-white/10 hover:text-white"
-                            aria-label="Remove show"
-                          >
-                            <IconClose className="h-5 w-5" />
-                          </button>
+                        {/* simple: poster + date + location + venue */}
+                        <div className="mt-3 grid gap-3 md:grid-cols-[140px_1fr]">
+                          <div className="relative overflow-hidden rounded-2xl bg-white/[0.04] ring-1 ring-white/10">
+                            <div className="relative aspect-[4/5]">
+                              {previewPoster ? (
+                                <Image
+                                  src={previewPoster}
+                                  alt={s.posterAlt ?? "Poster preview"}
+                                  fill
+                                  sizes="140px"
+                                  className="object-cover"
+                                />
+                              ) : (
+                                <div className="absolute inset-0 bg-[radial-gradient(circle_at_25%_20%,rgba(255,255,255,0.10),transparent_55%)]" />
+                              )}
+                              <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
+                            </div>
+                          </div>
+
+                          <div className="grid gap-3">
+                            <label className="block">
+                              <span className="text-xs uppercase tracking-widest text-white/60">Poster</span>
+                              <input
+                                value={s.posterSrc ?? ""}
+                                onChange={(e) => updateShow(s.id, { posterSrc: e.target.value })}
+                                placeholder="/Pictures/tour/lagos.jpg"
+                                className={cx(
+                                  "mt-2 w-full rounded-2xl bg-white/[0.04] px-4 py-3 text-sm text-white placeholder:text-white/35",
+                                  "ring-1 ring-white/10 outline-none focus:ring-2 focus:ring-white/30"
+                                )}
+                              />
+                            </label>
+
+                            <div className="grid gap-3 md:grid-cols-2">
+                              <label className="block">
+                                <span className="text-xs uppercase tracking-widest text-white/60">Date (ISO)</span>
+                                <input
+                                  value={s.dateISO ?? ""}
+                                  onChange={(e) => updateShow(s.id, { dateISO: e.target.value })}
+                                  placeholder="2026-04-12"
+                                  className={cx(
+                                    "mt-2 w-full rounded-2xl bg-white/[0.04] px-4 py-3 text-sm text-white placeholder:text-white/35",
+                                    "ring-1 ring-white/10 outline-none focus:ring-2 focus:ring-white/30"
+                                  )}
+                                />
+                              </label>
+
+                              <label className="block">
+                                <span className="text-xs uppercase tracking-widest text-white/60">Date label</span>
+                                <input
+                                  value={s.dateLabel ?? ""}
+                                  onChange={(e) => updateShow(s.id, { dateLabel: e.target.value })}
+                                  placeholder="APR 12"
+                                  className={cx(
+                                    "mt-2 w-full rounded-2xl bg-white/[0.04] px-4 py-3 text-sm text-white placeholder:text-white/35",
+                                    "ring-1 ring-white/10 outline-none focus:ring-2 focus:ring-white/30"
+                                  )}
+                                />
+                              </label>
+                            </div>
+
+                            <div className="grid gap-3 md:grid-cols-2">
+                              <label className="block">
+                                <span className="text-xs uppercase tracking-widest text-white/60">Location (city)</span>
+                                <input
+                                  value={s.city}
+                                  onChange={(e) => updateShow(s.id, { city: e.target.value })}
+                                  placeholder="Lagos"
+                                  className={cx(
+                                    "mt-2 w-full rounded-2xl bg-white/[0.04] px-4 py-3 text-sm text-white placeholder:text-white/35",
+                                    "ring-1 ring-white/10 outline-none focus:ring-2 focus:ring-white/30"
+                                  )}
+                                />
+                              </label>
+
+                              <label className="block">
+                                <span className="text-xs uppercase tracking-widest text-white/60">Show (venue)</span>
+                                <input
+                                  value={s.venue}
+                                  onChange={(e) => updateShow(s.id, { venue: e.target.value })}
+                                  placeholder="Eko Convention Centre"
+                                  className={cx(
+                                    "mt-2 w-full rounded-2xl bg-white/[0.04] px-4 py-3 text-sm text-white placeholder:text-white/35",
+                                    "ring-1 ring-white/10 outline-none focus:ring-2 focus:ring-white/30"
+                                  )}
+                                />
+                              </label>
+                            </div>
+
+                            <div className="grid gap-3 md:grid-cols-2">
+                              <label className="block">
+                                <span className="text-xs uppercase tracking-widest text-white/60">Status</span>
+                                <select
+                                  value={(s.status ?? "announce") as ShowStatus}
+                                  onChange={(e) => updateShow(s.id, { status: e.target.value as ShowStatus })}
+                                  className={cx(
+                                    "mt-2 w-full rounded-2xl bg-white/[0.04] px-4 py-3 text-sm text-white",
+                                    "ring-1 ring-white/10 outline-none focus:ring-2 focus:ring-white/30"
+                                  )}
+                                >
+                                  <option value="announce" className="bg-[#0B0B10]">
+                                    Coming soon
+                                  </option>
+                                  <option value="tickets" className="bg-[#0B0B10]">
+                                    Tickets
+                                  </option>
+                                  <option value="soldout" className="bg-[#0B0B10]">
+                                    Sold out
+                                  </option>
+                                </select>
+                              </label>
+
+                              <label className="block">
+                                <span className="text-xs uppercase tracking-widest text-white/60">Link (optional)</span>
+                                <input
+                                  value={s.href ?? ""}
+                                  onChange={(e) => updateShow(s.id, { href: e.target.value })}
+                                  placeholder="https://..."
+                                  className={cx(
+                                    "mt-2 w-full rounded-2xl bg-white/[0.04] px-4 py-3 text-sm text-white placeholder:text-white/35",
+                                    "ring-1 ring-white/10 outline-none focus:ring-2 focus:ring-white/30"
+                                  )}
+                                />
+                              </label>
+                            </div>
+                          </div>
                         </div>
                       </div>
-
-                      <div className="mt-3 grid gap-3 md:grid-cols-2">
-                        <label className="block">
-                          <span className="text-xs uppercase tracking-widest text-white/60">Date (ISO)</span>
-                          <input
-                            value={s.dateISO ?? ""}
-                            onChange={(e) => updateShow(s.id, { dateISO: e.target.value })}
-                            placeholder="2026-04-12"
-                            className={cx(
-                              "mt-2 w-full rounded-2xl bg-white/[0.04] px-4 py-3 text-sm text-white placeholder:text-white/35",
-                              "ring-1 ring-white/10 outline-none focus:ring-2 focus:ring-white/30"
-                            )}
-                          />
-                        </label>
-
-                        <label className="block">
-                          <span className="text-xs uppercase tracking-widest text-white/60">Date label</span>
-                          <input
-                            value={s.dateLabel ?? ""}
-                            onChange={(e) => updateShow(s.id, { dateLabel: e.target.value })}
-                            placeholder="APR 12"
-                            className={cx(
-                              "mt-2 w-full rounded-2xl bg-white/[0.04] px-4 py-3 text-sm text-white placeholder:text-white/35",
-                              "ring-1 ring-white/10 outline-none focus:ring-2 focus:ring-white/30"
-                            )}
-                          />
-                        </label>
-
-                        <label className="block">
-                          <span className="text-xs uppercase tracking-widest text-white/60">City</span>
-                          <input
-                            value={s.city}
-                            onChange={(e) => updateShow(s.id, { city: e.target.value })}
-                            placeholder="Lagos"
-                            className={cx(
-                              "mt-2 w-full rounded-2xl bg-white/[0.04] px-4 py-3 text-sm text-white placeholder:text-white/35",
-                              "ring-1 ring-white/10 outline-none focus:ring-2 focus:ring-white/30"
-                            )}
-                          />
-                        </label>
-
-                        <label className="block">
-                          <span className="text-xs uppercase tracking-widest text-white/60">Venue</span>
-                          <input
-                            value={s.venue}
-                            onChange={(e) => updateShow(s.id, { venue: e.target.value })}
-                            placeholder="Venue"
-                            className={cx(
-                              "mt-2 w-full rounded-2xl bg-white/[0.04] px-4 py-3 text-sm text-white placeholder:text-white/35",
-                              "ring-1 ring-white/10 outline-none focus:ring-2 focus:ring-white/30"
-                            )}
-                          />
-                        </label>
-
-                        <label className="block md:col-span-2">
-                          <span className="text-xs uppercase tracking-widest text-white/60">Ticket link (optional)</span>
-                          <input
-                            value={s.href ?? ""}
-                            onChange={(e) => updateShow(s.id, { href: e.target.value })}
-                            placeholder="https://..."
-                            className={cx(
-                              "mt-2 w-full rounded-2xl bg-white/[0.04] px-4 py-3 text-sm text-white placeholder:text-white/35",
-                              "ring-1 ring-white/10 outline-none focus:ring-2 focus:ring-white/30"
-                            )}
-                          />
-                        </label>
-
-                        <label className="block">
-                          <span className="text-xs uppercase tracking-widest text-white/60">Status</span>
-                          <select
-                            value={(s.status ?? "announce") as ShowStatus}
-                            onChange={(e) => updateShow(s.id, { status: e.target.value as ShowStatus })}
-                            className={cx(
-                              "mt-2 w-full rounded-2xl bg-white/[0.04] px-4 py-3 text-sm text-white",
-                              "ring-1 ring-white/10 outline-none focus:ring-2 focus:ring-white/30"
-                            )}
-                          >
-                            <option value="announce" className="bg-[#0B0B10]">
-                              Coming soon
-                            </option>
-                            <option value="tickets" className="bg-[#0B0B10]">
-                              Tickets
-                            </option>
-                            <option value="soldout" className="bg-[#0B0B10]">
-                              Sold out
-                            </option>
-                          </select>
-                        </label>
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </Card>
 
               <div className="flex flex-wrap items-center justify-between gap-3">
-                <div className="text-xs text-white/50">Draft mode. Publish when you hit Save.</div>
+                <div className="text-xs text-white/50">Save to publish.</div>
 
                 <div className="flex flex-wrap gap-2">
                   <Button variant="ghost" onClick={() => setEditOpen(false)}>
@@ -1155,7 +892,9 @@ export function TourSection(props: {
                   <Button
                     variant="primary"
                     onClick={saveNow}
-                    iconRight={saving ? <span className="text-xs">Saving…</span> : <IconArrowUpRight className="h-4 w-4" />}
+                    iconRight={
+                      saving ? <span className="text-xs">Saving…</span> : <IconArrowUpRight className="h-4 w-4" />
+                    }
                   >
                     Save
                   </Button>
@@ -1163,14 +902,23 @@ export function TourSection(props: {
               </div>
             </div>
 
-            {/* RIGHT */}
+            {/* RIGHT: preview */}
             <div className="grid gap-4">
               <div className="flex items-center justify-between">
                 <div className="text-xs uppercase tracking-widest text-white/60">Live preview</div>
                 <Badge>Instant</Badge>
               </div>
 
-              <LivePreviewCard config={{ ...props.config, ...draftConfig }} shows={draftShows.filter((s) => !isEmptyRow(s))} />
+              <div className="grid gap-4 sm:grid-cols-2">
+                {sortByDate(draftShows.filter((s) => !isEmptyRow(s))).map((s) => (
+                  <ShowPosterCard
+                    key={s.id}
+                    show={s}
+                    fallbackPosterSrc={(draftConfig.posterSrc ?? "").trim()}
+                    fallbackPosterAlt={draftConfig.posterAlt ?? "Tour poster"}
+                  />
+                ))}
+              </div>
             </div>
           </div>
         </Modal>
