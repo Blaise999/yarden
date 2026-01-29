@@ -34,30 +34,31 @@ export type ShowItem = {
   city: string; // location
   venue: string; // show/venue
 
-  // per-show poster (✅ what you asked for)
+  // per-show poster
   posterSrc?: string;
   posterAlt?: string;
 
-  // optional link + status (kept for later, but UI stays simple)
+  // tickets link + status
   href?: string;
-  status?: ShowStatus; // "announce" = coming soon
+  status?: ShowStatus; // announce = coming soon
 };
 
 export type TourConfig = {
   headline?: string;
   description?: string;
 
-  // ✅ fallback poster if a show doesn’t have one
+  // fallback poster if a show doesn’t have one (used for admin preview only)
   posterSrc?: string;
   posterAlt?: string;
 
-  ticketPortalHref?: string;
-
   notifyCtaLabel?: string;
-  ticketPortalLabel?: string;
   passCtaLabel?: string;
 
-  // optional copy
+  // optional ticket portal (not per-show)
+  ticketPortalHref?: string;
+  ticketPortalLabel?: string;
+
+  // copy for locked/coming soon mode
   emptyTitle?: string;
   emptyBody?: string;
   footerLine?: string;
@@ -77,12 +78,24 @@ function clamp(n: number, a: number, b: number) {
   return Math.max(a, Math.min(b, n));
 }
 
+function hasDate(s: ShowItem) {
+  return Boolean((s.dateISO ?? "").trim() || (s.dateLabel ?? "").trim());
+}
+
 function isEmptyRow(s: ShowItem) {
-  const hasDate = Boolean((s.dateISO ?? "").trim() || (s.dateLabel ?? "").trim());
   const hasText = Boolean((s.city ?? "").trim() || (s.venue ?? "").trim());
   const hasMedia = Boolean((s.posterSrc ?? "").trim());
   const hasLink = Boolean((s.href ?? "").trim());
-  return !hasDate && !hasText && !hasMedia && !hasLink;
+  return !hasDate(s) && !hasText && !hasMedia && !hasLink;
+}
+
+// ✅ what “live” means for YOU:
+// show only becomes public when admin adds: poster + date + location + link
+function isPublishable(s: ShowItem) {
+  const poster = (s.posterSrc ?? "").trim();
+  const link = (s.href ?? "").trim();
+  const city = (s.city ?? "").trim();
+  return Boolean(poster && hasDate(s) && city && link);
 }
 
 function sortByDate(shows: ShowItem[]) {
@@ -119,17 +132,9 @@ function formatShortDate(show: ShowItem) {
   return { month: "—", day: "—" };
 }
 
-function hasLiveSignals(shows: ShowItem[]) {
-  return shows.some((s) => {
-    const st = (s.status ?? "announce") as ShowStatus;
-    const hasLink = Boolean((s.href ?? "").trim());
-    return st !== "announce" || hasLink;
-  });
-}
+const STORAGE_KEY = "yarden:tour:draft:v8";
 
-const STORAGE_KEY = "yarden:tour:draft:v7";
-
-// demo shows (only when editable + nothing passed in)
+// demo shows (admin only; intentionally NOT publishable until you add links)
 const DEMO_SHOWS: Omit<ShowItem, "id">[] = [
   {
     dateISO: "2026-03-22",
@@ -137,6 +142,7 @@ const DEMO_SHOWS: Omit<ShowItem, "id">[] = [
     venue: "Eko Convention Centre",
     status: "announce",
     posterSrc: "/Pictures/tour/lagos.jpg",
+    href: "",
   },
   {
     dateISO: "2026-03-29",
@@ -144,6 +150,7 @@ const DEMO_SHOWS: Omit<ShowItem, "id">[] = [
     venue: "AICC",
     status: "announce",
     posterSrc: "/Pictures/tour/accra.jpg",
+    href: "",
   },
   {
     dateISO: "2026-04-12",
@@ -151,57 +158,70 @@ const DEMO_SHOWS: Omit<ShowItem, "id">[] = [
     venue: "O2 Academy Brixton",
     status: "announce",
     posterSrc: "/Pictures/tour/london.jpg",
+    href: "",
   },
 ];
 
-function StatusDot({ status }: { status?: ShowStatus }) {
+function StatusPill({ status }: { status?: ShowStatus }) {
   const s = (status ?? "announce") as ShowStatus;
   if (s === "tickets") return <Pill tone="brand">Tickets</Pill>;
   if (s === "soldout") return <Pill tone="muted">Sold out</Pill>;
   return <Pill tone="ghost">Soon</Pill>;
 }
 
+function TicketLinkLine({ href }: { href: string }) {
+  const pretty = href.replace(/^https?:\/\//, "");
+  return (
+    <div className="mt-2 text-[11px] text-white/55">
+      <span className="text-white/40">Link:</span>{" "}
+      <span className="truncate inline-block max-w-[24ch] align-bottom">{pretty}</span>
+    </div>
+  );
+}
+
 function ShowPosterCard(props: {
   show: ShowItem;
-  fallbackPosterSrc?: string;
-  fallbackPosterAlt?: string;
+  variant?: "grid" | "hero";
 }) {
-  const { show } = props;
+  const { show, variant = "grid" } = props;
+
   const d = formatShortDate(show);
-
-  const src = (show.posterSrc || props.fallbackPosterSrc || "").trim();
-  const alt = show.posterAlt || props.fallbackPosterAlt || `${show.city} show poster`;
-
+  const src = (show.posterSrc ?? "").trim();
+  const alt = show.posterAlt ?? `${show.city || "Tour"} poster`;
   const href = (show.href ?? "").trim();
-  const clickable = Boolean(href);
 
-  const Wrapper: any = clickable ? "a" : "div";
-  const wrapperProps = clickable
-    ? { href, target: "_blank", rel: "noreferrer", "aria-label": `${show.city} details` }
-    : {};
+  const canGo = Boolean(href);
+  const status = (show.status ?? "announce") as ShowStatus;
+
+  // “hero” = big single show
+  const posterAspect = variant === "hero" ? "aspect-[16/10] md:aspect-[16/9]" : "aspect-[4/5]";
+  const pad = variant === "hero" ? "p-6 md:p-8" : "p-4";
+  const titleSize = variant === "hero" ? "text-xl md:text-2xl" : "text-sm";
+  const citySize = variant === "hero" ? "text-sm md:text-base" : "text-xs";
 
   return (
-    <Wrapper
-      {...wrapperProps}
-      data-show-card="true"
-      className={cx("group block", clickable ? "cursor-pointer" : "cursor-default")}
-    >
+    <div data-show-card="true" className="group">
       <div className="relative overflow-hidden rounded-3xl bg-white/[0.03] ring-1 ring-white/10">
-        <div className="relative aspect-[4/5]">
+        <div className={cx("relative", posterAspect)}>
           {src ? (
             <Image
               src={src}
               alt={alt}
               fill
-              sizes="(max-width: 1024px) 100vw, 33vw"
-              className="object-cover"
+              sizes={variant === "hero" ? "(max-width: 1024px) 100vw, 70vw" : "(max-width: 1024px) 100vw, 33vw"}
+              className={cx(
+                "object-cover transition-transform duration-500",
+                "group-hover:scale-[1.02]"
+              )}
               priority={false}
             />
           ) : (
             <div className="absolute inset-0 bg-[radial-gradient(circle_at_25%_20%,rgba(255,255,255,0.10),transparent_55%)]" />
           )}
 
-          <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/25 to-transparent" />
+          {/* overlays */}
+          <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/25 to-transparent" />
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_70%_15%,rgba(255,255,255,0.10),transparent_55%)]" />
 
           {/* date chip */}
           <div className="absolute left-4 top-4 rounded-2xl bg-black/45 px-3 py-2 ring-1 ring-white/10 backdrop-blur-xl">
@@ -209,32 +229,48 @@ function ShowPosterCard(props: {
             <div className="text-base font-semibold leading-none text-white">{d.day}</div>
           </div>
 
-          {/* status (small) */}
-          <div className="absolute right-4 top-4">{<StatusDot status={show.status} />}</div>
+          {/* status */}
+          <div className="absolute right-4 top-4">
+            <StatusPill status={status} />
+          </div>
 
           {/* bottom info */}
-          <div className="absolute bottom-0 left-0 right-0 p-4">
-            <div className="rounded-3xl bg-black/35 p-4 ring-1 ring-white/10 backdrop-blur-xl">
-              {/* “show” */}
-              <div className="truncate text-sm font-semibold text-white">
-                {show.venue?.trim() ? show.venue : "Venue TBA"}
+          <div className={cx("absolute bottom-0 left-0 right-0", pad)}>
+            <div className="rounded-3xl bg-black/38 p-4 ring-1 ring-white/10 backdrop-blur-xl">
+              <div className={cx("font-semibold text-white truncate", titleSize)}>
+                {show.venue?.trim() ? show.venue : "Show details coming soon"}
               </div>
-              {/* location */}
-              <div className="mt-1 truncate text-xs text-white/65">
+
+              <div className={cx("mt-1 text-white/65 truncate", citySize)}>
                 {show.city?.trim() ? show.city : "—"}
               </div>
 
-              {clickable ? (
-                <div className="mt-3 inline-flex items-center gap-2 text-xs text-white/70">
-                  <span>Details</span>
-                  <IconArrowUpRight className="h-4 w-4 opacity-70 transition group-hover:opacity-100" />
-                </div>
-              ) : null}
+              {/* Get tickets */}
+              <div className="mt-4 flex items-center gap-3">
+                <Button
+                  variant="primary"
+                  href={canGo ? href : "#"}
+                  target={canGo ? "_blank" : undefined}
+                  disabled={!canGo || status === "announce"}
+                  iconRight={<IconArrowUpRight className="h-4 w-4" />}
+                  className={variant === "hero" ? "px-5 py-3" : "px-4 py-2"}
+                >
+                  Get tickets
+                </Button>
+
+                {!canGo ? (
+                  <span className="text-xs text-white/45">Add link in admin.</span>
+                ) : status === "announce" ? (
+                  <span className="text-xs text-white/45">Set status to “Tickets”.</span>
+                ) : null}
+              </div>
+
+              {canGo ? <TicketLinkLine href={href} /> : null}
             </div>
           </div>
         </div>
       </div>
-    </Wrapper>
+    </div>
   );
 }
 
@@ -251,6 +287,7 @@ export function TourSection(props: {
 }) {
   const reducedMotion = usePrefersReducedMotion();
   const id = props.id ?? "shows";
+
   const rootRef = useRef<HTMLDivElement | null>(null);
 
   const [editOpen, setEditOpen] = useState(false);
@@ -272,10 +309,13 @@ export function TourSection(props: {
     return [];
   }, [props.shows, props.editable]);
 
-  const sortedShows = useMemo(() => sortByDate(effectiveShows), [effectiveShows]);
+  // ✅ PUBLIC OUTPUT: only publishable shows show up
+  const publicShows = useMemo(() => {
+    return sortByDate((effectiveShows ?? []).filter((s) => !isEmptyRow(s) && isPublishable(s)));
+  }, [effectiveShows]);
 
-  // coming soon mode = no “live” signals yet (still shows posters + info)
-  const comingSoonMode = useMemo(() => !hasLiveSignals(sortedShows), [sortedShows]);
+  // “Coming soon” until at least one show is publishable
+  const comingSoonMode = publicShows.length === 0;
 
   // sync draft when not editing
   useEffect(() => {
@@ -416,26 +456,27 @@ export function TourSection(props: {
     }, rootRef);
 
     return () => ctx.revert();
-  }, [reducedMotion, sortedShows.length]);
+  }, [reducedMotion, publicShows.length]);
 
   const cfg = props.config;
 
   const notifyLabel = cfg.notifyCtaLabel ?? "Get alerts";
-  const ticketPortalLabel = cfg.ticketPortalLabel ?? "Ticket portal";
   const passLabel = cfg.passCtaLabel ?? "Pass perks";
+
   const ticketPortalHref = (cfg.ticketPortalHref ?? "").trim();
+  const ticketPortalLabel = cfg.ticketPortalLabel ?? "Ticket portal";
 
-  const totalStops = sortedShows.length;
+  const totalStops = publicShows.length;
 
-  const emptyTitle = cfg.emptyTitle ?? "Tour dates aren’t announced yet.";
+  const emptyTitle = cfg.emptyTitle ?? "Coming soon.";
   const emptyBody =
     cfg.emptyBody ??
-    "When dates go live, you’ll see the poster + show + location + date right here.";
+    "Tour posters and ticket links appear here the moment they’re confirmed.";
 
   const onNotify = () => props.onNotify?.();
 
-  const fallbackPosterSrc = (cfg.posterSrc ?? "").trim();
-  const fallbackPosterAlt = cfg.posterAlt ?? "Tour poster";
+  // single-show huge layout
+  const single = publicShows.length === 1 ? publicShows[0] : null;
 
   return (
     <section id={id} className="relative py-20 md:py-24">
@@ -448,7 +489,7 @@ export function TourSection(props: {
         <SectionHeader
           eyebrow="Tour"
           title={cfg.headline ?? "Tour board."}
-          desc={cfg.description ?? "Posters + show + location + date."}
+          desc={cfg.description ?? "Posters + show + location + date + tickets."}
           right={
             <div className="flex flex-wrap gap-2">
               {props.editable ? (
@@ -459,6 +500,10 @@ export function TourSection(props: {
 
               <Button variant="ghost" onClick={onNotify} iconRight={<IconChevron className="h-4 w-4" />}>
                 {notifyLabel}
+              </Button>
+
+              <Button variant="secondary" onClick={() => props.onOpenPass?.()}>
+                {passLabel}
               </Button>
 
               {ticketPortalHref ? (
@@ -479,12 +524,12 @@ export function TourSection(props: {
           <Stat
             label="Mode"
             value={comingSoonMode ? "Coming soon" : "Live"}
-            hint={comingSoonMode ? "Announcements pending" : "Links / tickets available"}
+            hint={comingSoonMode ? "Waiting for confirmed poster + link" : "Tickets available"}
           />
-          <Stat label="Stops" value={String(totalStops)} hint={totalStops ? "Listed" : "To be announced"} />
+          <Stat label="Shows" value={String(totalStops)} hint={totalStops ? "Listed" : "None live yet"} />
           <div className="rounded-2xl bg-white/[0.04] p-5 ring-1 ring-white/10">
             <div className="text-xs uppercase tracking-widest text-white/60">Alerts</div>
-            <div className="mt-2 text-sm text-white/70">Tour updates only — no spam.</div>
+            <div className="mt-2 text-sm text-white/70">Tour updates only — posters and ticket links.</div>
             <div className="mt-4 flex flex-wrap gap-2">
               <Button variant="primary" onClick={onNotify}>
                 {notifyLabel}
@@ -498,23 +543,14 @@ export function TourSection(props: {
 
         <Card className="overflow-hidden" data-tour-shell="true">
           <div className="p-6 md:p-8">
-            {sortedShows.length ? (
-              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                {sortedShows.map((s) => (
-                  <ShowPosterCard
-                    key={s.id}
-                    show={s}
-                    fallbackPosterSrc={fallbackPosterSrc}
-                    fallbackPosterAlt={fallbackPosterAlt}
-                  />
-                ))}
-              </div>
-            ) : (
+            {comingSoonMode ? (
               <div className="rounded-3xl bg-white/[0.03] p-7 ring-1 ring-white/10">
                 <div className="flex items-center gap-2 text-white/70">
                   <IconAnkh className="h-5 w-5" />
                   <div className="text-xs uppercase tracking-widest">Coming soon</div>
+                  <Badge>Locked</Badge>
                 </div>
+
                 <div className="mt-4 text-lg font-semibold text-white">{emptyTitle}</div>
                 <p className="mt-2 text-sm leading-relaxed text-white/60">{emptyBody}</p>
 
@@ -525,19 +561,19 @@ export function TourSection(props: {
                   <Button variant="secondary" onClick={() => props.onOpenPass?.()}>
                     {passLabel}
                   </Button>
-                  {ticketPortalHref ? (
-                    <Button
-                      variant="ghost"
-                      href={ticketPortalHref}
-                      target="_blank"
-                      iconRight={<IconArrowUpRight className="h-4 w-4" />}
-                    >
-                      {ticketPortalLabel}
-                    </Button>
-                  ) : null}
                 </div>
 
                 {cfg.footerLine ? <div className="mt-5 text-xs text-white/45">{cfg.footerLine}</div> : null}
+              </div>
+            ) : single ? (
+              // ✅ one show = huge
+              <ShowPosterCard show={single} variant="hero" />
+            ) : (
+              // ✅ multiple shows = poster grid
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                {publicShows.map((s) => (
+                  <ShowPosterCard key={s.id} show={s} variant="grid" />
+                ))}
               </div>
             )}
           </div>
@@ -587,7 +623,7 @@ export function TourSection(props: {
                         setDraftConfig(next);
                         persistDraft(draftShows, next);
                       }}
-                      placeholder="Posters + show + location + date."
+                      placeholder="Posters + show + location + date + tickets."
                       className={cx(
                         "mt-2 w-full rounded-2xl bg-white/[0.04] px-4 py-3 text-sm text-white placeholder:text-white/35",
                         "ring-1 ring-white/10 outline-none focus:ring-2 focus:ring-white/30"
@@ -595,7 +631,7 @@ export function TourSection(props: {
                     />
                   </label>
 
-                  <div className="grid gap-3 md:grid-cols-3">
+                  <div className="grid gap-3 md:grid-cols-2">
                     <label className="block">
                       <span className="text-xs uppercase tracking-widest text-white/60">Notify label</span>
                       <input
@@ -629,35 +665,20 @@ export function TourSection(props: {
                         )}
                       />
                     </label>
-
-                    <label className="block">
-                      <span className="text-xs uppercase tracking-widest text-white/60">Portal label</span>
-                      <input
-                        value={draftConfig.ticketPortalLabel ?? ""}
-                        onChange={(e) => {
-                          const next = { ...draftConfig, ticketPortalLabel: e.target.value };
-                          setDraftConfig(next);
-                          persistDraft(draftShows, next);
-                        }}
-                        placeholder="Ticket portal"
-                        className={cx(
-                          "mt-2 w-full rounded-2xl bg-white/[0.04] px-4 py-3 text-sm text-white placeholder:text-white/35",
-                          "ring-1 ring-white/10 outline-none focus:ring-2 focus:ring-white/30"
-                        )}
-                      />
-                    </label>
                   </div>
 
+                  <Divider />
+
                   <label className="block">
-                    <span className="text-xs uppercase tracking-widest text-white/60">Ticket portal link (optional)</span>
+                    <span className="text-xs uppercase tracking-widest text-white/60">Locked mode copy</span>
                     <input
-                      value={draftConfig.ticketPortalHref ?? ""}
+                      value={draftConfig.emptyTitle ?? ""}
                       onChange={(e) => {
-                        const next = { ...draftConfig, ticketPortalHref: e.target.value };
+                        const next = { ...draftConfig, emptyTitle: e.target.value };
                         setDraftConfig(next);
                         persistDraft(draftShows, next);
                       }}
-                      placeholder="https://..."
+                      placeholder="Coming soon."
                       className={cx(
                         "mt-2 w-full rounded-2xl bg-white/[0.04] px-4 py-3 text-sm text-white placeholder:text-white/35",
                         "ring-1 ring-white/10 outline-none focus:ring-2 focus:ring-white/30"
@@ -665,20 +686,34 @@ export function TourSection(props: {
                     />
                   </label>
 
-                  <Divider />
-
                   <label className="block">
-                    <span className="text-xs uppercase tracking-widest text-white/60">
-                      Default poster (fallback if a show has none)
-                    </span>
-                    <input
-                      value={draftConfig.posterSrc ?? ""}
+                    <span className="text-xs uppercase tracking-widest text-white/60">Locked body</span>
+                    <textarea
+                      value={draftConfig.emptyBody ?? ""}
                       onChange={(e) => {
-                        const next = { ...draftConfig, posterSrc: e.target.value };
+                        const next = { ...draftConfig, emptyBody: e.target.value };
                         setDraftConfig(next);
                         persistDraft(draftShows, next);
                       }}
-                      placeholder="/Pictures/tour/default.jpg"
+                      rows={3}
+                      placeholder="Tour posters and ticket links appear here the moment they’re confirmed."
+                      className={cx(
+                        "mt-2 w-full resize-none rounded-2xl bg-white/[0.04] px-4 py-3 text-sm text-white placeholder:text-white/35",
+                        "ring-1 ring-white/10 outline-none focus:ring-2 focus:ring-white/30"
+                      )}
+                    />
+                  </label>
+
+                  <label className="block">
+                    <span className="text-xs uppercase tracking-widest text-white/60">Footer line (optional)</span>
+                    <input
+                      value={draftConfig.footerLine ?? ""}
+                      onChange={(e) => {
+                        const next = { ...draftConfig, footerLine: e.target.value };
+                        setDraftConfig(next);
+                        persistDraft(draftShows, next);
+                      }}
+                      placeholder="More cities soon."
                       className={cx(
                         "mt-2 w-full rounded-2xl bg-white/[0.04] px-4 py-3 text-sm text-white placeholder:text-white/35",
                         "ring-1 ring-white/10 outline-none focus:ring-2 focus:ring-white/30"
@@ -712,13 +747,21 @@ export function TourSection(props: {
 
                 <div className="mt-4 grid gap-3">
                   {draftShows.map((s) => {
-                    const previewPoster = (s.posterSrc || draftConfig.posterSrc || "").trim();
+                    const missing = {
+                      poster: !(s.posterSrc ?? "").trim(),
+                      date: !hasDate(s),
+                      city: !(s.city ?? "").trim(),
+                      link: !(s.href ?? "").trim(),
+                    };
+                    const isReady = isPublishable(s);
+
                     return (
                       <div key={s.id} className="rounded-2xl bg-white/[0.03] p-4 ring-1 ring-white/10">
                         <div className="flex items-start justify-between gap-3">
-                          <div className="flex items-center gap-2">
+                          <div className="flex flex-wrap items-center gap-2">
                             <Pill tone="muted">Show</Pill>
-                            <StatusDot status={s.status} />
+                            <StatusPill status={s.status} />
+                            {isReady ? <Badge>Publishable</Badge> : <Badge>Locked</Badge>}
                           </div>
 
                           <div className="flex items-center gap-1">
@@ -749,13 +792,13 @@ export function TourSection(props: {
                           </div>
                         </div>
 
-                        {/* simple: poster + date + location + venue */}
+                        {/* simple: poster + date + location + show + tickets link */}
                         <div className="mt-3 grid gap-3 md:grid-cols-[140px_1fr]">
                           <div className="relative overflow-hidden rounded-2xl bg-white/[0.04] ring-1 ring-white/10">
                             <div className="relative aspect-[4/5]">
-                              {previewPoster ? (
+                              {(s.posterSrc ?? "").trim() ? (
                                 <Image
-                                  src={previewPoster}
+                                  src={(s.posterSrc ?? "").trim()}
                                   alt={s.posterAlt ?? "Poster preview"}
                                   fill
                                   sizes="140px"
@@ -769,6 +812,13 @@ export function TourSection(props: {
                           </div>
 
                           <div className="grid gap-3">
+                            <div className="flex flex-wrap gap-2 text-xs text-white/45">
+                              {missing.poster ? <span>• add poster</span> : null}
+                              {missing.date ? <span>• add date</span> : null}
+                              {missing.city ? <span>• add location</span> : null}
+                              {missing.link ? <span>• add tickets link</span> : null}
+                            </div>
+
                             <label className="block">
                               <span className="text-xs uppercase tracking-widest text-white/60">Poster</span>
                               <input
@@ -862,7 +912,7 @@ export function TourSection(props: {
                               </label>
 
                               <label className="block">
-                                <span className="text-xs uppercase tracking-widest text-white/60">Link (optional)</span>
+                                <span className="text-xs uppercase tracking-widest text-white/60">Tickets link</span>
                                 <input
                                   value={s.href ?? ""}
                                   onChange={(e) => updateShow(s.id, { href: e.target.value })}
@@ -892,9 +942,7 @@ export function TourSection(props: {
                   <Button
                     variant="primary"
                     onClick={saveNow}
-                    iconRight={
-                      saving ? <span className="text-xs">Saving…</span> : <IconArrowUpRight className="h-4 w-4" />
-                    }
+                    iconRight={saving ? <span className="text-xs">Saving…</span> : <IconArrowUpRight className="h-4 w-4" />}
                   >
                     Save
                   </Button>
@@ -902,7 +950,7 @@ export function TourSection(props: {
               </div>
             </div>
 
-            {/* RIGHT: preview */}
+            {/* RIGHT: preview (draft preview shows everything, even if locked) */}
             <div className="grid gap-4">
               <div className="flex items-center justify-between">
                 <div className="text-xs uppercase tracking-widest text-white/60">Live preview</div>
@@ -911,12 +959,7 @@ export function TourSection(props: {
 
               <div className="grid gap-4 sm:grid-cols-2">
                 {sortByDate(draftShows.filter((s) => !isEmptyRow(s))).map((s) => (
-                  <ShowPosterCard
-                    key={s.id}
-                    show={s}
-                    fallbackPosterSrc={(draftConfig.posterSrc ?? "").trim()}
-                    fallbackPosterAlt={draftConfig.posterAlt ?? "Tour poster"}
-                  />
+                  <ShowPosterCard key={s.id} show={s} variant="grid" />
                 ))}
               </div>
             </div>

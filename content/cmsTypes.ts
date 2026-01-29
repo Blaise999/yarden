@@ -65,14 +65,26 @@ export type VisualItem = {
 // TOUR
 // ═══════════════════════════════════════════════════════════════════
 
+export type ShowStatus = "announce" | "tickets" | "soldout" | "onsale"; // onsale = backward compat
+
 export type ShowItem = {
   id: string;
-  dateLabel: string;
+  dateISO?: string;
+  dateLabel?: string;
   city: string;
   venue: string;
+
+  // ✅ per-show poster
+  posterSrc?: string;
+  posterAlt?: string;
+
+  // ✅ per-show tickets link
   href?: string;
-  status?: "announce" | "onsale" | "soldout";
+
+  // ✅ status
+  status?: ShowStatus;
 };
+
 
 export type TourConfig = {
   posterSrc: string;

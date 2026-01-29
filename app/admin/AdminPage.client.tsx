@@ -703,53 +703,72 @@ function ShowEditor({
   onChange: (s: ShowItem) => void;
   onRemove: () => void;
 }) {
+  const statusVal = (show.status === "onsale" ? "tickets" : show.status) || "announce";
+
   return (
-    <div className="p-4 border border-gray-200 rounded-xl bg-white">
+    <div className="p-4 border border-gray-200 rounded-xl bg-white space-y-4">
+      {/* Poster */}
+      <ImageUploader
+        label="Show Poster"
+        value={(show as any).posterSrc ?? ""}
+        onChange={(v) => onChange({ ...(show as any), posterSrc: v })}
+      />
+
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <InputField
-          label="Date"
-          value={(show as any).dateLabel || ""}
-          onChange={(v) => onChange({ ...(show as any), dateLabel: v })}
+          label="Date (Label)"
+          value={show.dateLabel ?? ""}
+          onChange={(v) => onChange({ ...show, dateLabel: v })}
           placeholder="APR 12"
         />
         <InputField
+          label="Date (ISO)"
+          value={show.dateISO ?? ""}
+          onChange={(v) => onChange({ ...show, dateISO: v })}
+          placeholder="2026-04-12"
+        />
+        <InputField
           label="City"
-          value={(show as any).city || ""}
-          onChange={(v) => onChange({ ...(show as any), city: v })}
+          value={show.city}
+          onChange={(v) => onChange({ ...show, city: v })}
           placeholder="Lagos"
         />
         <InputField
-          label="Venue"
-          value={(show as any).venue || ""}
-          onChange={(v) => onChange({ ...(show as any), venue: v })}
-          placeholder="— Venue TBA"
+          label="Show Name"
+          value={show.venue}
+          onChange={(v) => onChange({ ...show, venue: v })}
+          placeholder="Eko Convention Centre"
         />
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+        <div className="md:col-span-2">
+          <InputField
+            label="Tickets Link"
+            value={show.href ?? ""}
+            onChange={(v) => onChange({ ...show, href: v || undefined })}
+            placeholder="https://..."
+          />
+        </div>
+
         <SelectField
           label="Status"
-          value={(show as any).status || "announce"}
-          onChange={(v) => onChange({ ...(show as any), status: v as any })}
+          value={statusVal}
+          onChange={(v) => onChange({ ...show, status: v as any })}
           options={[
-            { value: "announce", label: "Announced" },
-            { value: "onsale", label: "On Sale" },
+            { value: "announce", label: "Coming soon" },
+            { value: "tickets", label: "Tickets" },
             { value: "soldout", label: "Sold Out" },
           ]}
         />
       </div>
 
-      <div className="mt-3 flex items-center gap-3">
-        <div className="flex-1">
-          <InputField
-            label="Ticket Link"
-            value={(show as any).href || ""}
-            onChange={(v) => onChange({ ...(show as any), href: v || undefined })}
-            placeholder="https://..."
-          />
-        </div>
+      <div className="flex justify-end">
         <button
           onClick={onRemove}
-          className="mt-5 p-2 text-red-500 hover:bg-red-50 rounded-lg"
+          className="px-4 py-2 bg-red-50 text-red-600 rounded-lg text-sm font-semibold hover:bg-red-100 transition"
         >
-          ✕
+          Delete Show
         </button>
       </div>
     </div>
@@ -1558,13 +1577,17 @@ export default function AdminPage() {
               <div className="flex gap-2">
                 <button
                   onClick={() => {
-                    const newShow: ShowItem = {
-                      id: generateId("show"),
-                      dateLabel: "",
-                      city: "",
-                      venue: "",
-                      status: "announce" as any,
-                    } as any;
+                   const newShow: ShowItem = {
+  id: generateId("show"),
+  dateLabel: "",
+  city: "",
+  venue: "",
+  status: "announce",
+  href: "",
+  posterSrc: "",
+  posterAlt: "",
+};
+
 
                     setCmsDraft((prev) => ({
                       ...prev,
