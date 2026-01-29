@@ -1,3 +1,4 @@
+// app/api/admin/cms/public/route.ts
 import { NextResponse } from "next/server";
 import { kv } from "@vercel/kv";
 import { DEFAULT_CMS, type CmsData } from "../../../../../content/defaultCms";
@@ -9,7 +10,6 @@ const CMS_KEY = "yarden:cms:v1";
 
 function normalize(data: Partial<CmsData> | null | undefined): CmsData {
   const base = (data ?? {}) as CmsData;
-
   return {
     ...DEFAULT_CMS,
     ...base,
@@ -18,15 +18,22 @@ function normalize(data: Partial<CmsData> | null | undefined): CmsData {
     tour: base.tour ?? DEFAULT_CMS.tour,
     store: base.store ?? DEFAULT_CMS.store,
     newsletter: base.newsletter ?? DEFAULT_CMS.newsletter,
-    updatedAt: base.updatedAt || Date.now(),
+    updatedAt: base.updatedAt ?? Date.now(),
   };
 }
 
 export async function GET() {
-  const stored = (await kv.get(CMS_KEY)) as CmsData | null;
-  const cms = normalize(stored ?? DEFAULT_CMS);
+  try {
+    const stored = (await kv.get(CMS_KEY)) as CmsData | null;
+    const cms = normalize(stored ?? DEFAULT_CMS);
 
-  const res = NextResponse.json({ cms });
-  res.headers.set("Cache-Control", "no-store");
-  return res;
+    const res = NextResponse.json({ cms });
+    res.headers.set("Cache-Control", "no-store, max-age=0");
+    return res;
+  } catch (e) {
+    console.error("CMS PUBLIC GET error:", e);
+    const res = NextResponse.json({ cms: DEFAULT_CMS });
+    res.headers.set("Cache-Control", "no-store, max-age=0");
+    return res;
+  }
 }
