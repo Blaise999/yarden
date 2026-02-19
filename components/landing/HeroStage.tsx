@@ -1,7 +1,9 @@
-// HeroSection.tsx (FULL EDIT — stage timing fix + snap states + no “blank” after B)
-// - Makes Stage B happen near the END of the pin scroll (so after A+B you immediately reach next section)
-// - Adds hard “snap” state onLeave/onLeaveBack/onRefresh to prevent any chance of both layers being hidden
-// - Keeps your sharpness settings (quality + sizes) and all header sync intact
+// HeroSection.tsx (FULL EDIT — heroA fills box without looking “zoomed”)
+// ✅ Keeps your GSAP timing + snap states exactly the same
+// ✅ Hero A (hero2) now uses a 2-layer render:
+//    - Back layer: object-cover (fills the box) + blur/dim
+//    - Front layer: object-contain (full image, not cropped/zoomed)
+// ✅ Hero B stays object-cover like before
 
 "use client";
 
@@ -600,8 +602,24 @@ export function HeroSection(props: {
               }}
             />
 
-            {/* HERO A */}
-            <div ref={artARef} className="absolute inset-0 opacity-100">
+            {/* HERO A (fills box but doesn’t look zoomed) */}
+            <div ref={artARef} className="absolute inset-0 opacity-100 bg-black">
+              {/* BACK LAYER: fill the hero */}
+              <Image
+                src={props.heroA.src}
+                alt=""
+                fill
+                priority
+                sizes={HERO_SIZES}
+                quality={HERO_QUALITY}
+                className="object-cover scale-[1.06] blur-2xl opacity-35"
+                style={{
+                  objectPosition: props.heroA.focus ?? "50% 35%",
+                }}
+                aria-hidden
+              />
+
+              {/* FRONT LAYER: full image, not cropped/zoomed */}
               <Image
                 src={props.heroA.src}
                 alt={props.heroA.alt}
@@ -609,7 +627,7 @@ export function HeroSection(props: {
                 priority
                 sizes={HERO_SIZES}
                 quality={HERO_QUALITY}
-                className="object-cover"
+                className="object-contain"
                 style={{
                   objectPosition: props.heroA.focus ?? "50% 35%",
                   filter: imageFilter,
@@ -621,6 +639,7 @@ export function HeroSection(props: {
                   }
                 }}
               />
+
               <div className="absolute inset-0 bg-gradient-to-t from-black/78 via-black/18 to-black/6" />
               <div className="absolute inset-0 bg-gradient-to-r from-black/58 via-black/06 to-transparent" />
             </div>
