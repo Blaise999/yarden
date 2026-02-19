@@ -55,8 +55,8 @@ export default async function Page() {
   ];
 
   // Keep your hero images static (or move into CMS later)
-  const heroA = { src: "/Pictures/hero2.jpg", alt: "Yarden cover — clean" };
-  const heroB = { src: "/Pictures/hero3.jpg", alt: "Yarden cover — detailed" };
+  const heroA = { src: "/Pictures/hero3.jpg", alt: "Yarden cover — clean" };
+  const heroB = { src: "/Pictures/hero2.jpg", alt: "Yarden cover — detailed" };
 
   // ✅ Use CMS data (fallback to defaults)
   const releases = ((cms.releases ?? DEFAULT_CMS.releases).filter((r: any) => r?.enabled !== false) ??
