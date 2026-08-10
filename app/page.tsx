@@ -71,6 +71,9 @@ export default async function Page() {
   const storeConfig = (cms.store?.config ?? DEFAULT_CMS.store.config) as unknown as StoreConfig;
   const merch = (cms.store?.merch ?? DEFAULT_CMS.store.merch) as unknown as MerchItem[];
 
+  // press items (from CMS newsletter block, fallback to defaults)
+  const press = ((cms as any).newsletter?.pressItems ?? (DEFAULT_CMS as any).newsletter?.pressItems ?? []) as any[];
+
   // ✅ If you want admin editing on the live site:
   const isAdmin = !!cookies().get("yard_admin_token")?.value;
 
@@ -96,6 +99,7 @@ export default async function Page() {
       shows={shows}
       storeConfig={storeConfig}
       merch={merch}
+      press={press as any}
       isAdmin={isAdmin}
     />
   );

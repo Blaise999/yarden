@@ -1,69 +1,32 @@
-# Yarden — full package (redesign + admin + polish)
+# Yarden site — 2026 redesign (v3) — drop-in
 
-Everything is in this one zip. Paths mirror your repo — copy the folders over
-your project root, replacing files at the same paths. `preview/` is just for
-looking; it isn't part of the app.
+Copy every file/folder here into your repo at the **same path** (overwrite when asked).
+No new dependencies. Nothing else in your project needs changing.
 
-## 1. The redesign (this is the big one)
+## What's in this drop
+- `app/page.client.tsx` — the whole landing page, rebuilt. Scoped under `.yd`.
+- `app/redesign.css` — all styling (scoped under `.yd`, cannot leak into /admin).
+- `app/page.tsx` — patched to pass `press` (from `cms.newsletter.pressItems`) to the page.
+- `app/layout.tsx` — full SEO/OG/Twitter metadata + ankh icons + preconnects (speed).
+- `app/{favicon.ico,icon.svg,apple-icon.png,opengraph-image.png,manifest.ts}` + `public/icon-192/512.png` — ankh brand icons.
+- `components/landing/PassModal.tsx` + `components/landing/pass/YardPassGen.tsx` — the **working** Yard Pass generator.
+- `app/admin/AdminPage.client.tsx` — admin CMS restyled to a dark on-brand console (logic untouched).
+- `components/CookieConsent.tsx`, `content/defaultCms.ts` (cleaned).
+- `preview/yarden-redesign.html` — open in any browser to preview (fully self-contained, the pass generator works in it too).
 
-**`app/page.client.tsx` (new) + `app/redesign.css` (new)**
-- A complete, self-contained redesign of the public site — hero, discography,
-  a lyric moment, visuals, tour ledger, store lookbook, and the join/close.
-- Wired to your CMS: it reads the same `releases`, `visuals`, `shows`, and
-  `merch` props your `app/page.tsx` already passes. **You don't change
-  `page.tsx`.** The featured release is the one flagged `highlight` (falls back
-  to the first). Streaming pills, video links, tour dates, and merch links all
-  come from your data.
-- **All styling is scoped under a single `.yd` wrapper** (that's what
-  `redesign.css` does), so it can't leak into `/admin` or anywhere else. Fonts
-  (Lora + Poppins) load via an `@import` at the top of that CSS.
-- Your **Pass modal is preserved** — every "Get the Pass" / "Get alerts"
-  button opens `PassModal`.
-- Direction is pulled straight from the Muse cover: gold #E4B13C on ink
-  #0A0A0F, warm bone text, the ankh, a serif-italic display (Lora) against a
-  geometric UI face (Poppins). Every section has its own structure, so it stops
-  reading like one template repeated.
+## What changed in v3 (your feedback, point by point)
+1. **Now Playing** rotates through the **singles** every ~4s, each linking out to that single.
+2. **Catalogue** now spotlights **only projects (EPs)** — Muse + The One Who Descends — and **auto-rotates** with dots/arrows. Singles live in "The singles" grid below. Detection is robust (format/subtitle/chips = EP/Album, or a tracklist ≥ 2).
+3. **Correct links** everywhere: play/tracklist → the release's primary streaming link; "All platforms" → the smart link (`vyd.co/YardenMuse`, `yarden.lnk.to/towd`); platform pills come straight from each release's `links`.
+4. **Lyrics rotate** every ~5.6s. ⚠️ **Edit `LYRICS` at the top of `page.client.tsx`** — line 1 ("ME & U") is confirmed; replace/extend lines 2–4 with your exact deepest lines.
+5. **Videos autoplay** (muted) and **advance** automatically; click any queue item to jump; a mute/unmute button appears once playing. (Muted autoplay needs a real browser — it won't fire in a headless preview.)
+6. **On the road** poster is now the **CMS `posterSrc`** of your next show — edit it in admin (upload the next concert's promo image). Falls back to `/Pictures/yard.jpg` if none is set.
+7. **Merch** rebuilt as a clean, uniform 4-card grid (tag, name, price/Notify, gold hover).
+8. **Get the Pass** is a real, working generator: fill name/email/phone/gender → a live **canvas pass** renders → **downloads a PNG** and **POSTs to `/api/passes`** (your existing endpoint, unchanged).
 
-**Look before you wire:** open `preview/yarden-redesign.html` in a browser to
-see the whole thing rendered.
+Also: hero A↔B crossfade, mobile hamburger menu, real socials (IG/TikTok/X/YouTube/Audiomack) everywhere, lazy-loading + preconnects for speed, reduced-motion respected.
 
-## 2. Metadata, icons, cookie banner
-- `app/layout.tsx` — full OG/Twitter/robots/theme-color metadata + mounts the
-  cookie banner.
-- `app/favicon.ico`, `app/icon.svg`, `app/apple-icon.png`,
-  `app/opengraph-image.png`, `app/manifest.ts`, `public/icon-192.png`,
-  `public/icon-512.png` — ankh icon set (auto-wired by App Router).
-- `components/CookieConsent.tsx` — on-brand consent banner.
-
-## 3. Admin console
-- `app/admin/AdminPage.client.tsx` — dark, on-brand console. Design-layer only;
-  every handler and API call is unchanged.
-
-## 4. Content
-- `content/defaultCms.ts` — leaked dev copy removed, a couple lines tightened.
-
-## Env
-`.env.local` (and Vercel env):
-```
-NEXT_PUBLIC_SITE_URL=https://thisisyarden.com
-```
-
-## Delete (leftover Next starter junk)
-```
-public/next.svg  public/vercel.svg  public/window.svg
-public/globe.svg  public/file.svg
-```
-
-## Honest notes — quick follow-ups, not blockers
-- **Mobile nav**: below 900px the links are hidden and there's no hamburger yet.
-  Easy add — say the word and I'll wire a menu.
-- **Video thumbnails**: the visuals feature uses the hero image as its poster.
-  Add a `thumb` field per visual in the CMS and I'll use it.
-- **Join email field**: the input is visual; its button opens the Pass modal.
-  Point it at your real newsletter endpoint when you have one.
-- **Single artwork**: a few singles reference `/images/releases/*.jpg`, which may
-  not exist yet — they fall back to the hero image. Drop the real art under
-  `public/images/releases/` (or fix the CMS paths) and they'll show.
-- Your old section components (`HeroStage`, `ReleasesSection`, etc.) are no longer
-  used by the front page but are kept — `page.tsx` still imports their *types*.
-  Safe to leave.
+## Notes
+- Single artwork uses each release's `art`; if a path 404s it falls back to a hero image.
+- The tour poster and pass both have graceful fallbacks, so nothing renders broken.
+- Everything is under `.yd`, so `/admin` styling is untouched.

@@ -1,72 +1,45 @@
-// src/components/landing/PassModal.tsx
+// components/landing/PassModal.tsx — dark on-brand modal around the working generator
 "use client";
 
-import React from "react";
-import { Modal, IconClose, cx } from "./ui";
-import PassGenerator from "./pass/PassGenerator";
+import React, { useEffect } from "react";
+import YardPassGen from "./pass/YardPassGen";
 
-type PassModalProps = {
-  open: boolean;
-  onClose: () => void;
-};
+type PassModalProps = { open: boolean; onClose: () => void };
 
 export function PassModal({ open, onClose }: PassModalProps) {
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    document.body.style.overflow = "hidden";
+    window.addEventListener("keydown", onKey);
+    return () => { document.body.style.overflow = ""; window.removeEventListener("keydown", onKey); };
+  }, [open, onClose]);
+
+  if (!open) return null;
+
   return (
-    <Modal open={open} onClose={onClose} title=" ">
-      {/* Scroll container INSIDE modal */}
-      <div className="relative -mx-5 -my-4 max-h-[82vh] overflow-y-auto overscroll-contain">
-        {/* Sticky header with close button */}
-        <div
-          className={cx(
-            "sticky top-0 z-20 flex items-center justify-between gap-3",
-            "border-b border-black/10 bg-[#FFFEF5]/92 px-5 py-4",
-            "backdrop-blur-xl"
-          )}
-        >
-          <div className="min-w-0">
-            <div className="text-[11px] font-black uppercase tracking-[0.22em] text-black/50">
-              Yarden Pass
-            </div>
-            <div className="text-sm sm:text-base font-black text-black truncate">
-              Generate your Yard Pass
-            </div>
-          </div>
-
+    <div className="fixed inset-0 z-[200] flex items-center justify-center p-4" role="dialog" aria-modal="true">
+      <div className="absolute inset-0 bg-black/75 backdrop-blur-md" onClick={onClose} />
+      <div
+        className="relative w-full max-w-3xl overflow-hidden rounded-3xl ring-1 ring-white/12"
+        style={{ background: "#0B0B10", animation: "yardPassIn .35s cubic-bezier(.2,1,.3,1)" }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="h-1 w-full" style={{ background: "linear-gradient(90deg,#b98a29,#E4B13C,#b98a29)" }} />
+        <div className="flex items-center justify-between gap-3 px-6 py-4">
+          <div className="text-[11px] font-semibold uppercase tracking-[0.26em] text-white/45">Join the descendants</div>
           <button
-            type="button"
-            onClick={onClose}
-            aria-label="Close"
-            className={cx(
-              "shrink-0 inline-flex items-center justify-center",
-              "h-10 w-10 rounded-full",
-              "bg-black/5 hover:bg-black/10 active:bg-black/15",
-              "transition"
-            )}
+            type="button" onClick={onClose} aria-label="Close"
+            className="grid h-10 w-10 place-items-center rounded-full bg-white/[0.06] text-white/70 transition hover:bg-white/[0.12]"
           >
-            <IconClose className="h-5 w-5 text-black/70" />
+            <svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M6 6l12 12M18 6L6 18" /></svg>
           </button>
         </div>
-
-        {/* Body */}
-        <div className="px-5 py-5">
-          <PassGenerator embedded />
-        </div>
-
-        {/* Bottom sticky close (nice on mobile after long scroll) */}
-        <div className="sticky bottom-0 z-20 border-t border-black/10 bg-[#FFFEF5]/92 px-5 py-4 backdrop-blur-xl">
-          <button
-            type="button"
-            onClick={onClose}
-            className={cx(
-              "w-full rounded-xl py-3 font-black",
-              "bg-black text-[rgb(var(--yard-gold))]",
-              "hover:bg-black/90 active:bg-black/85 transition"
-            )}
-          >
-            Close
-          </button>
+        <div className="max-h-[82vh] overflow-y-auto overscroll-contain px-6 pb-7">
+          <YardPassGen />
         </div>
       </div>
-    </Modal>
+      <style>{`@keyframes yardPassIn{from{opacity:0;transform:translateY(16px) scale(.98)}to{opacity:1;transform:none}}`}</style>
+    </div>
   );
 }

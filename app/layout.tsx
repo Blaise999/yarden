@@ -94,6 +94,12 @@ export default function RootLayout({
       <body
         className={`${inter.className} antialiased bg-[#05060A] text-white min-h-screen`}
       >
+        {/* speed: warm up the origins the redesign hits */}
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        <link rel="preconnect" href="https://www.youtube.com" />
+        <link rel="preconnect" href="https://i.ytimg.com" />
+        <link rel="preconnect" href="https://img.youtube.com" />
         {children}
         <CookieConsent />
       </body>
