@@ -53,10 +53,10 @@ export default function YardenMusicGallery({ releases }: Props) {
           <div className="ym__artwork" key={`${active.title}-art`}>
             <div className="ym__art-glow" aria-hidden="true" />
             <a href={releaseUrl(active)} target="_blank" rel="noopener noreferrer" className="ym__big-cover" aria-label={`Listen to ${active.title}`}>
-              <Image src={releaseArt(active) || artFallback} alt={`${active.title} official artwork`} fill sizes="(max-width: 800px) 92vw, 46vw" priority={active.id === "angel-album"} unoptimized={releaseArt(active).startsWith("http")} />
+              <Image src={releaseArt(active) || artFallback} alt={`${active.title} official artwork`} fill sizes="(max-width: 800px) 92vw, 46vw" priority={active.title.trim().toLowerCase() === "angel"} unoptimized={releaseArt(active).startsWith("http")} />
               <span className="ym__cover-play" aria-hidden="true">▶</span>
             </a>
-            <span className="ym__artnote">{active.id === "angel-album" ? "ANGEL — OFFICIAL ARTWORK / ETINS RECORDS" : "RELEASE ART / " + (active.year || "YARDEN")}</span>
+            <span className="ym__artnote">{active.title.trim().toLowerCase() === "angel" ? "ANGEL — OFFICIAL ARTWORK / ETINS RECORDS" : "RELEASE ART / " + (active.year || "YARDEN")}</span>
           </div>
 
           <div className="ym__details" key={`${active.title}-details`}>
