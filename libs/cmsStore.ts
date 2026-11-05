@@ -3,12 +3,47 @@ import { readRecord, saveRecord } from "./persistence";
 export const CMS_KEY = "yarden:cms:v1"; // Retain the existing live CMS data, if any.
 export function normalizeCms(input: Partial<CmsData> | null | undefined): CmsData {
   const base = input && typeof input === "object" ? input : {};
+  // V9 migration: surface the verified 2026 ANGEL album, without erasing
+  // releases or hero text a CMS editor intentionally changed in V8.
+  const legacy = typeof base.version !== "number" || base.version < 3;
+  const site = { ...DEFAULT_CMS.site, ...base.site };
+  if (legacy) {
+    const oldCopy: Partial<typeof site> = {
+      eyebrow: "YARDEN / THE MUSE ERA",
+      title: "Feel everything.",
+      tagline: "NEW NOSTALGIA FROM LAGOS",
+      description: "Songs for the moments you want to hold on to.",
+    };
+    for (const key of ["eyebrow", "title", "tagline", "description"] as const) {
+      if (site[key] === oldCopy[key]) site[key] = DEFAULT_CMS.site[key];
+    }
+  }
+  const previousReleases = Array.isArray(base.releases) ? base.releases : DEFAULT_CMS.releases;
+  const newEraReleases = DEFAULT_CMS.releases.filter(r => ["angel-album", "sdf-2026-single", "sunset-in-paris-2026-single", "celine-2026-single"].includes(r.id));
+  const releases = legacy
+    ? [
+        ...newEraReleases.filter(r => !previousReleases.some(old => old?.id === r.id || old?.title?.toUpperCase() === r.title.toUpperCase())),
+        ...previousReleases,
+      ]
+    : previousReleases;
+  // Preserve existing video choices while introducing newly verified artist videos.
+  const previousVisuals = Array.isArray(base.visuals) ? base.visuals : DEFAULT_CMS.visuals;
+  const angelVideos = DEFAULT_CMS.visuals.filter(v => ["sfd-angel-video-2026", "angel-album-trailer-2026", "sunset-paris-video-2026", "celine-video-2026"].includes(v.id));
+  const visuals = legacy
+    ? [...angelVideos.filter(v => !previousVisuals.some(old => old?.id === v.id || old?.href?.split("?")[0] === v.href?.split("?")[0])), ...previousVisuals]
+    : previousVisuals;
+  const previousPress = Array.isArray(base.newsletter?.pressItems)
+    ? base.newsletter.pressItems : DEFAULT_CMS.newsletter.pressItems;
+  const newPress = legacy && Array.isArray(base.newsletter?.pressItems)
+    ? [...DEFAULT_CMS.newsletter.pressItems.slice(0, 2).filter(item => !previousPress.some(p => p.id === item.id)), ...previousPress]
+    : previousPress;
   return {
     ...DEFAULT_CMS,
     ...base,
-    site: { ...DEFAULT_CMS.site, ...base.site },
-    releases: Array.isArray(base.releases) ? base.releases : DEFAULT_CMS.releases,
-    visuals: Array.isArray(base.visuals) ? base.visuals : DEFAULT_CMS.visuals,
+    version: 3,
+    site,
+    releases,
+    visuals,
     tour: {
       config: { ...DEFAULT_CMS.tour.config, ...base.tour?.config },
       shows: Array.isArray(base.tour?.shows) ? base.tour.shows : DEFAULT_CMS.tour.shows,
@@ -20,7 +55,7 @@ export function normalizeCms(input: Partial<CmsData> | null | undefined): CmsDat
     newsletter: {
       ...DEFAULT_CMS.newsletter,
       ...base.newsletter,
-      pressItems: Array.isArray(base.newsletter?.pressItems) ? base.newsletter.pressItems : DEFAULT_CMS.newsletter.pressItems,
+      pressItems: newPress,
       videos: Array.isArray(base.newsletter?.videos) ? base.newsletter.videos : DEFAULT_CMS.newsletter.videos,
     },
     updatedAt: typeof base.updatedAt === "number" ? base.updatedAt : DEFAULT_CMS.updatedAt,

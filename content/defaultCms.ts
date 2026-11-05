@@ -48,13 +48,13 @@ export interface CmsData {
 }
 
 export const DEFAULT_CMS: CmsData = {
-  version: 2,
+  version: 3,
   updatedAt: 0,
   site: {
-    eyebrow: "YARDEN / THE MUSE ERA",
-    title: "Feel everything.",
-    tagline: "NEW NOSTALGIA FROM LAGOS",
-    description: "Songs for the moments you want to hold on to.",
+    eyebrow: "YARDEN / ANGEL — OUT NOW",
+    title: "ANGEL.",
+    tagline: "THE DEBUT ALBUM / OUT NOW",
+    description: "Thirteen songs, no single mood. A story told in soul, midnight colours and melodies that stay long after the room goes quiet.",
     desktopVideo: "/videos/yarden-desktop.mp4",
     mobileVideo: "/videos/yarden-mobile.mp4",
     desktopPoster: "/videos/yarden-desktop-poster.webp",
@@ -66,6 +66,31 @@ export const DEFAULT_CMS: CmsData = {
   // ═══════════════════════════════════════════════════════════════════
   releases: [
     {
+      id: "angel-album",
+      title: "ANGEL",
+      subtitle: "Debut studio album · 13 tracks",
+      year: "2026",
+      // Official ANGEL album artwork; hosted at the credited music publication.
+      // Upload an owned master to Vercel Blob in Admin → Releases for independent long-term hosting.
+      art: "https://hypetribeng.com/wp-content/uploads/2026/10/yarden-angel-album-cover-770x770.jpg",
+      artSourceLabel: "Official ANGEL cover, via HypeTribe NG",
+      artSourceHref: "https://hypetribeng.com/yarden-angel-debut-album-dxtiny-kemuel-fimi/",
+      chips: ["Album", "2026", "Out now"],
+      fanLink: "https://music.apple.com/us/album/angel/6817875363",
+      linkSource: { label: "Apple Music album", href: "https://music.apple.com/us/album/angel/6817875363" },
+      links: { apple: "https://music.apple.com/us/album/angel/6817875363" },
+      primary: "apple",
+      tracklist: [
+        { title: "MORNING ANGEL" }, { title: "MI AMOR" }, { title: "ANGEL" },
+        { title: "1CHANCE" }, { title: "2SOFT" }, { title: "SDF (SO DAMN FINE)" },
+        { title: "SFD (SWEET FANTA DIALLO)", meta: "feat. dxtiny" },
+        { title: "SUNSET IN PARIS" }, { title: "RAIN", meta: "feat. Kemuel" },
+        { title: "SEXY FREAK", meta: "feat. Fimi" }, { title: "LUV" },
+        { title: "U" }, { title: "TWILIGHT" },
+      ],
+      format: "Album", enabled: true, highlight: true,
+    },
+    {
       id: "muse-ep",
       title: "Muse",
       subtitle: "EP",
@@ -73,7 +98,7 @@ export const DEFAULT_CMS: CmsData = {
       art: "/Pictures/muse.jpg",
       artSourceLabel: "Audiomack album page",
       artSourceHref: "https://audiomack.com/thisisyarden/album/muse",
-      chips: ["EP", "2025", "New"],
+      chips: ["EP", "2025"],
       fanLink: "https://vyd.co/YardenMuse",
       linkSource: { label: "Vydia smart link", href: "https://vyd.co/YardenMuse" },
       links: {
@@ -125,6 +150,45 @@ export const DEFAULT_CMS: CmsData = {
       ],
       format: "EP",
       enabled: true,
+    },
+    {
+      id: "sdf-2026-single",
+      title: "SDF (So Damn Fine)",
+      subtitle: "Single · ANGEL era",
+      year: "2026",
+      art: "https://hypetribeng.com/wp-content/uploads/2026/10/yarden-angel-album-cover-770x770.jpg",
+      artSourceLabel: "ANGEL era artwork",
+      artSourceHref: "https://music.apple.com/us/album/angel/6817875363",
+      chips: ["Single", "2026"],
+      fanLink: "https://music.apple.com/us/album/angel/6817875363",
+      links: { apple: "https://music.apple.com/us/album/angel/6817875363" },
+      primary: "apple", format: "Single", enabled: true,
+    },
+    {
+      id: "sunset-in-paris-2026-single",
+      title: "Sunset in Paris",
+      subtitle: "Single",
+      year: "2026",
+      art: "https://i.ytimg.com/vi/M7dENTsiKNs/maxresdefault.jpg",
+      artSourceLabel: "Official music video thumbnail",
+      artSourceHref: "https://www.youtube.com/watch?v=M7dENTsiKNs",
+      chips: ["Single", "2026"],
+      fanLink: "https://music.apple.com/us/album/sunset-in-paris-single/6770536830",
+      links: { apple: "https://music.apple.com/us/album/sunset-in-paris-single/6770536830", youtube: "https://www.youtube.com/watch?v=M7dENTsiKNs" },
+      primary: "apple", format: "Single", enabled: true,
+    },
+    {
+      id: "celine-2026-single",
+      title: "Celine",
+      subtitle: "Single",
+      year: "2026",
+      art: "https://i.ytimg.com/vi/d-f2EOBk5X4/maxresdefault.jpg",
+      artSourceLabel: "Official music video thumbnail",
+      artSourceHref: "https://www.youtube.com/watch?v=d-f2EOBk5X4",
+      chips: ["Single", "2026"],
+      fanLink: "https://music.apple.com/us/album/celine-single/1884027763",
+      links: { apple: "https://music.apple.com/us/album/celine-single/1884027763", youtube: "https://www.youtube.com/watch?v=d-f2EOBk5X4" },
+      primary: "apple", format: "Single", enabled: true,
     },
     {
       id: "ifeoma-single",
@@ -221,6 +285,40 @@ export const DEFAULT_CMS: CmsData = {
   // VISUALS / VIDEOS
   // ═══════════════════════════════════════════════════════════════════
   visuals: [
+    {
+      id: "sfd-angel-video-2026",
+      title: "SFD (Sweet Fanta Diallo) ft. dxtiny",
+      kind: "Official Music Video",
+      year: "2026",
+      href: "https://www.youtube.com/watch?v=XhWGq0aHULo",
+      tag: "ANGEL / NEW",
+      enabled: true,
+    },
+    {
+      id: "angel-album-trailer-2026",
+      title: "ANGEL — Official Album Trailer",
+      kind: "Official Album Trailer",
+      year: "2026",
+      href: "https://www.youtube.com/watch?v=okkbole3lOU",
+      tag: "ANGEL",
+      enabled: true,
+    },
+    {
+      id: "sunset-paris-video-2026",
+      title: "Sunset in Paris",
+      kind: "Official Music Video",
+      year: "2026",
+      href: "https://www.youtube.com/watch?v=M7dENTsiKNs",
+      enabled: true,
+    },
+    {
+      id: "celine-video-2026",
+      title: "Celine",
+      kind: "Official Music Video",
+      year: "2026",
+      href: "https://www.youtube.com/watch?v=d-f2EOBk5X4",
+      enabled: true,
+    },
     {
       id: "meu-video",
       title: "ME & U (feat. Mellissa)",
@@ -343,6 +441,33 @@ export const DEFAULT_CMS: CmsData = {
   // ═══════════════════════════════════════════════════════════════════
   newsletter: {
     pressItems: [
+      {
+        id: "album-talks-angel-2026",
+        title: "ANGEL: a new chapter in Yarden's sound",
+        outlet: "Album Talks",
+        date: "Oct 27, 2026",
+        href: "https://albumtalks.com/yarden-announces-debut-album-angel/",
+        tag: "ANGEL",
+        excerpt: "The debut album moves between Afropop, Afrosoul and alternative R&B, finding different sides of his voice.",
+      },
+      {
+        id: "angel-album-release-2026",
+        title: "ANGEL: thirteen songs, every side of Yarden",
+        outlet: "HypeTribe NG",
+        date: "Oct 30, 2026",
+        href: "https://hypetribeng.com/yarden-angel-debut-album-dxtiny-kemuel-fimi/",
+        tag: "New album",
+        excerpt: "A deeper look at ANGEL, its musical worlds and the collaborators on Yarden's first full-length record.",
+      },
+      {
+        id: "yarden-creative-interview-2025",
+        title: "Yarden on Muse, his influences and building for creatives",
+        outlet: "The.Wav NG",
+        date: "Nov 3, 2025",
+        href: "https://thewavng.substack.com/p/yarden-on-muse-and-reaching-1-billion-8a9",
+        tag: "Conversation",
+        excerpt: "Beyond the songs: how Yarden thinks about creativity, collaboration and what comes next.",
+      },
       {
         id: "wonderland-interview",
         title: 'Yarden talks debut EP "The One Who Descends"',

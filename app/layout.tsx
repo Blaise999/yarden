@@ -15,9 +15,9 @@ const SITE_URL =
   (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : undefined) ??
   "https://thisisyarden.com";
 
-const TITLE = "Yarden — Official Site";
+const TITLE = "Yarden — ANGEL | Debut Album & Yard Pass";
 const DESCRIPTION =
-  "The official home of Yarden. Stream the latest release, watch the visuals, catch tour dates, and grab the drop — all in one place.";
+  "Enter Yarden’s world. Hear ANGEL, the 13-track debut album released October 30, 2026, and explore his music, visuals and the Yard Pass.";
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
@@ -33,6 +33,7 @@ export const metadata: Metadata = {
     "Afrobeats",
     "new nostalgia",
     "the descendants",
+    "ANGEL album",
     "Muse EP",
     "Nigerian artist",
     "music",

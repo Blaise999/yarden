@@ -1,22 +1,22 @@
 /* YARDEN — cinematic film and release gallery. Scope all design to `.yd`. */
-.yd .yv{--ivory:#f8efdf;--film-gold:#d6b277;position:relative;min-height:760px;height:100svh;max-height:1220px;isolation:isolate;overflow:hidden;background:#08090b;display:block;color:var(--ivory)}
+.yd .yv{--ivory:#f8efdf;--film-gold:#d6b277;position:relative;min-height:650px;height:100svh;max-height:none;isolation:isolate;overflow:hidden;background:#08090b;display:block;color:var(--ivory)}
 .yd .yv__backdrop,.yd .yv__video,.yd .yv__gradient,.yd .yv__noise{position:absolute;inset:0;width:100%;height:100%}
-.yd .yv__backdrop{background-image:url('/videos/yarden-desktop-poster.webp');background-size:cover;background-position:center 42%;transform:scale(1.025);z-index:-4}
-.yd .yv__video{object-fit:cover;object-position:center 44%;z-index:-3;opacity:0;transition:opacity 950ms ease;max-width:none}
+.yd .yv__backdrop{background-image:url('/videos/yarden-desktop-poster.webp');background-size:cover;background-position:center 42%;z-index:-4}
+.yd .yv__video{object-fit:cover;object-position:center center;z-index:-3;opacity:0;transition:opacity 950ms ease;max-width:none}
 .yd .yv__video.is-ready{opacity:1}
-.yd .yv__gradient{z-index:-2;background:linear-gradient(90deg,rgba(3,4,6,.64) 0%,rgba(3,4,6,.25) 52%,rgba(3,4,6,.1) 100%),linear-gradient(0deg,rgba(3,4,6,.92),rgba(3,4,6,.23) 36%,transparent 60%,rgba(3,4,6,.49))}
+.yd .yv__gradient{z-index:-2;background:linear-gradient(90deg,rgba(3,4,6,.5) 0%,rgba(3,4,6,.18) 48%,transparent 82%),linear-gradient(0deg,rgba(3,4,6,.78),rgba(3,4,6,.10) 32%,transparent 62%,rgba(3,4,6,.26))}
 .yd .yv__noise{z-index:-1;opacity:.08;pointer-events:none;background:repeating-linear-gradient(0deg,rgba(255,255,255,.05) 0px,transparent 1px,transparent 3px)}
-.yd .yv__frame{position:relative;height:100%;width:100%;display:flex;flex-direction:column;justify-content:space-between;padding:120px max(6.3vw,24px) 32px}
+.yd .yv__frame{position:relative;height:100%;width:100%;display:flex;flex-direction:column;justify-content:space-between;padding:105px max(5.4vw,24px) 34px}
 .yd .yv__topline,.yd .yv__bottomline{display:flex;justify-content:space-between;align-items:center;gap:18px;font-family:var(--sans);font-weight:500;font-size:10px;letter-spacing:.19em;line-height:1.5}
 .yd .yv__topline{color:rgba(255,255,255,.8)}
 .yd .yv__divider{color:#d6b277;margin:0 7px}
 .yd .yv__now{color:rgba(255,255,255,.66);display:inline-flex;align-items:center;gap:10px}
 .yd .yv__pulse{width:6px;height:6px;background:#e3b77c;border-radius:50%;box-shadow:0 0 14px rgba(227,183,124,.7)}
-.yd .yv__content{max-width:780px;margin-top:auto;margin-bottom:clamp(60px,8vh,114px);animation:yvReveal 1.15s .12s both}
+.yd .yv__content{max-width:670px;margin-top:auto;margin-bottom:clamp(42px,6vh,85px);animation:yvReveal 1.15s .12s both}
 .yd .yv__kicker{font-size:11px;font-weight:500;letter-spacing:.35em;color:rgba(245,220,183,.92);margin:0 0 19px}
-.yd .yv h1{font-family:var(--serif);font-weight:400;font-size:clamp(75px,9.2vw,148px);line-height:.91;letter-spacing:-.068em;margin:0;max-width:8.5em;text-wrap:balance}
+.yd .yv h1{font-family:var(--serif);font-weight:400;font-size:clamp(56px,7.4vw,112px);line-height:.99;letter-spacing:-.068em;margin:0;max-width:8.5em;text-wrap:balance}
 .yd .yv h1 em{display:block;font-weight:400;letter-spacing:-.072em;color:#f5dfb8}
-.yd .yv__description{max-width:38ch;font-size:clamp(15px,1.32vw,18px);color:rgba(255,255,255,.8);line-height:1.65;margin-top:28px}
+.yd .yv__description{max-width:38ch;font-size:clamp(14px,1.18vw,17px);color:rgba(255,255,255,.8);line-height:1.65;margin-top:28px}
 .yd .yv__actions{display:flex;align-items:center;flex-wrap:wrap;gap:22px;margin-top:30px}
 .yd .yv__primary{display:inline-flex;align-items:center;gap:13px;padding:12px 18px 12px 11px;background:#f6ead6;color:#14100c;min-height:52px;border-radius:2px;font-size:13px;font-weight:600;letter-spacing:.012em;transition:transform .3s,background .3s}
 .yd .yv__primary:hover{background:#fff;transform:translateY(-3px)}
@@ -130,13 +130,13 @@
  .yd .yv{min-height:640px;height:100svh;max-height:none}
  .yd .yv__backdrop{background-image:url('/videos/yarden-mobile-poster.webp');background-position:center center}
  .yd .yv__video{object-position:center center}
- .yd .yv__gradient{background:linear-gradient(0deg,rgba(4,4,5,.95),rgba(4,4,5,.41) 33%,transparent 64%,rgba(4,4,5,.43) 100%),linear-gradient(90deg,rgba(4,4,5,.1),transparent)}
+ .yd .yv__gradient{background:linear-gradient(0deg,rgba(4,4,5,.84),rgba(4,4,5,.24) 33%,transparent 66%,rgba(4,4,5,.23) 100%),linear-gradient(90deg,rgba(4,4,5,.1),transparent)}
  .yd .yv__frame{padding:96px 24px max(24px,env(safe-area-inset-bottom))}
  .yd .yv__topline{font-size:9px;letter-spacing:.12em}
  .yd .yv__now{display:none}
  .yd .yv__content{margin-bottom:42px;max-width:100%}
  .yd .yv__kicker{letter-spacing:.22em;font-size:9px;margin-bottom:13px}
- .yd .yv h1{font-size:clamp(58px,13.9vw,94px);max-width:600px;line-height:.96;letter-spacing:-.065em}
+ .yd .yv h1{font-size:clamp(49px,11.5vw,76px);max-width:600px;line-height:.96;letter-spacing:-.065em}
  .yd .yv h1 em{letter-spacing:-.065em}
  .yd .yv__description{font-size:14px;margin-top:17px;max-width:27ch}
  .yd .yv__actions{gap:16px;margin-top:23px}
@@ -170,5 +170,27 @@
  .yd .ym__single-meta strong{font-size:20px}
  .yd .ym__single-rail{margin-right:-20px;padding-right:20px;gap:16px}
 }
-@media(max-width:390px){.yd .yv__frame{padding-inline:19px}.yd .yv h1{font-size:55px}.yd .yv__secondary{display:none}.yd .ym__wrap{width:calc(100% - 32px)}.yd .ym__single{flex-basis:79vw}}
+@media(max-width:390px){.yd .yv__frame{padding-inline:19px}.yd .yv h1{font-size:46px}.yd .yv__secondary{display:none}.yd .ym__wrap{width:calc(100% - 32px)}.yd .ym__single{flex-basis:79vw}}
 @media(prefers-reduced-motion:reduce){.yd .yv__content,.yd .ym__artwork,.yd .ym__details{animation:none}.yd .yv__scroll{animation:none}.yd .ym__big-cover,.yd .ym__single-cover img{transition:none}}
+
+/* V9 — artist-story notes and better film breathing room */
+.yd .ym-bridge__story{display:grid;grid-template-columns:1fr 1fr;gap:clamp(24px,4vw,75px);max-width:950px;margin:42px auto 0;text-align:left;border-top:1px solid rgba(255,255,255,.15);padding-top:28px}
+.yd .ym-bridge__story p{color:rgba(240,232,220,.7);font-size:clamp(14px,1.1vw,16px);line-height:1.75;letter-spacing:0;max-width:none;margin:0;text-transform:none}
+.yd .ym-bridge__story i{color:#f2e4d1}
+.yd .yv__video{filter:none!important;image-rendering:auto}
+.yd .yv__frame{pointer-events:none}
+.yd .yv__frame a,.yd .yv__frame button{pointer-events:auto}
+@media(max-width:767px){.yd .ym-bridge__story{grid-template-columns:1fr;gap:16px;margin-top:28px;padding-top:20px}.yd .yv__frame{padding-top:100px}.yd .yv__content{margin-bottom:clamp(32px,6svh,65px)}}
+
+/* V9.1 — Film fills the viewport; do not letterbox or blur the actual frames. */
+.yd .yv { width:100%; min-width:100%; min-height:100svh; height:100svh; }
+.yd .yv__video { width:100%; height:100%; object-fit:cover; object-position:50% 50%; filter:none; }
+.yd .yv h1 { font-size:clamp(72px,10.7vw,145px); max-width:none; }
+.yd .yv__content { margin-bottom:clamp(38px,5.5vh,68px); }
+@media (max-width:767px) {
+  .yd .yv { height:100svh; min-height:650px; }
+  .yd .yv__video { object-fit:cover; object-position:center center; }
+  .yd .yv h1 { font-size:clamp(65px,18vw,105px); line-height:.88; }
+  .yd .yv__content { max-width:93%; margin-bottom:39px; }
+  .yd .yv__description { max-width:28ch; }
+}

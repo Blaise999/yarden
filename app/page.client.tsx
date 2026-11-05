@@ -25,16 +25,6 @@ const SOCIAL = {
   audiomack: "https://audiomack.com/thisisyarden",
 };
 
-/* ---------- lyrics (rotates) ----------
-   ⚠️ EDIT ME: line 1 is confirmed (ME & U). Replace/extend with Yarden's own
-   deepest lines — keep each short. This array is all that drives the rotation. */
-const LYRICS: Array<{ line: string; song: string }> = [
-  { line: "You know I\u2019m the only one that you need in your life", song: "ME & U" },
-  { line: "Even when the pressure comes, I don\u2019t break", song: "Pressure" },
-  { line: "Time waits for no one \u2014 so I move", song: "Time" },
-  { line: "Cold world, but the soul still burns", song: "Soul" },
-];
-
 /* ---------- icons ---------- */
 const Ankh = ({ s = 18 }: { s?: number }) => (
   <svg width={(s * 26) / 40} height={s} viewBox="0 0 26 40" fill="none" aria-hidden>
@@ -241,14 +231,18 @@ export default function PageClient(props: PageClientProps) {
 
       {/* HERO */}
       {/* Film: separate high-performance desktop and mobile edits */}
-      <YardenVideoHero site={props.site} releaseName={projects[0]?.title || "Muse"} releaseHref={projects[0] ? listenOf(projects[0]) : SOCIAL.youtube} />
+      <YardenVideoHero site={props.site} releaseName={projects[0]?.title || "ANGEL"} releaseHref={projects[0] ? listenOf(projects[0]) : SOCIAL.youtube} />
 
-      {/* Discography: featured EP listening room and a separate singles rail */}
+      {/* Discography: ANGEL-led album listening room and the singles rail */}
       <YardenMusicGallery releases={releases} />
 
       <section className="ym-bridge" aria-label="The feeling behind the music">
-        <p>FROM THE HEART / FOR THE FEELING</p>
-        <h2>Music for the things <em>we can’t quite say.</em></h2>
+        <p>THE SOUND HAS A SOUL / THE STORY HAS MANY SIDES</p>
+        <h2>From his father’s DJ records and his mother’s gospel, <em>a sound with its own heartbeat.</em></h2>
+        <div className="ym-bridge__story">
+          <p>Raised in Lagos, Yarden learned early that music could carry almost anything. Old records, church melodies, 80s synths, and the kind of feeling that stays after a song ends.</p>
+          <p>From <i>Wetin</i> to <i>Muse</i> and now <i>ANGEL</i>, he follows the contrasts: tenderness and swagger, light and shadow. No single mood tells the whole story.</p>
+        </div>
       </section>
 
       {/* VISUALS — live */}
@@ -295,7 +289,7 @@ export default function PageClient(props: PageClientProps) {
         <div className="wrap">
           <div className="sec__head rv">
             <div><span className="eyebrow"><span className="num">03</span><span className="rule" />Live</span><h2 className="sec__title">On the <span className="it">road</span></h2></div>
-            <button className="btn btn--line" onClick={openPass}>Get alerts <span className="arw"><Arrow s={15} /></span></button>
+            <a className="btn btn--line" href="#join">Get updates <span className="arw"><Arrow s={15} /></span></a>
           </div>
           <div className="tour rv">
             <div className="ledger">
@@ -326,11 +320,11 @@ export default function PageClient(props: PageClientProps) {
       <section className="sec" id="store" style={{ background: "linear-gradient(180deg,transparent,rgba(21,18,31,.5),transparent)" }}>
         <div className="wrap">
           <div className="sec__head rv">
-            <div><span className="eyebrow"><span className="num">04</span><span className="rule" />Store</span><h2 className="sec__title">Wear the <span className="it">era</span></h2></div>
+            <div><span className="eyebrow"><span className="num">04</span><span className="rule" />Store</span><h2 className="sec__title">Pieces of the <span className="it">world</span></h2></div>
             {(props.storeConfig as any)?.storeHref ? <a className="btn btn--line" href={(props.storeConfig as any).storeHref} target="_blank" rel="noreferrer">Full store <span className="arw"><Arrow s={15} /></span></a> : null}
           </div>
           <div className="shop2 rv">
-            {merch.slice(0, 4).map((p: any) => {
+            {merch.map((p: any) => {
               const direct = p.href || p.links?.find((l: any) => l.href && l.href !== "#")?.href;
               const href = p.available && direct ? direct : "#join";
               return (
@@ -357,7 +351,7 @@ export default function PageClient(props: PageClientProps) {
       {press.length > 0 && (
         <section className="sec" id="press">
           <div className="wrap">
-            <div className="sec__head rv"><div><span className="eyebrow"><span className="num">05</span><span className="rule" />Press</span><h2 className="sec__title">In the <span className="it">room</span></h2></div></div>
+            <div className="sec__head rv"><div><span className="eyebrow"><span className="num">05</span><span className="rule" />Press</span><h2 className="sec__title">Beyond the <span className="it">record</span></h2></div></div>
             <div className="press__grid rv">
               {press.slice(0, 6).map((p) => (
                 <a className="press" key={p.id} href={p.href} target="_blank" rel="noreferrer">
@@ -382,7 +376,7 @@ export default function PageClient(props: PageClientProps) {
         <div className="wrap"><div className="rv">
           <span className="ankh-big"><Ankh s={60} /></span>
           <h2>Join the <span className="it">descendants</span></h2>
-          <p>A free fan identity and an optional updates list. Generate your Yard Pass — it&rsquo;s free, it just means you&rsquo;re in.</p>
+          <p>For the people who hear more than a melody. Make your free Yard Pass, then choose whether you want the news from Yarden’s world.</p>
           <div className="form"><button className="btn btn--gold" onClick={openPass} style={{ width: "100%", justifyContent: "center" }}>Generate your Pass <span className="arw"><Arrow s={15} /></span></button></div>
           <form onSubmit={joinAudience} className="mx-auto mt-6 max-w-lg space-y-3 rounded-2xl border border-white/15 bg-white/[0.03] p-5 text-left">
             <label className="block text-xs font-semibold uppercase tracking-wider text-white/60" htmlFor="yarden-newsletter-email">Join the updates list (optional)</label>
@@ -391,7 +385,7 @@ export default function PageClient(props: PageClientProps) {
               <button className="rounded-lg bg-[#E4B13C] px-4 py-2 font-semibold text-black disabled:opacity-50" disabled={joinBusy || !joinConsent} type="submit">{joinBusy ? "Saving…" : "Join list"}</button>
             </div>
             <label className="flex items-start gap-2 text-xs text-white/65"><input type="checkbox" checked={joinConsent} onChange={e => setJoinConsent(e.target.checked)} className="mt-0.5" /> I agree to receive future music, merch and tour updates. Joining is separate from getting a Yard Pass.</label>
-            <p className="text-xs text-white/45">Signups are recorded for future announcements. Automated email delivery is not active yet.</p>
+            <p className="text-xs text-white/45">Only opted-in fans receive promotional emails. Unsubscribe at any time. Delivery requires configured email service.</p>
             {joinStatus && <p role="status" className="text-sm text-[#E4B13C]">{joinStatus}</p>}
           </form>
           <div className="social" style={{ justifyContent: "center", marginTop: 22 }}>
@@ -409,7 +403,7 @@ export default function PageClient(props: PageClientProps) {
           <div className="foot">
             <div>
               <div className="foot__brand"><span className="ankh"><Ankh s={26} /></span> Yarden</div>
-              <p className="foot__tag">New nostalgia from Lagos. The descendants, in sound.</p>
+              <p className="foot__tag">Old-school inspiration. New feelings. Music with a soul.</p>
               <div className="social" style={{ marginTop: 18 }}>
                 <a href={SOCIAL.instagram} target="_blank" rel="noreferrer" aria-label="Instagram"><IG /></a>
                 <a href={SOCIAL.tiktok} target="_blank" rel="noreferrer" aria-label="TikTok"><TT /></a>

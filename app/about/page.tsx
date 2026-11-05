@@ -1,124 +1,40 @@
-// app/about/page.tsx
 import Link from "next/link";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "About - Yarden",
-  description: "Learn more about Yarden - the new nostalgia, the descendants.",
+  title: "About Yarden — The ANGEL Era",
+  description: "From the gospel and old records of a Lagos childhood to ANGEL, Yarden's 13-track debut album. Music that holds light and darkness at once.",
 };
+const projects = [
+  { year:"2026", title:"ANGEL", detail:"Debut album · 13 tracks", href:"https://music.apple.com/us/album/angel/6817875363" },
+  { year:"2025", title:"Muse", detail:"EP · 6 tracks", href:"https://audiomack.com/thisisyarden/album/muse" },
+  { year:"2023", title:"The One Who Descends", detail:"EP · 5 tracks", href:"https://yarden.lnk.to/towd" },
+];
 
 export default function AboutPage() {
   return (
-    <div className="min-h-screen bg-[#05060A] text-white">
-      {/* Header */}
-      <header className="fixed top-0 left-0 right-0 z-50 border-b border-white/10 bg-black/80 backdrop-blur-xl">
-        <div className="mx-auto max-w-7xl px-5 py-4 md:px-8">
-          <div className="flex items-center justify-between">
-            <Link href="/" className="flex items-center gap-3">
-              <div className="grid h-10 w-10 place-items-center rounded-2xl border border-white/12 bg-white/5">
-                <span className="text-lg leading-none">☥</span>
-              </div>
-              <span className="text-lg font-semibold tracking-tight">Yarden</span>
-            </Link>
-            <Link 
-              href="/"
-              className="rounded-full border border-white/12 bg-white/5 px-4 py-2 text-sm font-medium text-white/80 hover:bg-white/10 transition"
-            >
-              ← Back Home
-            </Link>
-          </div>
+    <main className="min-h-screen bg-[#100e13] text-[#f6f0e7]">
+      <header className="sticky top-0 z-30 border-b border-white/10 bg-[#100e13]/90 backdrop-blur-xl">
+        <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-5">
+          <Link href="/" className="text-xl font-semibold tracking-[.04em]">☥ Yarden</Link>
+          <Link href="/" className="text-sm text-white/70 hover:text-white">← Back to the film</Link>
         </div>
       </header>
-
-      {/* Main Content */}
-      <main className="pt-24 pb-16">
-        <div className="mx-auto max-w-4xl px-5 md:px-8">
-          {/* Hero Section */}
-          <div className="mb-16">
-            <div className="inline-flex items-center gap-2 rounded-full border border-white/12 bg-white/5 px-4 py-2 text-xs uppercase tracking-widest text-white/60 mb-6">
-              <span className="opacity-70">☥</span>
-              About
-            </div>
-            <h1 className="text-4xl md:text-6xl font-semibold tracking-tight mb-6">
-              The Story of Yarden
-            </h1>
-            <p className="text-xl text-white/70 leading-relaxed max-w-2xl">
-              New nostalgia. The descendants. Music that bridges worlds and tells stories that transcend time.
-            </p>
-          </div>
-
-          {/* Content Sections */}
-          <div className="space-y-12">
-            <section className="rounded-3xl border border-white/10 bg-white/[0.02] p-8 md:p-12">
-              <h2 className="text-2xl font-semibold mb-4">The Vision</h2>
-              <p className="text-white/70 leading-relaxed mb-4">
-                Yarden represents a musical journey that blends contemporary sounds with timeless storytelling. 
-                Each release is crafted to create an immersive experience that resonates across generations.
-              </p>
-              <p className="text-white/70 leading-relaxed">
-                From the debut EP "The One Who Descends" to the latest release "Muse", every project 
-                explores themes of identity, heritage, and the human experience.
-              </p>
-            </section>
-
-            <section className="rounded-3xl border border-white/10 bg-white/[0.02] p-8 md:p-12">
-              <h2 className="text-2xl font-semibold mb-4">Discography</h2>
-              <div className="grid gap-4 md:grid-cols-2">
-                <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-6">
-                  <div className="text-xs uppercase tracking-widest text-white/50 mb-2">2025</div>
-                  <h3 className="text-lg font-semibold mb-1">Muse</h3>
-                  <p className="text-sm text-white/60">EP • 6 tracks</p>
-                </div>
-                <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-6">
-                  <div className="text-xs uppercase tracking-widest text-white/50 mb-2">2023</div>
-                  <h3 className="text-lg font-semibold mb-1">The One Who Descends</h3>
-                  <p className="text-sm text-white/60">EP • 5 tracks</p>
-                </div>
-              </div>
-            </section>
-
-            <section className="rounded-3xl border border-white/10 bg-white/[0.02] p-8 md:p-12">
-              <h2 className="text-2xl font-semibold mb-4">Connect</h2>
-              <p className="text-white/70 leading-relaxed mb-6">
-                Follow the journey across platforms. New music, visuals, and tour updates — all in one place.
-              </p>
-              <div className="flex flex-wrap gap-3">
-                <a 
-                  href="https://open.spotify.com/artist/1nN9bKS2bD4OHNrKkS0Djd"
-                  target="_blank"
-                  rel="noreferrer"
-                  className="rounded-full border border-white/12 bg-white/5 px-4 py-2 text-sm font-medium text-white/80 hover:bg-white/10 transition"
-                >
-                  Spotify ↗
-                </a>
-                <a 
-                  href="https://www.youtube.com/@thisisyarden"
-                  target="_blank"
-                  rel="noreferrer"
-                  className="rounded-full border border-white/12 bg-white/5 px-4 py-2 text-sm font-medium text-white/80 hover:bg-white/10 transition"
-                >
-                  YouTube ↗
-                </a>
-                <a 
-                  href="https://www.instagram.com/thisisyarden/"
-                  target="_blank"
-                  rel="noreferrer"
-                  className="rounded-full border border-white/12 bg-white/5 px-4 py-2 text-sm font-medium text-white/80 hover:bg-white/10 transition"
-                >
-                  Instagram ↗
-                </a>
-              </div>
-            </section>
-          </div>
+      <section className="mx-auto max-w-6xl px-6 pb-20 pt-20 md:pb-28 md:pt-28">
+        <p className="mb-6 text-xs uppercase tracking-[.26em] text-[#d0aa76]">The artist / Between two worlds</p>
+        <h1 className="max-w-5xl font-serif text-6xl font-normal tracking-tight md:text-8xl">The sound has <em>its own soul.</em></h1>
+        <div className="mt-12 grid gap-9 border-t border-white/15 pt-10 md:grid-cols-2 md:gap-20">
+          <p className="text-lg leading-relaxed text-white/75">Raised in Lagos, Yarden grew up between gospel music from his mother and the records and DJ sounds from his father. That mixture of feeling, rhythm and old-school influence became a language of his own.</p>
+          <p className="text-lg leading-relaxed text-white/75">His music lives between contrasts: warmth and shadow, vulnerability and confidence, nostalgia and discovery. From <em>Wetin</em> to <em>Muse</em>, every release adds another shade. His debut album <strong>ANGEL</strong> opens the next chapter.</p>
         </div>
-      </main>
-
-      {/* Footer */}
-      <footer className="border-t border-white/10 py-8">
-        <div className="mx-auto max-w-7xl px-5 md:px-8 text-center text-xs text-white/40">
-          © 2026 Yarden. All rights reserved. Website operated in association with Etins Records.
+      </section>
+      <section className="border-t border-white/10 bg-[#171317] py-20">
+        <div className="mx-auto max-w-6xl px-6">
+          <div className="mb-10 flex flex-wrap items-end justify-between gap-4"><div><p className="text-xs uppercase tracking-[.26em] text-[#d0aa76]">The chapters</p><h2 className="mt-3 font-serif text-4xl md:text-6xl">A body of <em>feeling.</em></h2></div><Link href="/#music" className="text-sm text-[#d0aa76] underline underline-offset-8">Explore the discography ↗</Link></div>
+          <div className="grid gap-3 md:grid-cols-3">{projects.map(p=>(<a key={p.title} href={p.href} target="_blank" rel="noopener noreferrer" className="group border border-white/15 p-7 transition hover:border-[#c5a174] hover:bg-white/[.035]"><span className="text-xs tracking-widest text-[#c5a174]">{p.year}</span><h3 className="mt-8 font-serif text-3xl">{p.title}</h3><div className="mt-5 flex items-center justify-between text-xs text-white/60"><span>{p.detail}</span><span className="text-[#c5a174] group-hover:translate-x-1">↗</span></div></a>))}</div>
         </div>
-      </footer>
-    </div>
+      </section>
+      <footer className="mx-auto flex max-w-6xl items-center justify-between px-6 py-8 text-sm text-white/55"><span>Yarden / ANGEL — out now</span><Link href="/">Home ↗</Link></footer>
+    </main>
   );
 }

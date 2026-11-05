@@ -87,6 +87,7 @@ export default function YardenVideoHero({ releaseName, releaseHref, site }: Prop
         poster={site?.desktopPoster || "/videos/yarden-desktop-poster.webp"}
         autoPlay muted loop playsInline preload="metadata"
         aria-label="Yarden music-film scenes"
+        onLoadedData={() => setReady(true)}
         onPlaying={() => { setReady(true); setPlaying(true); setBlocked(false); }}
         onPause={() => setPlaying(false)}
         onError={() => { setReady(false); setBlocked(true); }}
@@ -99,18 +100,18 @@ export default function YardenVideoHero({ releaseName, releaseHref, site }: Prop
 
       <div className="yv__frame">
         <div className="yv__topline">
-          <span className="yv__edition">{site?.eyebrow || "YARDEN / THE MUSE ERA"}</span>
-          <span className="yv__now"><span className="yv__pulse" /> A VISUAL INTRODUCTION</span>
+          <span className="yv__edition">{site?.eyebrow || "YARDEN / ANGEL — OUT NOW"}</span>
+          <span className="yv__now"><span className="yv__pulse" /> A NEW CHAPTER · 2026</span>
         </div>
 
         <div className="yv__content">
-          <p className="yv__kicker">{site?.tagline || "NEW NOSTALGIA FROM LAGOS"}</p>
-          <h1>{site?.title || "Feel everything."}</h1>
-          <p className="yv__description">{site?.description || "Songs for the moments you want to hold on to."}</p>
+          <p className="yv__kicker">{site?.tagline || "THE DEBUT ALBUM / OUT NOW"}</p>
+          <h1>{site?.title || "ANGEL."}</h1>
+          <p className="yv__description">{site?.description || "Thirteen songs, no single mood. The debut album is yours now."}</p>
           <div className="yv__actions">
             <a className="yv__primary" href={releaseHref} target="_blank" rel="noopener noreferrer">
               <span className="yv__play" aria-hidden="true">▶</span>
-              Listen to {releaseName || "Muse"}
+              Listen to {releaseName || "ANGEL"}
               <span aria-hidden="true" className="yv__link-arrow">↗</span>
             </a>
             <a className="yv__secondary" href="#music">Explore the music <span aria-hidden="true">↘</span></a>
@@ -118,7 +119,7 @@ export default function YardenVideoHero({ releaseName, releaseHref, site }: Prop
         </div>
 
         <div className="yv__bottomline">
-          <span>THE STORY IS IN THE SOUND</span>
+          <span>A SOUND WITH ITS OWN SOUL</span>
           <span className="yv__scroll">SCROLL TO EXPLORE <span aria-hidden="true">↓</span></span>
           <div className="yv__video-controls">
             <button type="button" onClick={toggleAudio} aria-label={muted ? "Enable film sound" : "Mute film sound"} title={muted ? "Unmute" : "Mute"}>
