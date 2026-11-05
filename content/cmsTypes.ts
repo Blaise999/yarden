@@ -54,7 +54,7 @@ export type ReleaseItem = {
 export type VisualItem = {
   id: string;
   title: string;
-  kind: "Official Video" | "Official Music Video" | "Official Visualizer" | "Visualizer";
+  kind: "Official Video" | "Official Music Video" | "Official Album Trailer" | "Official Visualizer" | "Visualizer";
   year: string;
   href: string;
   tag?: string;

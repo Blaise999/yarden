@@ -55,6 +55,7 @@ const PLATFORM_OPTIONS: PlatformKey[] = [
 const VIDEO_KINDS = [
   "Official Video",
   "Official Music Video",
+  "Official Album Trailer",
   "Official Visualizer",
   "Visualizer",
 ] as const;
