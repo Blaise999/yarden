@@ -263,7 +263,7 @@ export default function PageClient(props: PageClientProps) {
               <div id="yt-slot" />
               {!playing && (
                 <>
-                  <img src={vids[vIdx]?.yid ? `https://img.youtube.com/vi/${vids[vIdx].yid}/maxresdefault.jpg` : artOf(heroA?.src)} alt={vids[vIdx]?.title ?? "Video"} />
+                  <img src={vids[vIdx]?.yid ? `https://img.youtube.com/vi/${vids[vIdx].yid}/maxresdefault.jpg` : artOf(props.heroA?.src)} alt={vids[vIdx]?.title ?? "Video"} />
                   <div className="vfeat__grad" /><div className="vfeat__play"><span><Play s={24} /></span></div>
                   <div className="vfeat__cap"><div className="k">{vids[vIdx]?.kind} · {vids[vIdx]?.year}</div><h3>{vids[vIdx]?.title}</h3></div>
                 </>
