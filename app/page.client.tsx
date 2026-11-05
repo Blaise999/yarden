@@ -6,6 +6,9 @@
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import "./redesign.css";
+import "./yarden-film.css";
+import YardenVideoHero from "../components/landing/YardenVideoHero";
+import YardenMusicGallery from "../components/landing/YardenMusicGallery";
 
 import type { ReleaseItem } from "../components/landing/ReleasesSection";
 import type { VisualItem } from "../components/landing/VisualsSection";
@@ -75,17 +78,31 @@ export type PageClientProps = {
   releases: ReleaseItem[]; visuals: VisualItem[];
   tourConfig?: TourConfig; shows: ShowItem[];
   storeConfig?: StoreConfig; merch: MerchItem[];
-  press?: PressItem[]; isAdmin?: boolean;
+  press?: PressItem[]; isAdmin?: boolean; site?: { eyebrow:string;title:string;tagline:string;description:string;desktopVideo:string;mobileVideo:string;desktopPoster:string;mobilePoster:string };
 };
 
 declare global { interface Window { YT?: any; onYouTubeIframeAPIReady?: () => void; } }
 
 export default function PageClient(props: PageClientProps) {
-  const { heroA, heroB, releases = [], visuals = [], shows = [], merch = [], press = [], tourConfig, links } = props;
+  const { releases = [], visuals = [], shows = [], merch = [], press = [], tourConfig } = props;
 
   const [scrolled, setScrolled] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [passOpen, setPassOpen] = useState(false);
+  const [joinEmail, setJoinEmail] = useState("");
+  const [joinConsent, setJoinConsent] = useState(false);
+  const [joinStatus, setJoinStatus] = useState("");
+  const [joinBusy, setJoinBusy] = useState(false);
+  const joinAudience = async (e: React.FormEvent) => {
+    e.preventDefault(); setJoinBusy(true); setJoinStatus("");
+    try {
+      const res = await fetch("/api/newsletter", { method:"POST", headers:{ "Content-Type":"application/json" }, body: JSON.stringify({ email:joinEmail, consent:joinConsent }) });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Signup unavailable");
+      setJoinStatus(data.message); setJoinEmail(""); setJoinConsent(false);
+    } catch (e: any) { setJoinStatus(e.message || "Signup unavailable"); }
+    finally { setJoinBusy(false); }
+  };
   const [reduce, setReduce] = useState(false);
   const rootRef = useRef<HTMLDivElement | null>(null);
   const openPass = useCallback(() => { setMenuOpen(false); setPassOpen(true); }, []);
@@ -118,45 +135,25 @@ export default function PageClient(props: PageClientProps) {
     return s.length ? s : releases;
   }, [releases, projects]);
 
-  /* ---------- catalogue spotlight (projects only, rotates) ---------- */
-  const [epIdx, setEpIdx] = useState(0);
-  useEffect(() => {
-    if (reduce || projects.length < 2) return;
-    const t = setInterval(() => setEpIdx((i) => (i + 1) % projects.length), 6500);
-    return () => clearInterval(t);
-  }, [reduce, projects.length]);
-  const ep: any = projects[epIdx] ?? projects[0] ?? {};
+  /* Main listening link; album selection is handled within the release gallery. */
+  const ep: any = projects[0] ?? {};
   const epLinks = ep?.links ?? {};
-  const epPrimary = ep?.primary ?? "spotify";
-  const epPlatforms = PLAT_ORDER.filter(([k]) => epLinks[k]);
   const epListen = listenOf(ep);
 
-  /* ---------- now playing (singles, rotates) ---------- */
-  const [npIdx, setNpIdx] = useState(0);
+  /* Defer the YouTube iframe until someone approaches the visuals section. */
+  const [visualsInView, setVisualsInView] = useState(false);
   useEffect(() => {
-    if (reduce || singles.length < 2) return;
-    const t = setInterval(() => setNpIdx((i) => (i + 1) % singles.length), 3800);
-    return () => clearInterval(t);
-  }, [reduce, singles.length]);
-  const np: any = singles[npIdx] ?? singles[0] ?? {};
-
-  /* ---------- lyrics (rotates) ---------- */
-  const [lyIdx, setLyIdx] = useState(0);
-  useEffect(() => {
-    if (reduce || LYRICS.length < 2) return;
-    const t = setInterval(() => setLyIdx((i) => (i + 1) % LYRICS.length), 5600);
-    return () => clearInterval(t);
-  }, [reduce]);
-  const ly = LYRICS[lyIdx];
-
-  /* ---------- hero crossfade ---------- */
-  const heroImgs = [heroA, heroB].filter((h): h is { src: string; alt?: string } => !!h?.src);
-  const [heroIdx, setHeroIdx] = useState(0);
-  useEffect(() => {
-    if (reduce || heroImgs.length < 2) return;
-    const t = setInterval(() => setHeroIdx((i) => (i + 1) % heroImgs.length), 5500);
-    return () => clearInterval(t);
-  }, [reduce, heroImgs.length]);
+    const section = document.getElementById("visuals");
+    if (!section) return;
+    const observer = new IntersectionObserver((entries) => {
+      if (entries.some(entry => entry.isIntersecting)) {
+        setVisualsInView(true);
+        observer.disconnect();
+      }
+    }, { rootMargin: "500px 0px" });
+    observer.observe(section);
+    return () => observer.disconnect();
+  }, []);
 
   /* ---------- live video wall ---------- */
   const vids = useMemo(() => visuals.map((v: any) => ({ ...v, yid: ytId(v.href) })).filter((v) => v.yid), [visuals]);
@@ -167,7 +164,7 @@ export default function PageClient(props: PageClientProps) {
   const playerRef = useRef<any>(null);
 
   useEffect(() => {
-    if (!vids.length) return;
+    if (!vids.length || !visualsInView) return;
     if (window.YT?.Player) { setApiTick((t) => t + 1); return; }
     if (!document.getElementById("yt-iframe-api")) {
       const tag = document.createElement("script");
@@ -176,10 +173,10 @@ export default function PageClient(props: PageClientProps) {
     }
     const prev = window.onYouTubeIframeAPIReady;
     window.onYouTubeIframeAPIReady = () => { prev?.(); setApiTick((t) => t + 1); };
-  }, [vids.length]);
+  }, [vids.length, visualsInView]);
 
   useEffect(() => {
-    if (!vids.length || !window.YT?.Player || playerRef.current) return;
+    if (!visualsInView || !vids.length || !window.YT?.Player || playerRef.current) return;
     playerRef.current = new window.YT.Player("yt-slot", {
       videoId: vids[0].yid,
       playerVars: { autoplay: 1, mute: 1, rel: 0, modestbranding: 1, playsinline: 1, controls: 1 },
@@ -192,7 +189,7 @@ export default function PageClient(props: PageClientProps) {
         },
       },
     });
-  }, [apiTick, vids]);
+  }, [apiTick, vids, visualsInView]);
 
   useEffect(() => {
     const p = playerRef.current;
@@ -243,106 +240,15 @@ export default function PageClient(props: PageClientProps) {
       </div>
 
       {/* HERO */}
-      <section className="hero" id="top">
-        <div className="hero__media">
-          {heroImgs.map((h, i) => (
-            <div key={i} className={"hero__layer" + (i === heroIdx ? " on" : "")}><img src={h.src} alt={h.alt ?? "Yarden"} fetchPriority={i === 0 ? "high" : "low"} /></div>
-          ))}
-        </div>
-        <div className="hero__scrim-l" /><div className="hero__scrim-b" /><div className="hero__glow" />
-        <div className="hero__in">
-          <div className="wrap"><div className="hero__body">
-            <div className="hero__eyebrow eyebrow"><span className="ankh gold"><Ankh s={18} /></span>Yarden · The Muse Era</div>
-            <h1>Yar<span className="it">den</span></h1>
-            <p className="hero__sub">New nostalgia from Lagos — <b>the descendants</b> speak in Afrobeats, soul, and a little sweet chaos.</p>
-            <div className="hero__actions">
-              <a className="btn btn--gold" href={epListen} target="_blank" rel="noreferrer">Play <b>{ep?.title ?? "Muse"}</b> <span className="arw"><Arrow s={15} /></span></a>
-              <a className="btn btn--line" href={SOCIAL.youtube} target="_blank" rel="noreferrer">Follow <span className="arw"><Arrow s={15} /></span></a>
-            </div>
-          </div></div>
-          <div className="hero__bar"><div className="wrap hero__bar-in">
-            <a className="np" key={np?.id ?? npIdx} href={listenOf(np)} target="_blank" rel="noreferrer">
-              <span className="np__play"><Play /></span>
-              <span><span className="np__lbl">Now Playing</span><span className="np__ttl">{np?.title ?? "Muse"}{np?.subtitle && /feat|&/i.test(np.subtitle) ? <span> · {np.subtitle}</span> : null}</span></span>
-            </a>
-            <a className="next" href="#tour">
-              <span className="next__txt"><span className="next__lbl">Next{(shows[0] as any)?.dateLabel ? ` · ${(shows[0] as any).dateLabel}` : ""}</span><span className="next__val">{(shows[0] as any)?.city ?? "Tour"}</span></span>
-              <span className="arw"><Arrow s={18} /></span>
-            </a>
-          </div></div>
-        </div>
-      </section>
+      {/* Film: separate high-performance desktop and mobile edits */}
+      <YardenVideoHero site={props.site} releaseName={projects[0]?.title || "Muse"} releaseHref={projects[0] ? listenOf(projects[0]) : SOCIAL.youtube} />
 
-      {/* MUSIC — projects spotlight */}
-      <section className="sec" id="music">
-        <div className="wrap">
-          <div className="sec__head rv">
-            <div><span className="eyebrow"><span className="num">01</span><span className="rule" />Discography</span><h2 className="sec__title">The <span className="it">projects</span></h2></div>
-            <a className="btn btn--line" href={ep?.fanLink ?? epListen} target="_blank" rel="noreferrer">All platforms <span className="arw"><Arrow s={15} /></span></a>
-          </div>
+      {/* Discography: featured EP listening room and a separate singles rail */}
+      <YardenMusicGallery releases={releases} />
 
-          <div className="feat rv">
-            <div className="feat__stage" key={ep?.id ?? epIdx}>
-              <a className="feat__art" href={epListen} target="_blank" rel="noreferrer">
-                <span className="tag">{projects.length > 1 ? `Project ${epIdx + 1} / ${projects.length}` : `Latest · ${ep?.format ?? "EP"}`}</span>
-                <img src={artOf(ep?.art)} alt={`${ep?.title} cover`} />
-              </a>
-              <div className="feat__meta">
-                <div className="kicker">{ep?.format ?? ep?.subtitle ?? "Extended Play"}</div>
-                <h3>{ep?.title}</h3>
-                <div className="yr">{ep?.year}{ep?.tracklist?.length ? ` · ${ep.tracklist.length} tracks` : ""}</div>
-                {ep?.tracklist?.length ? (
-                  <div className="tracks">
-                    {ep.tracklist.map((t: any, i: number) => (
-                      <a className="track" key={i} href={epListen} target="_blank" rel="noreferrer">
-                        <span className="track__n">{i + 1}</span><span className="track__t">{t.title}</span>
-                        {t.meta ? <span className="track__m">{t.meta}</span> : null}
-                        {t.duration ? <span className="track__d">{t.duration}</span> : null}
-                      </a>
-                    ))}
-                  </div>
-                ) : null}
-                <div className="plat">
-                  {epPlatforms.map(([k, label]) => (<a key={k} className={k === epPrimary ? "pri" : ""} href={epLinks[k]} target="_blank" rel="noreferrer">{label}</a>))}
-                </div>
-                {projects.length > 1 && (
-                  <div className="ep-ctl">
-                    <div className="ep-dots">{projects.map((_, i) => (<button key={i} className={"ep-dot" + (i === epIdx ? " on" : "")} aria-label={`Project ${i + 1}`} onClick={() => setEpIdx(i)} />))}</div>
-                    <span className="ep-badge">switching eras</span>
-                    <div className="ep-arrows">
-                      <button className="ep-arrow" aria-label="Previous" onClick={() => setEpIdx((i) => (i - 1 + projects.length) % projects.length)}><svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M15 18l-6-6 6-6" /></svg></button>
-                      <button className="ep-arrow" aria-label="Next" onClick={() => setEpIdx((i) => (i + 1) % projects.length)}><svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M9 6l6 6-6 6" /></svg></button>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-
-          {singles.length > 0 && (
-            <div className="cat rv">
-              <div className="cat__lbl"><span className="eyebrow" style={{ margin: 0 }}>The singles</span></div>
-              <div className="cat__grid">
-                {singles.slice(0, 4).map((r: any) => (
-                  <a className="rel" key={r.id} href={listenOf(r)} target="_blank" rel="noreferrer">
-                    <div className="rel__art"><img src={artOf(r.art)} alt={r.title} loading="lazy" decoding="async" /><span className="rel__play"><Play /></span></div>
-                    <div className="rel__ttl">{r.title}</div>
-                    <div className="rel__sub">{[r.format ?? r.subtitle, r.year].filter(Boolean).join(" · ")}</div>
-                  </a>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-      </section>
-
-      {/* LYRIC — rotates */}
-      <section className="lyric">
-        <div className="lyric__glow" />
-        <div className="wrap">
-          <p className="lyric__q" key={lyIdx}><span className="mark">&ldquo;</span>{ly.line}<span className="mark">&rdquo;</span></p>
-          <div className="lyric__attr" key={"a" + lyIdx}>— {ly.song}</div>
-        </div>
+      <section className="ym-bridge" aria-label="The feeling behind the music">
+        <p>FROM THE HEART / FOR THE FEELING</p>
+        <h2>Music for the things <em>we can’t quite say.</em></h2>
       </section>
 
       {/* VISUALS — live */}
@@ -393,12 +299,14 @@ export default function PageClient(props: PageClientProps) {
           </div>
           <div className="tour rv">
             <div className="ledger">
+              {shows.length === 0 && <div className="rounded-2xl border border-white/10 p-7 text-sm text-white/65">No tour dates have been announced yet. Check back for official updates.</div>}
               {shows.map((s: any) => {
                 const [m, d] = String(s.dateLabel ?? "").split(" ");
                 const status = s.status ?? "announce";
-                const statusLabel = status === "onsale" ? "On sale" : status === "soldout" ? "Sold out" : "Announced";
+                const statusLabel = status === "onsale" || status === "tickets" ? "Tickets" : status === "soldout" ? "Sold out" : "Announced";
+                const canBook = !!s.href && status !== "soldout";
                 return (
-                  <a className="show" key={s.id} href={s.href ?? "#"} target={s.href ? "_blank" : undefined} rel="noreferrer">
+                  <a className="show" key={s.id} href={canBook ? s.href : "#join"} target={canBook ? "_blank" : undefined} rel="noreferrer">
                     <div className="show__date"><span className="m">{m}</span><span className="d">{d}</span></div>
                     <div><div className="show__city">{s.city}</div><div className="show__venue">{s.venue}</div></div>
                     <div className="show__status">{statusLabel}</div>
@@ -408,7 +316,7 @@ export default function PageClient(props: PageClientProps) {
             </div>
             <aside className="tour__aside">
               <div className="tour__portrait"><img src={tourPoster} alt="Next show" loading="lazy" decoding="async" onError={(e) => { (e.currentTarget as HTMLImageElement).src = "/Pictures/yard.jpg"; }} /></div>
-              <p className="tour__note">{shows.length} {shows.length === 1 ? "date" : "dates"}. One chapter. <b>Pass holders</b> get the pre-sale window and the door before anyone else.</p>
+              <p className="tour__note">{shows.length ? `${shows.length} announced ${shows.length === 1 ? "date" : "dates"}.` : "Official dates will appear here when confirmed."} Follow Yarden for verified ticket announcements.</p>
             </aside>
           </div>
         </div>
@@ -423,9 +331,10 @@ export default function PageClient(props: PageClientProps) {
           </div>
           <div className="shop2 rv">
             {merch.slice(0, 4).map((p: any) => {
-              const href = p.href ?? p.links?.[0]?.href ?? "#";
+              const direct = p.href || p.links?.find((l: any) => l.href && l.href !== "#")?.href;
+              const href = p.available && direct ? direct : "#join";
               return (
-                <a className="mcard" key={p.id} href={href} target={href !== "#" ? "_blank" : undefined} rel="noreferrer">
+                <a className="mcard" key={p.id} href={href} target={href !== "#join" ? "_blank" : undefined} rel="noreferrer">
                   <div className="mcard__img">
                     {p.tag ? <span className="mcard__tag">{p.tag}</span> : null}
                     <img src={artOf(p.images?.[0])} alt={p.name} loading="lazy" decoding="async" />
@@ -434,7 +343,7 @@ export default function PageClient(props: PageClientProps) {
                     <div className="mcard__n">{p.name}</div>
                     <div className="mcard__foot">
                       <span className="mcard__p">{p.available ? (p.price ?? "Shop") : "Drop soon"}</span>
-                      <span className="mcard__cta">{p.available ? "Shop" : "Notify me"} <Arrow s={13} /></span>
+                      <span className="mcard__cta">{p.available && direct ? "Shop" : "Coming soon"} <Arrow s={13} /></span>
                     </div>
                   </div>
                 </a>
@@ -473,8 +382,18 @@ export default function PageClient(props: PageClientProps) {
         <div className="wrap"><div className="rv">
           <span className="ankh-big"><Ankh s={60} /></span>
           <h2>Join the <span className="it">descendants</span></h2>
-          <p>Early links, show alerts, and first dibs on drops. Generate your Yard Pass — it&rsquo;s free, it just means you&rsquo;re in.</p>
+          <p>A free fan identity and an optional updates list. Generate your Yard Pass — it&rsquo;s free, it just means you&rsquo;re in.</p>
           <div className="form"><button className="btn btn--gold" onClick={openPass} style={{ width: "100%", justifyContent: "center" }}>Generate your Pass <span className="arw"><Arrow s={15} /></span></button></div>
+          <form onSubmit={joinAudience} className="mx-auto mt-6 max-w-lg space-y-3 rounded-2xl border border-white/15 bg-white/[0.03] p-5 text-left">
+            <label className="block text-xs font-semibold uppercase tracking-wider text-white/60" htmlFor="yarden-newsletter-email">Join the updates list (optional)</label>
+            <div className="flex flex-wrap gap-2">
+              <input id="yarden-newsletter-email" type="email" required value={joinEmail} onChange={e => setJoinEmail(e.target.value)} placeholder="Your email" className="min-w-[180px] flex-1 rounded-lg border border-white/20 bg-black/40 px-3 py-2 text-white" />
+              <button className="rounded-lg bg-[#E4B13C] px-4 py-2 font-semibold text-black disabled:opacity-50" disabled={joinBusy || !joinConsent} type="submit">{joinBusy ? "Saving…" : "Join list"}</button>
+            </div>
+            <label className="flex items-start gap-2 text-xs text-white/65"><input type="checkbox" checked={joinConsent} onChange={e => setJoinConsent(e.target.checked)} className="mt-0.5" /> I agree to receive future music, merch and tour updates. Joining is separate from getting a Yard Pass.</label>
+            <p className="text-xs text-white/45">Signups are recorded for future announcements. Automated email delivery is not active yet.</p>
+            {joinStatus && <p role="status" className="text-sm text-[#E4B13C]">{joinStatus}</p>}
+          </form>
           <div className="social" style={{ justifyContent: "center", marginTop: 22 }}>
             <a href={SOCIAL.instagram} target="_blank" rel="noreferrer" aria-label="Instagram"><IG /></a>
             <a href={SOCIAL.tiktok} target="_blank" rel="noreferrer" aria-label="TikTok"><TT /></a>

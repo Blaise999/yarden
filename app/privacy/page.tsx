@@ -43,7 +43,7 @@ export default function PrivacyPage() {
               Privacy Policy
             </h1>
             <p className="text-white/60">
-              Last updated: January 2026
+              Last updated: November 2026
             </p>
           </div>
 
@@ -67,9 +67,9 @@ export default function PrivacyPage() {
               <p className="mb-4">We may collect information about you in a variety of ways:</p>
               <ul className="list-disc list-inside space-y-2 ml-4">
                 <li><strong className="text-white">Personal Data:</strong> Name, email address, and other contact details you voluntarily provide.</li>
-                <li><strong className="text-white">Usage Data:</strong> Information about how you use our website, including IP address, browser type, and pages visited.</li>
+                <li><strong className="text-white">Security data:</strong> Short-lived abuse-prevention counters keyed by a hash of the visitor address; server hosting may keep access logs.</li>
                 <li><strong className="text-white">Newsletter Data:</strong> Email address when you subscribe to our newsletter.</li>
-                <li><strong className="text-white">Pass Data:</strong> Information related to your Yard Pass registration.</li>
+                <li><strong className="text-white">Pass Data:</strong> Name, email, optional phone number, chosen pass type and issue date. Card images are made on your device and are not stored on our server.</li>
               </ul>
             </section>
 
@@ -78,7 +78,7 @@ export default function PrivacyPage() {
               <p className="mb-4">We use the information we collect to:</p>
               <ul className="list-disc list-inside space-y-2 ml-4">
                 <li>Provide, operate, and maintain our website</li>
-                <li>Send you newsletters and promotional communications (with your consent)</li>
+                <li>Maintain an optional opt-in list for future updates. Automated email sending is not yet active.</li>
                 <li>Respond to your comments, questions, and requests</li>
                 <li>Monitor and analyze usage and trends</li>
                 <li>Improve our website and user experience</li>
@@ -121,14 +121,8 @@ export default function PrivacyPage() {
 
             <section className="rounded-3xl border border-white/10 bg-white/[0.02] p-8">
               <h2 className="text-xl font-semibold text-white mb-4">7. Contact Us</h2>
-              <p className="mb-4">
-                If you have questions or comments about this policy, you may contact us at:
-              </p>
-              <p>
-                <a href="mailto:privacy@yarden.music" className="text-white underline underline-offset-4 hover:text-white/80 transition">
-                  privacy@yarden.music
-                </a>
-              </p>
+              <p className="mb-4">For personal-data requests, contact the project operator through the website's contact page. Before launching officially, the operator must publish a verified data-controller address and establish a process for access and deletion requests.</p>
+              <p><Link href="/contact" className="text-white underline underline-offset-4">Contact</Link></p>
             </section>
           </div>
         </div>

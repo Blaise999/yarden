@@ -1,114 +1,46 @@
-# Yarden Site - Updated
+# YARDEN V8 — CMS, Yard Pass & Email
 
-## What's New
+**Start with [`EMAIL-AND-ENV-SETUP.md`](EMAIL-AND-ENV-SETUP.md)** for production environment variables, Upstash Redis, Vercel Blob, Resend and how to rotate an exposed email API key.
 
-### 1. Release Section Color Themes
-- **Muse** - Yellow theme (golden glow effect on scroll)
-- **The One Who Descends** - Cream/amber theme (warm glow effect on scroll)
+- Original Yarden cinematic website and separate mobile/desktop video files
+- Secure admin setup and password changes
+- Music, merch, tour, press, visual, hero, and release CMS controls
+- Persistent Yard Pass membership with cookie-based access
+- Explicit opt-in marketing list, subscriber export, unsubscription
+- Resend transactional messages plus small-list CMS newsletter testing/sending
 
-The colors morph as you scroll through the releases.
+No credentials are included. `.env.local` is gitignored; run `SETUP-YARDEN-ENV.ps1` to generate local-only admin secrets if needed.
 
-### 2. Full CMS Admin Dashboard
+## Quick start
 
-Access the admin panel at `/admin/passes`
-
-**Features by Section:**
-
-#### Releases Management
-- Add/edit/delete music releases
-- Upload cover art from phone (tap the image to upload)
-- Or paste image URL directly
-- Configure all streaming platform links (Spotify, Apple Music, YouTube, etc.)
-- Add tracklist with featured artists
-- Set release type (EP, Album, Single)
-- Toggle visibility (enabled/disabled)
-
-#### Videos Management
-- Add/edit/delete music videos
-- Paste YouTube URL and thumbnail auto-imports
-- Supports: youtu.be and youtube.com URLs
-- Set video type (Official Video, Music Video, Visualizer)
-- Add tags like "New"
-- Toggle visibility
-
-#### Tour Management
-- Add/edit/delete tour dates
-- Upload tour poster from phone
-- Set show status (Announced, On Sale, Sold Out)
-- Configure ticket portal link
-- Edit headline and description
-
-#### Merch Management
-- Add/edit/delete merchandise items
-- Upload product images from phone
-- Set price and availability
-- Add tags (New, Limited, etc.)
-
-#### Newsletter Management
-- Add/edit press items with images
-- Add embed videos with YouTube IDs
-- Upload background image
-
-### 3. Mobile-Friendly Image Upload
-All image fields support:
-- Tap to upload from device camera roll
-- Works on phones for easy content updates
-- Supported formats: JPEG, PNG, WebP, GIF
-- Max size: 10MB
-
-### 4. YouTube Auto-Import
-When you paste a YouTube URL in the videos section:
-- Thumbnail is automatically imported
-- Video ID is extracted and shown
-- Preview thumbnail displays in editor
-
-### 5. Pass Generator
-The pass generator is working:
-- Fill in name, email, phone
-- Select Angel or Descendant
-- Generates a unique pass with QR-like member mark
-- Saves to storage (in-memory for dev, Vercel KV for production)
-- Can download as PNG
-
-## Setup
-
-1. Extract the zip
-2. Run `npm install`
-3. Set `ADMIN_PASSWORD` in `.env.local`
-4. Run `npm run dev`
-5. Access admin at `http://localhost:3000/admin/passes`
-
-## Environment Variables
-
-```env
-# Required for admin access
-ADMIN_PASSWORD=your-secure-password
-
-# Optional: Vercel KV for production storage
-KV_REST_API_URL=...
-KV_REST_API_TOKEN=...
+```powershell
+npm install
+.\SETUP-YARDEN-ENV.ps1
+npm run dev
 ```
 
-## Admin Login
-Use the password set in `ADMIN_PASSWORD` environment variable.
+Then open `http://localhost:3000/admin`. For production, configure ALL secrets on Vercel and redeploy.
 
-## File Structure
+Full instructions and limitations: [`EMAIL-AND-ENV-SETUP.md`](EMAIL-AND-ENV-SETUP.md).
 
-```
-app/
-├── admin/passes/          # Admin dashboard
-├── api/
-│   ├── admin/
-│   │   ├── cms/           # CMS API routes
-│   │   ├── login/         # Admin auth
-│   │   ├── passes/        # Pass management
-│   │   └── upload/        # Image upload
-│   └── passes/            # Public pass API
-content/
-├── cmsTypes.ts           # TypeScript types for CMS
-└── defaultCms.ts         # Default content data
-components/landing/        # All section components
-libs/
-└── passStorage.ts        # Pass storage with fallback
-public/uploads/           # Uploaded images go here
-```
+# Yarden — Cinematic Next.js site + Secure CMS (V7)
+
+This is the Yarden project. It includes the 21-second desktop and mobile hero films, responsive album/EP listening room, singles rail, videos, tours, merch, press, Yard Pass membership, and the rebuilt admin CMS.
+
+**Start here: [`CMS-START-HERE.md`](./CMS-START-HERE.md)**
+
+Quick local setup:
+
+1. `npm install`
+2. Copy `.env.example` to `.env.local` and set **your own** two unique random values for `ADMIN_SESSION_SECRET` and `YARD_SETUP_TOKEN` (instructions in the setup guide).
+3. `npm run dev`
+4. Open `http://localhost:3000/admin`; enter setup token and **create your own new admin password** (12+ characters). This is a first-run step, not a preset password.
+5. Open the main website at `http://localhost:3000`.
+
+For a live Vercel deployment, add Upstash Redis to persist CMS edits, Yard Pass registrations and newsletter opt-ins. Connect Blob for image uploads. Those integrations are **not automatically connected by this ZIP**.
+
+Never commit `.env.local`, `.local-data`, `.next`, `.vercel` or `node_modules`. The private storage must be configured before collecting real fan data.
+
+Security note: the older source ZIP contained obfuscated auto-run scripts; these have **not** been carried into this edition. Use this clean folder rather than the original unsafe extraction.
+
+`README-V6-REDESIGN.md` covers the earlier visual redesign; `CMS-START-HERE.md` is authoritative for V7 backend setup.

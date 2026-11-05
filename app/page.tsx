@@ -1,5 +1,6 @@
 // app/page.tsx
-import { headers, cookies } from "next/headers";
+import { isAdmin } from "../libs/adminAuth";
+import { getCms } from "../libs/cmsStore";
 
 import type { ReleaseItem } from "../components/landing/ReleasesSection";
 import type { VisualItem } from "../components/landing/VisualsSection";
@@ -17,28 +18,8 @@ type NavItem = { id: string; label: string };
 const HEADER_OFFSET = 84;
 
 async function getPublicCms(): Promise<CmsData> {
-  try {
-    const h = headers();
-    const host =
-      h.get("x-forwarded-host") ??
-      h.get("host") ??
-      process.env.VERCEL_URL ??
-      "localhost:3000";
-
-    const proto =
-      h.get("x-forwarded-proto") ??
-      (host.startsWith("localhost") || host.startsWith("127.0.0.1") ? "http" : "https");
-
-    const base = host.startsWith("http") ? host : `${proto}://${host}`;
-
-    const res = await fetch(`${base}/api/admin/cms/public`, { cache: "no-store" });
-    if (!res.ok) return DEFAULT_CMS;
-
-    const json = await res.json();
-    return (json?.cms as CmsData) ?? DEFAULT_CMS;
-  } catch {
-    return DEFAULT_CMS;
-  }
+  try { return await getCms(); }
+  catch { return DEFAULT_CMS; }
 }
 
 export default async function Page() {
@@ -75,7 +56,7 @@ export default async function Page() {
   const press = ((cms as any).newsletter?.pressItems ?? (DEFAULT_CMS as any).newsletter?.pressItems ?? []) as any[];
 
   // ✅ If you want admin editing on the live site:
-  const isAdmin = !!cookies().get("yard_admin_token")?.value;
+  const adminAccess = await isAdmin().catch(() => false);
 
   // links object (you can keep your old hardcoded LINKS, but it’s not needed for CMS rendering)
   const LINKS: any = {
@@ -100,7 +81,8 @@ export default async function Page() {
       storeConfig={storeConfig}
       merch={merch}
       press={press as any}
-      isAdmin={isAdmin}
+      site={cms.site}
+      isAdmin={adminAccess}
     />
   );
 }

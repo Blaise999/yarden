@@ -27,7 +27,6 @@ import type {
 
 interface YardPass {
   id: string;
-  anonId: string;
   name: string;
   email: string;
   phone: string;
@@ -36,13 +35,11 @@ interface YardPass {
   status: string;
   yearJoined: number;
   createdAt: string;
-  pngDataUrl: string;
-  ip: string;
-  userAgent: string;
+  pngDataUrl?: string;
 }
 
 type View = "login" | "dashboard";
-type Tab = "passes" | "releases" | "videos" | "tour" | "merch" | "newsletter";
+type Tab = "passes" | "audience" | "releases" | "videos" | "tour" | "merch" | "newsletter" | "settings";
 
 const PLATFORM_OPTIONS: PlatformKey[] = [
   "spotify",
@@ -124,29 +121,20 @@ async function apiPutAdminCms(cms: CmsData): Promise<CmsData | null> {
       credentials: "include",
       body: JSON.stringify({ cms }),
     });
-    if (!res.ok) return null;
     const data = await res.json();
-    return data?.cms ?? null;
-  } catch {
-    return null;
+    if (!res.ok || !data?.cms) throw new Error(data?.error || "Save failed");
+    return data.cms;
+  } catch (e) {
+    throw e;
   }
 }
 
-async function apiUploadImage(file: File): Promise<string | null> {
-  try {
-    const formData = new FormData();
-    formData.append("file", file);
-    const res = await fetch("/api/admin/upload", {
-      method: "POST",
-      credentials: "include",
-      body: formData,
-    });
-    if (!res.ok) return null;
-    const data = await res.json();
-    return data?.url ?? null;
-  } catch {
-    return null;
-  }
+async function apiUploadImage(file: File): Promise<string> {
+  const formData = new FormData(); formData.append("file", file);
+  const res = await fetch("/api/admin/upload", { method: "POST", credentials: "include", body: formData });
+  const data = await res.json();
+  if (!res.ok || !data?.url) throw new Error(data?.error || "Image upload failed. Confirm BLOB_READ_WRITE_TOKEN is configured.");
+  return data.url;
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -178,13 +166,11 @@ function ImageUploader({
 
       // Upload
       const url = await apiUploadImage(file);
-      if (url) {
-        onChange(url);
-        setPreview(url);
-      }
-    } finally {
-      setUploading(false);
-    }
+      onChange(url); setPreview(url);
+    } catch (e: any) {
+      setPreview(value);
+      alert(e?.message || "Image upload failed");
+    } finally { setUploading(false); }
   };
 
   return (
@@ -974,7 +960,19 @@ export default function AdminPage() {
   const [tab, setTab] = useState<Tab>("passes");
 
   const [password, setPassword] = useState("");
+  const [setupRequired, setSetupRequired] = useState(false);
+  const [setupToken, setSetupToken] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [securityMessage, setSecurityMessage] = useState("");
   const [passes, setPasses] = useState<YardPass[]>([]);
+  const [subscribers, setSubscribers] = useState<{ email: string; createdAt: string }[]>([]);
+  const [mailSubject, setMailSubject] = useState("");
+  const [mailBody, setMailBody] = useState("");
+  const [testAddress, setTestAddress] = useState("");
+  const [mailBusy, setMailBusy] = useState(false);
+  const [mailMessage, setMailMessage] = useState("");
+  const [mailReady, setMailReady] = useState<boolean | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [selectedPass, setSelectedPass] = useState<YardPass | null>(null);
@@ -1018,6 +1016,7 @@ export default function AdminPage() {
       const fromApi = await apiGetAdminCms();
       // ✅ Do not overwrite local edits
       if (fromApi && editSeqRef.current === 0) setCms(fromApi);
+      if (!fromApi) setError("Could not load saved CMS. Check database configuration before editing.");
     } finally {
       setCmsLoading(false);
     }
@@ -1025,29 +1024,24 @@ export default function AdminPage() {
 
   // ✅ FIX: save uses latest snapshot; ignores late server response if user typed after save started
   const saveCms = useCallback(async () => {
+    if (saveStatus === "saving") return;
     const seqAtStart = editSeqRef.current;
     const snapshot = cmsRef.current;
-
-    setSaveStatus("saving");
-    setCmsLoading(true);
-
+    setSaveStatus("saving"); setCmsLoading(true); setError("");
     try {
-      const merged: CmsData = { ...snapshot, version: 1, updatedAt: Date.now() };
+      const merged: CmsData = { ...snapshot, version: 2, updatedAt: Date.now() };
       const saved = await apiPutAdminCms(merged);
-
-      // only apply server response if user hasn't edited since this save started
       if (editSeqRef.current === seqAtStart) {
-        if (saved) setCms(saved);
-        else setCms(merged);
-        editSeqRef.current = 0; // mark clean only if we applied save result
+        setCms(saved!);
+        editSeqRef.current = 0;
       }
-
       setSaveStatus("saved");
-      setTimeout(() => setSaveStatus("idle"), 2000);
-    } finally {
-      setCmsLoading(false);
-    }
-  }, []);
+      setTimeout(() => setSaveStatus("idle"), 2500);
+    } catch (e: any) {
+      setSaveStatus("idle");
+      setError(e?.message || "Could not save CMS. Try again.");
+    } finally { setCmsLoading(false); }
+  }, [saveStatus]);
 
   const fetchPasses = useCallback(async () => {
     setLoading(true);
@@ -1067,19 +1061,53 @@ export default function AdminPage() {
     }
   }, []);
 
+  const fetchSubscribers = useCallback(async () => {
+    try {
+      const res = await fetch("/api/admin/subscribers", { cache: "no-store", credentials: "include" });
+      if (!res.ok) return;
+      const body = await res.json(); setSubscribers(body.subscribers || []);
+    } catch { /* List stays empty until storage becomes available. */ }
+  }, []);
+
+  useEffect(() => {
+    if (view !== "dashboard" || tab !== "audience") return;
+    fetch("/api/admin/newsletter", { credentials: "include", cache: "no-store" })
+      .then(r => r.ok ? r.json() : null)
+      .then(d => setMailReady(d ? !!d.configured : false))
+      .catch(() => setMailReady(false));
+  }, [tab, view]);
+
+  const deliverNewsletter = async (test: boolean) => {
+    if (!test && !window.confirm(`Send this message to ALL ${subscribers.length} opted-in subscribers? This cannot be undone.`)) return;
+    setMailBusy(true); setMailMessage("");
+    try {
+      const campaignId = crypto.randomUUID();
+      const response = await fetch("/api/admin/newsletter", {
+        method: "POST", credentials: "include", headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          subject: mailSubject, message: mailBody, test, testEmail: testAddress,
+          confirm: test ? undefined : "SEND", campaignId,
+        }),
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || "Email sending failed");
+      setMailMessage(test ? "Test email accepted by Resend. Check your inbox." : `Campaign attempted: ${result.sent} sent, ${result.failed} failed. ${result.note || "Check your Resend dashboard for delivery."}`);
+    } catch (e: any) { setMailMessage(e?.message || "Email sending failed"); }
+    finally { setMailBusy(false); }
+  };
+
   const checkAuth = useCallback(async () => {
     try {
-      const res = await fetch("/api/admin/passes", { credentials: "include" });
-      if (res.ok) {
-        const data = await res.json();
-        setPasses(data.passes || []);
+      const res = await fetch("/api/admin/session", { credentials: "include", cache: "no-store" });
+      const data = await res.json();
+      setSetupRequired(Boolean(data.setupRequired));
+      if (!res.ok) { setError(data.error || "Connect your database and configure session secrets."); return; }
+      if (data.authenticated) {
         setView("dashboard");
-        await loadCms();
+        await Promise.all([fetchPasses(), loadCms(), fetchSubscribers()]);
       }
-    } catch {
-      // ignore
-    }
-  }, [loadCms]);
+    } catch { setError("Cannot reach the admin service"); }
+  }, [loadCms, fetchPasses, fetchSubscribers]);
 
   useEffect(() => {
     checkAuth();
@@ -1137,6 +1165,48 @@ export default function AdminPage() {
     }
   };
 
+  const handleSetup = async (e: React.FormEvent) => {
+    e.preventDefault(); setError(""); setLoading(true);
+    try {
+      const res = await fetch("/api/admin/setup", { method: "POST", headers: { "content-type": "application/json" }, credentials: "include", body: JSON.stringify({ setupToken, password }) });
+      const body = await res.json();
+      if (!res.ok) throw new Error(body.error || "Setup failed");
+      setSetupRequired(false); setSetupToken(""); setPassword("");
+      setView("dashboard"); await Promise.all([fetchPasses(), loadCms(), fetchSubscribers()]);
+    } catch (e: any) { setError(e?.message || "Could not create admin"); }
+    finally { setLoading(false); }
+  };
+
+  const handlePasswordChange = async (e: React.FormEvent) => {
+    e.preventDefault(); setSecurityMessage("");
+    try {
+      const res = await fetch("/api/admin/password", { method: "POST", headers: { "content-type": "application/json" }, credentials: "include", body: JSON.stringify({ currentPassword, newPassword }) });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Password change failed");
+      setCurrentPassword(""); setNewPassword("");
+      setSecurityMessage("Password changed successfully. Previous sessions have been invalidated.");
+    } catch (e: any) { setSecurityMessage(e?.message || "Password change failed"); }
+  };
+
+  const exportPasses = () => {
+    const safe = (value: string) => {
+      const text = /^[=+@\-]/.test(value) ? `'${value}` : value;
+      return `"${text.replace(/"/g, '""')} "`.replace(/ "$/, '"');
+    };
+    const rows = [["Pass ID","Name","Email","Phone","Type","Joined"], ...passes.map(p => [p.id,p.name,p.email,p.phone,p.title,p.createdAt])];
+    const csv = rows.map(row => row.map(value => safe(String(value || ""))).join(",")).join("\r\n");
+    const href = URL.createObjectURL(new Blob(["\uFEFF",csv], { type: "text/csv;charset=utf-8" }));
+    const a = document.createElement("a"); a.href = href; a.download = "yarden-yard-pass-members.csv"; a.click(); URL.revokeObjectURL(href);
+  };
+
+  const exportSubscribers = () => {
+    const safe = (v: string) => `"${(/^[=+@\-]/.test(v) ? "'" : "") + v.replace(/"/g, '""')} "`.replace(/ "$/, '"');
+    const rows = [["Email", "Joined", "Consent"], ...subscribers.map(s => [s.email,s.createdAt,"yes"])];
+    const csv = rows.map(row => row.map(x => safe(x)).join(",")).join("\r\n");
+    const href = URL.createObjectURL(new Blob(["\uFEFF",csv], { type: "text/csv;charset=utf-8" }));
+    const a = document.createElement("a"); a.href = href; a.download = "yarden-audience-consented.csv"; a.click(); URL.revokeObjectURL(href);
+  };
+
   const handleLogout = async () => {
     await fetch("/api/admin/login", { method: "DELETE", credentials: "include" });
     setView("login");
@@ -1190,10 +1260,17 @@ export default function AdminPage() {
               <span className="text-3xl text-amber-300">☥</span>
             </div>
             <h1 className="text-2xl font-black text-white">Admin Access</h1>
-            <p className="text-sm text-white/50 mt-1">Enter password to continue</p>
+            <p className="text-sm text-white/50 mt-1">{setupRequired ? "First-time admin setup — choose your own password" : "Enter password to continue"}</p>
           </div>
 
-          <form onSubmit={handleLogin} className="space-y-4">
+          <form onSubmit={setupRequired ? handleSetup : handleLogin} className="space-y-4">
+            {setupRequired && (
+              <div>
+                <label className="mb-2 block text-sm font-semibold text-white/80">One-time setup token (from .env.local / Vercel)</label>
+                <input className="w-full rounded-xl border border-white/20 bg-white/5 px-4 py-3 text-white" type="password" autoComplete="off" value={setupToken} onChange={e => setSetupToken(e.target.value)} required />
+                <p className="mt-2 text-xs text-white/50">Choose a new password of at least 12 characters. Do not use the old ADMIN_PASSWORD setting.</p>
+              </div>
+            )}
             <div>
               <label className="block text-sm font-semibold text-white/80 mb-2">
                 Password
@@ -1229,7 +1306,7 @@ export default function AdminPage() {
                   Logging in...
                 </>
               ) : (
-                <>Enter Dashboard →</>
+                <>{setupRequired ? "Create admin & enter dashboard →" : "Enter Dashboard →"}</>
               )}
             </button>
           </form>
@@ -1285,7 +1362,7 @@ export default function AdminPage() {
           {/* Tabs */}
           <div className="mt-4 flex gap-2 overflow-x-auto pb-2 -mb-2">
             {(
-              ["passes", "releases", "videos", "tour", "merch", "newsletter"] as Tab[]
+              ["passes", "audience", "releases", "videos", "tour", "merch", "newsletter", "settings"] as Tab[]
             ).map((t) => (
               <button
                 key={t}
@@ -1304,6 +1381,7 @@ export default function AdminPage() {
       </header>
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 py-6">
+        {error && <div role="alert" className="mb-5 rounded-xl border border-red-400/30 bg-red-500/10 p-4 text-sm text-red-200">{error}</div>}
         {/* ═══════════════════════════════════════════════════════════════════ */}
         {/* PASSES TAB */}
         {/* ═══════════════════════════════════════════════════════════════════ */}
@@ -1329,6 +1407,7 @@ export default function AdminPage() {
             </div>
 
             <div className="flex justify-end mb-4">
+              <button type="button" onClick={exportPasses} className="mr-3 rounded-lg bg-white/10 px-4 py-2 text-sm font-bold text-white hover:bg-white/20">Export CSV</button>
               <button
                 onClick={fetchPasses}
                 disabled={loading}
@@ -1405,12 +1484,7 @@ export default function AdminPage() {
                               >
                                 View
                               </button>
-                              <button
-                                onClick={() => downloadPass(pass)}
-                                className="px-3 py-1 bg-amber-400/15 text-amber-300 rounded text-xs font-semibold hover:bg-amber-300 transition"
-                              >
-                                Download
-                              </button>
+
                             </div>
                           </td>
                         </tr>
@@ -2002,6 +2076,69 @@ export default function AdminPage() {
             </div>
           </div>
         )}
+        {tab === "audience" && (
+          <section className="mx-auto max-w-4xl space-y-5">
+            <div className="flex flex-wrap items-start justify-between gap-4 rounded-2xl bg-white/[0.04] p-6">
+              <div><h2 className="text-2xl font-bold">Audience / Updates list</h2>
+                <p className="mt-2 text-sm text-white/50">{subscribers.length} explicitly opted-in emails. These are separate from Yard Pass membership.</p>
+                <p className="mt-2 text-xs text-white/40">Only fans who explicitly opted in appear here. Yard Pass registrations are not added to this list automatically.</p>
+              </div>
+              <div className="flex gap-2"><button onClick={fetchSubscribers} type="button" className="rounded-lg bg-white/10 px-4 py-2">Refresh</button><button onClick={exportSubscribers} type="button" className="rounded-lg bg-amber-400 px-4 py-2 font-semibold text-black">Export CSV</button></div>
+            </div>
+            <div className="overflow-x-auto rounded-2xl border border-white/10">
+              <table className="w-full text-left text-sm"><thead className="bg-white/10"><tr><th className="p-3">Email</th><th className="p-3">Opt-in date</th></tr></thead>
+                <tbody>{subscribers.map(s => <tr key={s.email} className="border-t border-white/10"><td className="p-3">{s.email}</td><td className="p-3">{formatDate(s.createdAt)}</td></tr>)}</tbody>
+              </table>
+              {!subscribers.length && <p className="p-6 text-white/50">No subscribers yet.</p>}
+            </div>
+            <div className="rounded-2xl border border-white/10 bg-white/[.04] p-6 space-y-4">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div><h3 className="text-xl font-bold">Send Yarden updates</h3>
+                  <p className="mt-1 text-sm text-white/50">Create an email, test it, then send to opted-in subscribers. Every campaign includes an unsubscribe link.</p></div>
+                <span className={`rounded-lg px-3 py-1 text-xs ${mailReady ? "bg-emerald-500/20 text-emerald-300" : "bg-amber-400/15 text-amber-200"}`}>
+                  {mailReady === null ? "Checking email setup" : mailReady ? "Resend configured" : "Resend needs configuration"}
+                </span>
+              </div>
+              <InputField label="Subject" value={mailSubject} onChange={setMailSubject} placeholder="New from Yarden" />
+              <div><label className="mb-2 block text-xs uppercase tracking-wide text-white/50">Message</label>
+                <textarea value={mailBody} onChange={e=>setMailBody(e.target.value)} rows={7} maxLength={6000} placeholder="Write your announcement here..." className="w-full rounded-xl border border-white/10 bg-black/20 p-3 text-sm text-white" />
+              </div>
+              <InputField label="Send test to" type="email" value={testAddress} onChange={setTestAddress} placeholder="your@email.com" />
+              <div className="flex flex-wrap gap-3">
+                <button type="button" onClick={()=>deliverNewsletter(true)} disabled={mailBusy || !mailReady || !testAddress || mailSubject.length < 4 || mailBody.length < 10} className="rounded-xl bg-white/15 px-5 py-3 text-sm font-bold text-white disabled:opacity-30">{mailBusy ? "Working…" : "Send test email"}</button>
+                <button type="button" onClick={()=>deliverNewsletter(false)} disabled={mailBusy || !mailReady || !subscribers.length || subscribers.length > 40 || mailSubject.length < 4 || mailBody.length < 10} className="rounded-xl bg-amber-400 px-5 py-3 text-sm font-bold text-black disabled:opacity-30">Send to {subscribers.length} subscribers</button>
+              </div>
+              {mailMessage && <p role="status" className="rounded-xl bg-white/10 p-3 text-sm text-white">{mailMessage}</p>}
+              <p className="text-xs leading-relaxed text-white/40">This built-in sender is limited to 40 addresses per campaign. For larger audiences, use Resend Broadcasts or another dedicated campaign tool. Test first. Do not resend after a partial failure without checking Resend's delivery logs.</p>
+            </div>
+          </section>
+        )}
+              {tab === "settings" && (
+          <section className="mx-auto max-w-3xl space-y-6">
+            <div className="rounded-2xl border border-white/10 bg-white/[.04] p-6 space-y-4">
+              <h2 className="text-xl font-bold">Website / Hero settings</h2>
+              <p className="text-sm text-white/50">Edit the live hero and video paths. Keep videos optimized and hosted under /public/videos or a trusted HTTPS address.</p>
+              {([
+                ["eyebrow", "Hero edition label"], ["tagline", "Eyebrow line"],
+                ["title", "Hero headline"], ["description", "Hero description"],
+                ["desktopVideo", "Desktop video path"], ["mobileVideo", "Mobile video path"],
+                ["desktopPoster", "Desktop poster path"], ["mobilePoster", "Mobile poster path"],
+              ] as [keyof CmsData["site"], string][]).map(([key, label]) => (
+                <InputField key={key} label={label} value={cms.site[key]} onChange={v => setCmsDraft(prev => ({...prev, site: {...prev.site, [key]:v}}))} />
+              ))}
+              <button type="button" onClick={saveCms} disabled={cmsLoading} className="rounded-xl bg-amber-400 px-5 py-3 font-bold text-black">Save website settings</button>
+            </div>
+            <form onSubmit={handlePasswordChange} className="rounded-2xl border border-white/10 bg-white/[.04] p-6 space-y-4">
+              <h2 className="text-xl font-bold">Change admin password</h2>
+              <p className="text-sm text-white/50">At least 12 characters. All other signed-in sessions will be revoked.</p>
+              <InputField label="Current password" type="password" value={currentPassword} onChange={setCurrentPassword} />
+              <InputField label="New password" type="password" value={newPassword} onChange={setNewPassword} />
+              <button type="submit" disabled={!currentPassword || newPassword.length < 12} className="rounded-xl bg-amber-400 px-5 py-3 font-bold text-black disabled:opacity-40">Update password</button>
+              {securityMessage && <p role="status" className="text-sm text-amber-200">{securityMessage}</p>}
+            </form>
+            <p className="text-xs text-white/40">Only published CMS data appears on the public site. For merchandise and show availability, use the corresponding management tabs.</p>
+          </section>
+        )}
       </main>
 
       {/* Pass Detail Modal */}
@@ -2038,7 +2175,7 @@ export default function AdminPage() {
                 />
               ) : (
                 <div className="p-12 bg-white/10 rounded-2xl text-center">
-                  <p className="text-white/50">No image available</p>
+                  <p className="text-white/50">Member card images are generated on the member’s device and are not stored on the server.</p>
                 </div>
               )}
             </div>
@@ -2055,12 +2192,7 @@ export default function AdminPage() {
                 </div>
               </div>
 
-              <button
-                onClick={() => downloadPass(selectedPass)}
-                className="w-full py-4 bg-black text-amber-300 font-bold rounded-xl hover:bg-white/10 transition"
-              >
-                Download Pass Image
-              </button>
+
             </div>
           </div>
         </div>

@@ -15,6 +15,16 @@ export const CMS_KV_KEY = "yarden:cms:v2";
 export interface CmsData {
   version: number;
   updatedAt: number;
+  site: {
+    eyebrow: string;
+    title: string;
+    tagline: string;
+    description: string;
+    desktopVideo: string;
+    mobileVideo: string;
+    desktopPoster: string;
+    mobilePoster: string;
+  };
   
   releases: ReleaseItem[];
   
@@ -38,8 +48,18 @@ export interface CmsData {
 }
 
 export const DEFAULT_CMS: CmsData = {
-  version: 1,
+  version: 2,
   updatedAt: 0,
+  site: {
+    eyebrow: "YARDEN / THE MUSE ERA",
+    title: "Feel everything.",
+    tagline: "NEW NOSTALGIA FROM LAGOS",
+    description: "Songs for the moments you want to hold on to.",
+    desktopVideo: "/videos/yarden-desktop.mp4",
+    mobileVideo: "/videos/yarden-mobile.mp4",
+    desktopPoster: "/videos/yarden-desktop-poster.webp",
+    mobilePoster: "/videos/yarden-mobile-poster.webp",
+  },
 
   // ═══════════════════════════════════════════════════════════════════
   // RELEASES
@@ -256,12 +276,7 @@ export const DEFAULT_CMS: CmsData = {
   // TOUR
   // ═══════════════════════════════════════════════════════════════════
   tour: {
-    shows: [
-      { id: "lagos_1", dateLabel: "APR 12", city: "Lagos", venue: "— Venue TBA", status: "announce" },
-      { id: "abuja_1", dateLabel: "MAY 03", city: "Abuja", venue: "— Venue TBA", status: "announce" },
-      { id: "london_1", dateLabel: "JUN 21", city: "London", venue: "— Venue TBA", status: "announce" },
-      { id: "berlin_1", dateLabel: "JUL 09", city: "Berlin", venue: "— Venue TBA", status: "announce" },
-    ],
+    shows: [], // No invented concert dates. Add verified shows in the CMS.
     config: {
       posterSrc: "/Pictures/yarden4.png",
       posterAlt: "Tour poster",
@@ -319,7 +334,7 @@ export const DEFAULT_CMS: CmsData = {
       eyebrow: "Store",
       title: "Store.",
       desc: "Official pieces and limited drops.",
-      storeHref: "#",
+      storeHref: "",
     },
   },
 

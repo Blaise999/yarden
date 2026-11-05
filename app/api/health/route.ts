@@ -1,32 +1,10 @@
-// app/api/health/route.ts
-// Health check endpoint to verify configuration
-
 import { NextResponse } from "next/server";
-import { isStorageConfigured } from "../../../libs/passStorage";
-
+import { hasPersistentStore } from "../../../libs/persistence";
+import { emailConfigured, siteOrigin } from "../../../libs/email";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-
 export async function GET() {
-  const hasKV = isStorageConfigured();
-  const hasAdminPassword = Boolean(process.env.ADMIN_PASSWORD);
-  
-  return NextResponse.json({
-    status: hasKV && hasAdminPassword ? "healthy" : "degraded",
-    checks: {
-      storage: {
-        configured: hasKV,
-        message: hasKV 
-          ? "Vercel KV connected" 
-          : "⚠️ KV not configured - passes won't persist",
-      },
-      admin: {
-        configured: hasAdminPassword,
-        message: hasAdminPassword 
-          ? "Admin password set" 
-          : "⚠️ ADMIN_PASSWORD not set",
-      },
-    },
-    timestamp: new Date().toISOString(),
-  });
+  const storage = hasPersistentStore();
+  const sessions = Boolean(process.env.ADMIN_SESSION_SECRET && /^[0-9a-fA-F]{64,}$/.test(process.env.ADMIN_SESSION_SECRET));
+  return NextResponse.json({ status: storage && sessions ? "healthy" : "configuration_required", checks: { persistentStorage: storage, sessionSigningSecret: sessions, emailDeliveryConfigured: emailConfigured(), emailLinksConfigured: Boolean(siteOrigin()) } }, { headers: { "Cache-Control": "no-store" } });
 }

@@ -110,7 +110,8 @@ export default function YardPassGen() {
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [gender, setGender] = useState<Gender>("");
-  const [idNum] = useState(genId);
+  const [idNum, setIdNum] = useState("PREVIEW / ASSIGNED ON JOIN");
+  const [existing, setExisting] = useState(false);
   const [status, setStatus] = useState<"idle" | "saving" | "done" | "error">("idle");
   const [msg, setMsg] = useState("");
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -119,38 +120,59 @@ export default function YardPassGen() {
   const title = gender === "female" ? "Yarden's Angel" : "Yarden's Descendant";
   const statusLabel = gender === "female" ? "Angel Certified" : "Descendant Certified";
 
+  // The pass is keyed to a signed HttpOnly browser cookie. No public ID lookups.
+  useEffect(() => {
+    fetch("/api/passes", { cache: "no-store" })
+      .then(async (res) => { if (!res.ok) throw new Error("Pass service unavailable"); return res.json(); })
+      .then(({ pass }) => {
+        if (!pass) return;
+        setExisting(true);
+        setName(pass.name); setEmail(pass.email); setPhone(pass.phone || "");
+        setGender(pass.gender); setIdNum(pass.id); setStatus("done");
+        setMsg("Your Yard Pass is active on this browser. You can download a fresh copy.");
+      })
+      .catch(() => { /* allow visitor to try registration; endpoint will report errors */ });
+  }, []);
+
   // live preview
   useEffect(() => {
     if (canvasRef.current) drawPass(canvasRef.current, { name, title, status: statusLabel, id: idNum, year });
   }, [name, title, statusLabel, idNum, year]);
 
-  const valid = name.trim() && /\S+@\S+\.\S+/.test(email) && phone.trim() && gender;
+  const valid = name.trim() && /\S+@\S+\.\S+/.test(email) && gender;
+
+  const downloadCard = useCallback((id: string, form: { name:string; title:string; status:string; year:number }) => {
+    const exportCanvas = document.createElement("canvas");
+    drawPass(exportCanvas, { ...form, id });
+    const a = document.createElement("a");
+    a.href = exportCanvas.toDataURL("image/png");
+    a.download = `yard-pass-${id}.png`;
+    document.body.appendChild(a); a.click(); a.remove();
+  }, []);
 
   const generate = useCallback(async () => {
-    if (!valid || !canvasRef.current) { setMsg("Fill in every field to mint your pass."); return; }
+    if (existing) {
+      downloadCard(idNum, { name, title, status: statusLabel, year });
+      return;
+    }
+    if (!valid) { setStatus("error"); setMsg("Enter your name, email and choose a pass type."); return; }
     setStatus("saving"); setMsg("");
-    const pngDataUrl = canvasRef.current.toDataURL("image/png");
-
-    // download immediately
-    try {
-      const a = document.createElement("a");
-      a.href = pngDataUrl; a.download = `yard-pass-${idNum}.png`;
-      document.body.appendChild(a); a.click(); a.remove();
-    } catch {}
-
-    // save to backend
     try {
       const res = await fetch("/api/passes", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: name.trim(), email: email.trim(), phone: phone.trim(), gender, pngDataUrl }),
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: name.trim(), email: email.trim(), phone: phone.trim(), gender }),
       });
-      if (res.ok) { setStatus("done"); setMsg("You're in. Your pass downloaded — welcome to the descendants."); }
-      else { setStatus("done"); setMsg("Your pass downloaded. (Couldn't reach the list — try again later.)"); }
-    } catch {
-      setStatus("done"); setMsg("Your pass downloaded. (Offline — we couldn't save it to the list.)");
+      const response = await res.json();
+      if (!res.ok || !response.pass) throw new Error(response.error || "Could not register your pass");
+      const pass = response.pass;
+      setExisting(true); setIdNum(pass.id);
+      setName(pass.name); setEmail(pass.email); setPhone(pass.phone || ""); setGender(pass.gender);
+      downloadCard(pass.id, { name: pass.name, title: pass.title, status: pass.status, year: pass.yearJoined });
+      setStatus("done"); setMsg(response.existing ? "You already have a pass. Downloaded your original membership." : "You're officially in. Your unique Yard Pass has been downloaded.");
+    } catch (e: any) {
+      setStatus("error"); setMsg(e?.message || "Could not save your pass. Please try again.");
     }
-  }, [valid, name, email, phone, gender, idNum]);
+  }, [valid, name, email, phone, gender, idNum, existing, title, statusLabel, year, downloadCard]);
 
   const input =
     "w-full rounded-xl bg-white/[0.04] border border-white/12 px-4 py-3 text-[15px] text-[#F3ECDD] placeholder-white/35 outline-none transition focus:border-[#E4B13C]/70 focus:bg-white/[0.06]";
@@ -176,16 +198,17 @@ export default function YardPassGen() {
         </div>
 
         <div className="grid gap-3">
-          <input className={input} placeholder="Full name" value={name} onChange={(e) => setName(e.target.value)} maxLength={22} />
-          <input className={input} placeholder="you@email.com" type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
-          <input className={input} placeholder="Phone" type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} />
+          <input className={input} placeholder="Full name" value={name} onChange={(e) => setName(e.target.value)} maxLength={22} disabled={existing} />
+          <input className={input} placeholder="you@email.com" type="email" value={email} onChange={(e) => setEmail(e.target.value)} disabled={existing} />
+          <input className={input} placeholder="Phone" type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} disabled={existing} />
 
           <div className="grid grid-cols-2 gap-3">
             {([["male", "Descendant"], ["female", "Angel"]] as const).map(([g, label]) => (
               <button
                 key={g}
                 type="button"
-                onClick={() => setGender(g)}
+                onClick={() => { if (!existing) setGender(g); }}
+                disabled={existing}
                 className={
                   "rounded-xl border px-4 py-3 text-sm font-medium transition " +
                   (gender === g
@@ -204,13 +227,13 @@ export default function YardPassGen() {
             disabled={status === "saving"}
             className="mt-1 inline-flex items-center justify-center gap-2 rounded-xl bg-[#E4B13C] px-5 py-3.5 text-sm font-semibold text-[#12100a] transition hover:brightness-105 disabled:opacity-60"
           >
-            {status === "saving" ? "Minting…" : "Generate & download my pass"}
+            {status === "saving" ? "Saving…" : existing ? "Download my Yard Pass" : "Generate & download my pass"}
           </button>
 
           {msg ? (
             <p className={"text-sm " + (status === "done" ? "text-[#E4B13C]" : "text-white/60")}>{msg}</p>
           ) : (
-            <p className="text-xs text-white/35">Your details stay private. Unsubscribe anytime.</p>
+            <p className="text-xs text-white/35">Your contact details are stored securely for your pass. Photos are not uploaded or stored. No automatic mailing-list subscription.</p>
           )}
         </div>
       </div>
