@@ -8,6 +8,9 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import "./redesign.css";
 import "./yarden-film.css";
 import "./yarden-angel-v10.css";
+import "./yarden-v11.css";
+import "./yarden-v12.css";
+import "./yarden-v13.css";
 import YardenVideoHero from "../components/landing/YardenVideoHero";
 import YardenMusicGallery from "../components/landing/YardenMusicGallery";
 
@@ -83,6 +86,7 @@ export default function PageClient(props: PageClientProps) {
   const [joinConsent, setJoinConsent] = useState(false);
   const [joinStatus, setJoinStatus] = useState("");
   const [joinBusy, setJoinBusy] = useState(false);
+  const [pressExpanded, setPressExpanded] = useState(false);
   const joinAudience = async (e: React.FormEvent) => {
     e.preventDefault(); setJoinBusy(true); setJoinStatus("");
     try {
@@ -128,7 +132,6 @@ export default function PageClient(props: PageClientProps) {
   /* Main listening link; album selection is handled within the release gallery. */
   const ep: any = projects[0] ?? {};
   const epLinks = ep?.links ?? {};
-  const epListen = listenOf(ep);
 
   /* The visuals wall is click-to-play. Avoid hidden iframe autoplay, blocked
      player API initialization, and overlays that intercept YouTube controls. */
@@ -158,7 +161,6 @@ export default function PageClient(props: PageClientProps) {
           <a className="brand" href="#top"><span className="ankh gold"><Ankh s={26} /></span>Yarden</a>
           <nav className="nav__links">{NAV.map(([h, l]) => <a key={h} href={h}>{l}</a>)}</nav>
           <div className="nav__cta">
-            <a className="btn btn--ghost" href={epListen} target="_blank" rel="noreferrer" style={{ padding: "8px 4px" }}>Listen <span className="arw"><Arrow s={14} /></span></a>
             <button className="btn btn--gold" onClick={openPass}>Get the Pass</button>
             <button className="nav__burger" aria-label="Menu" onClick={() => setMenuOpen(true)}><svg width={26} height={26} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M3 6h18M3 12h18M3 18h18" /></svg></button>
           </div>
@@ -318,61 +320,101 @@ export default function PageClient(props: PageClientProps) {
         </div>
       </section>
 
-      {/* PRESS */}
+      {/* NEWS / EDITORIAL — live CMS stories and verified headlines */}
       {press.length > 0 && (
-        <section className="sec" id="press">
+        <section className="sec yd-news" id="press" aria-labelledby="yd-news-title">
           <div className="wrap">
-            <div className="sec__head rv"><div><span className="eyebrow"><span className="num">05</span><span className="rule" />Press</span><h2 className="sec__title">Beyond the <span className="it">record</span></h2></div></div>
-            <div className="press__grid rv">
-              {press.slice(0, 6).map((p) => (
-                <a className="press" key={p.id} href={p.href} target="_blank" rel="noreferrer">
-                  {p.image ? <div className="press__img"><img src={p.image} alt={p.outlet} loading="lazy" decoding="async" /></div> : null}
-                  <div className="press__body">
-                    <div className="press__top"><span className="press__outlet">{p.outlet}</span>{p.tag ? <span className="press__tag">{p.tag}</span> : null}</div>
-                    <div className="press__ttl">{p.title}</div>
-                    {p.excerpt ? <div className="press__ex">{p.excerpt}</div> : null}
-                    <div className="press__foot"><span className="press__date">{p.date}</span><span className="press__go">Read <Arrow s={13} /></span></div>
+            <div className="yd-news__heading rv">
+              <div>
+                <span className="yd-news__eyebrow"><span className="yd-news__dot" /> THE WORLD OF YARDEN / JOURNAL</span>
+                <h2 id="yd-news-title">In the <em>headlines.</em></h2>
+                <p>From ANGEL's arrival to the conversations shaping his sound. The stories, in the artists' own words and beyond.</p>
+              </div>
+              <span className="yd-news__edition">ANGEL / THE 2026 EDITION <span>✳</span></span>
+            </div>
+            <div className="yd-news__grid">
+              {press.slice(0, pressExpanded ? press.length : 6).map((story, index) => (
+                <a className={`yd-story ${index === 0 ? "yd-story--cover" : ""}`} key={story.id} href={story.href} target="_blank" rel="noopener noreferrer">
+                  <div className="yd-story__visual">
+                    <img src={story.image || "/Pictures/hero3.jpg"} alt={`Editorial image for ${story.title}`} loading="lazy" decoding="async" onError={(event) => { const image = event.currentTarget; if (!image.src.endsWith("/Pictures/hero3.jpg")) image.src = "/Pictures/hero3.jpg"; }} />
+                    <span className="yd-story__index">{String(index + 1).padStart(2, "0")} / {String(press.length).padStart(2, "0")}</span>
+                    <span className="yd-story__arrow" aria-hidden="true">↗</span>
+                  </div>
+                  <div className="yd-story__copy">
+                    <div className="yd-story__meta"><span>{story.outlet}</span><span className="yd-story__tag">{story.tag || "STORY"}</span></div>
+                    <h3>{story.title}</h3>
+                    {story.excerpt && <p>{story.excerpt}</p>}
+                    <div className="yd-story__bottom"><time>{story.date}</time><span>READ THE STORY <Arrow s={13}/></span></div>
                   </div>
                 </a>
               ))}
             </div>
+            {press.length > 6 && (
+              <div className="yd-news__more">
+                <button type="button" onClick={() => setPressExpanded(value => !value)} aria-expanded={pressExpanded}>
+                  {pressExpanded ? "SHOW FEWER STORIES" : `EXPLORE ALL ${press.length} STORIES`} <span aria-hidden="true">{pressExpanded ? "↑" : "↗"}</span>
+                </button>
+              </div>
+            )}
           </div>
         </section>
       )}
 
-      {/* JOIN */}
-      <section className="join" id="join">
-        <div className="join__glow" />
-        <div className="ankh-wm" aria-hidden="true"><svg width="360" height="540" viewBox="0 0 26 40" fill="none"><g stroke="currentColor" strokeWidth={1.3} strokeLinecap="round"><ellipse cx="13" cy="10" rx="7" ry="8.2" /><line x1="13" y1="18" x2="13" y2="35" /><line x1="5.5" y1="23" x2="20.5" y2="23" /></g></svg></div>
-        <div className="wrap join__layout"><div className="rv join__main">
-          <span className="join__eyebrow">YOU'RE INVITED / NO GATEKEEPING</span>
-          <span className="ankh-big"><Ankh s={60} /></span>
-          <h2>This world<br/>is <span className="it">yours too.</span></h2>
-          <p>For the people who hear more than a melody. Make your free Yard Pass, then choose whether you want the news from Yarden’s world.</p>
-          <div className="form"><button className="btn btn--gold" onClick={openPass} style={{ width: "100%", justifyContent: "center" }}>Generate your Pass <span className="arw"><Arrow s={15} /></span></button></div>
-          <form onSubmit={joinAudience} className="mx-auto mt-6 max-w-lg space-y-3 rounded-2xl border border-white/15 bg-white/[0.03] p-5 text-left">
-            <label className="block text-xs font-semibold uppercase tracking-wider text-white/60" htmlFor="yarden-newsletter-email">Join the updates list (optional)</label>
-            <div className="flex flex-wrap gap-2">
-              <input id="yarden-newsletter-email" type="email" required value={joinEmail} onChange={e => setJoinEmail(e.target.value)} placeholder="Your email" className="min-w-[180px] flex-1 rounded-lg border border-white/20 bg-black/40 px-3 py-2 text-white" />
-              <button className="rounded-lg bg-[#E4B13C] px-4 py-2 font-semibold text-black disabled:opacity-50" disabled={joinBusy || !joinConsent} type="submit">{joinBusy ? "Saving…" : "Join list"}</button>
-            </div>
-            <label className="flex items-start gap-2 text-xs text-white/65"><input type="checkbox" checked={joinConsent} onChange={e => setJoinConsent(e.target.checked)} className="mt-0.5" /> I agree to receive future music, merch and tour updates. Joining is separate from getting a Yard Pass.</label>
-            <p className="text-xs text-white/45">Only opted-in fans receive promotional emails. Unsubscribe at any time. Delivery requires configured email service.</p>
-            {joinStatus && <p role="status" className="text-sm text-[#E4B13C]">{joinStatus}</p>}
-          </form>
-          <div className="social" style={{ justifyContent: "center", marginTop: 22 }}>
+      {/* THE YARD — separate membership and consent-based updates */}
+      <section className="join yd-join" id="join" aria-labelledby="yd-join-heading">
+        <div className="join__glow" aria-hidden="true" />
+        <div className="wrap yd-join__container">
+          <div className="yd-join__intro rv">
+            <span className="yd-join__eyebrow">THE YARD / ANGEL MEMBERSHIP</span>
+            <h2 id="yd-join-heading">Your place in <em>the story.</em></h2>
+            <p>One world. Two ways in. Make your own collectible Yard Pass, or get first word about the music. Your choice.</p>
+          </div>
+          <div className="yd-join__cards rv">
+            <article className="yd-join__pass">
+              <div className="yd-join__panel-head"><span>01 / YOUR MEMBERSHIP</span><span>✳</span></div>
+              <div className="yd-join__pass-visual" aria-hidden="true">
+                <span className="yd-join__pass-sigil"><Ankh s={74}/></span>
+                <span className="yd-join__pass-brand">YARDEN <small>THE YARD</small></span>
+                <strong>ANGEL.</strong>
+                <span className="yd-join__pass-series">DIGITAL COLLECTOR CARD / 2026</span>
+              </div>
+              <div className="yd-join__panel-copy">
+                <h3>Carry the <em>era.</em></h3>
+                <p>Personalised, free, and made to keep. Your pass is saved privately and downloaded in high resolution.</p>
+                <button className="yd-join__main-cta" onClick={openPass}>CREATE MY YARD PASS <span aria-hidden="true">↗</span></button>
+                <small>No purchase necessary. This is not an event ticket.</small>
+              </div>
+            </article>
+            <article className="yd-join__newsletter">
+              <div className="yd-join__panel-head"><span>02 / NEWS FROM THE YARD</span><span>✉</span></div>
+              <div className="yd-join__letter-graphic" aria-hidden="true"><span>THE<br/>NEXT<br/><i>CHAPTER.</i></span><span className="yd-join__letter-stamp">YARDEN / 2026</span></div>
+              <div className="yd-join__panel-copy">
+                <h3>Stay in <em>the know.</em></h3>
+                <p>New releases, real announcements and a little behind-the-scenes. Nothing you didn't ask for.</p>
+                <form className="yd-join__form" onSubmit={joinAudience}>
+                  <label htmlFor="yarden-newsletter-email">YOUR EMAIL ADDRESS</label>
+                  <div className="yd-join__field">
+                    <input id="yarden-newsletter-email" type="email" autoComplete="email" required value={joinEmail} onChange={e => setJoinEmail(e.target.value)} placeholder="you@example.com" />
+                    <button type="submit" disabled={joinBusy || !joinConsent} aria-label="Subscribe to Yarden updates">{joinBusy ? "…" : "↗"}</button>
+                  </div>
+                  <label className="yd-join__consent">
+                    <input type="checkbox" checked={joinConsent} onChange={e => setJoinConsent(e.target.checked)} />
+                    <span>I agree to receive Yarden's music, tour and merch updates. I can unsubscribe at any time.</span>
+                  </label>
+                  <div className="yd-join__form-foot">
+                    <span>SEPARATE FROM YARD PASS / NO SPAM</span>
+                    {joinStatus && <p role="status" aria-live="polite">{joinStatus}</p>}
+                  </div>
+                </form>
+              </div>
+            </article>
+          </div>
+          <div className="yd-join__social rv">
+            <span>FOLLOW THE STORY</span>
             <a href={SOCIAL.instagram} target="_blank" rel="noreferrer" aria-label="Instagram"><IG /></a>
             <a href={SOCIAL.tiktok} target="_blank" rel="noreferrer" aria-label="TikTok"><TT /></a>
             <a href={SOCIAL.x} target="_blank" rel="noreferrer" aria-label="X"><XI /></a>
             <a href={SOCIAL.youtube} target="_blank" rel="noreferrer" aria-label="YouTube"><YTIcon /></a>
-          </div>
-        </div>
-          <div className="join__card rv" aria-hidden="true">
-            <span className="join__card-orbit">✳</span>
-            <span className="join__card-small">YARDEN — THE YARD</span>
-            <span className="join__card-ankh"><Ankh s={126} /></span>
-            <strong>ANGEL.</strong>
-            <div><span>YOUR PASS / YOUR STORY</span><span>EST. MMXXVI</span></div>
           </div>
         </div>
       </section>

@@ -34,9 +34,26 @@ export function normalizeCms(input: Partial<CmsData> | null | undefined): CmsDat
     : previousVisuals;
   const previousPress = Array.isArray(base.newsletter?.pressItems)
     ? base.newsletter.pressItems : DEFAULT_CMS.newsletter.pressItems;
-  const newPress = legacy && Array.isArray(base.newsletter?.pressItems)
-    ? [...DEFAULT_CMS.newsletter.pressItems.slice(0, 2).filter(item => !previousPress.some(p => p.id === item.id)), ...previousPress]
-    : previousPress;
+  const defaultPress = DEFAULT_CMS.newsletter.pressItems;
+  // Keep editor-modified stories intact while front-loading the verified ANGEL-era coverage.
+  // Only new editorial records are inserted; newsletter subscribers and passes are unaffected.
+  const spotlightIds = new Set([
+    "turntable-angel-interview-nov-2026",
+    "angel-album-release-2026",
+    "ghanaplug-angel-oct-2026",
+    "album-talks-angel-2026",
+    "mmc-sdf-oct-2026",
+  ]);
+  const newPress = [
+    ...defaultPress.filter(item => spotlightIds.has(item.id)).map(item => {
+      const previous = previousPress.find(old => old.id === item.id);
+      return previous ? { ...item, ...previous, image: previous.image || item.image } : item;
+    }),
+    ...previousPress.filter(item => !spotlightIds.has(item.id)).map(old => {
+      const matching = defaultPress.find(item => item.id === old.id);
+      return !old.image && matching?.image ? { ...old, image: matching.image } : old;
+    }),
+  ];
   return {
     ...DEFAULT_CMS,
     ...base,
