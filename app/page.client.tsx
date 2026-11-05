@@ -7,6 +7,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import "./redesign.css";
 import "./yarden-film.css";
+import "./yarden-angel-v10.css";
 import YardenVideoHero from "../components/landing/YardenVideoHero";
 import YardenMusicGallery from "../components/landing/YardenMusicGallery";
 
@@ -71,7 +72,6 @@ export type PageClientProps = {
   press?: PressItem[]; isAdmin?: boolean; site?: { eyebrow:string;title:string;tagline:string;description:string;desktopVideo:string;mobileVideo:string;desktopPoster:string;mobilePoster:string };
 };
 
-declare global { interface Window { YT?: any; onYouTubeIframeAPIReady?: () => void; } }
 
 export default function PageClient(props: PageClientProps) {
   const { releases = [], visuals = [], shows = [], merch = [], press = [], tourConfig } = props;
@@ -130,66 +130,16 @@ export default function PageClient(props: PageClientProps) {
   const epLinks = ep?.links ?? {};
   const epListen = listenOf(ep);
 
-  /* Defer the YouTube iframe until someone approaches the visuals section. */
-  const [visualsInView, setVisualsInView] = useState(false);
-  useEffect(() => {
-    const section = document.getElementById("visuals");
-    if (!section) return;
-    const observer = new IntersectionObserver((entries) => {
-      if (entries.some(entry => entry.isIntersecting)) {
-        setVisualsInView(true);
-        observer.disconnect();
-      }
-    }, { rootMargin: "500px 0px" });
-    observer.observe(section);
-    return () => observer.disconnect();
-  }, []);
-
-  /* ---------- live video wall ---------- */
+  /* The visuals wall is click-to-play. Avoid hidden iframe autoplay, blocked
+     player API initialization, and overlays that intercept YouTube controls. */
   const vids = useMemo(() => visuals.map((v: any) => ({ ...v, yid: ytId(v.href) })).filter((v) => v.yid), [visuals]);
   const [vIdx, setVIdx] = useState(0);
-  const [playing, setPlaying] = useState(false);
-  const [muted, setMuted] = useState(true);
-  const [apiTick, setApiTick] = useState(0);
-  const playerRef = useRef<any>(null);
-
-  useEffect(() => {
-    if (!vids.length || !visualsInView) return;
-    if (window.YT?.Player) { setApiTick((t) => t + 1); return; }
-    if (!document.getElementById("yt-iframe-api")) {
-      const tag = document.createElement("script");
-      tag.src = "https://www.youtube.com/iframe_api"; tag.id = "yt-iframe-api";
-      document.head.appendChild(tag);
-    }
-    const prev = window.onYouTubeIframeAPIReady;
-    window.onYouTubeIframeAPIReady = () => { prev?.(); setApiTick((t) => t + 1); };
-  }, [vids.length, visualsInView]);
-
-  useEffect(() => {
-    if (!visualsInView || !vids.length || !window.YT?.Player || playerRef.current) return;
-    playerRef.current = new window.YT.Player("yt-slot", {
-      videoId: vids[0].yid,
-      playerVars: { autoplay: 1, mute: 1, rel: 0, modestbranding: 1, playsinline: 1, controls: 1 },
-      events: {
-        onReady: (e: any) => { try { e.target.mute(); e.target.playVideo(); } catch {} setTimeout(() => setPlaying(true), 900); },
-        onStateChange: (e: any) => {
-          const YT = window.YT;
-          if (e.data === YT.PlayerState.PLAYING) setPlaying(true);
-          if (e.data === YT.PlayerState.ENDED) setVIdx((i) => (i + 1) % vids.length);
-        },
-      },
-    });
-  }, [apiTick, vids, visualsInView]);
-
-  useEffect(() => {
-    const p = playerRef.current;
-    if (p?.loadVideoById && vids[vIdx]) { try { p.loadVideoById(vids[vIdx].yid); muted ? p.mute?.() : p.unMute?.(); } catch {} }
-  }, [vIdx, vids]);
-
-  const toggleMute = useCallback(() => {
-    const p = playerRef.current; if (!p) return;
-    try { if (muted) { p.unMute?.(); p.setVolume?.(100); setMuted(false); } else { p.mute?.(); setMuted(true); } } catch {}
-  }, [muted]);
+  const [videoStarted, setVideoStarted] = useState(false);
+  const selectedVisual = vids[vIdx];
+  const selectVisual = (index: number) => {
+    setVIdx(index);
+    setVideoStarted(true);
+  };
 
   /* ---------- tour poster (admin-editable via posterSrc) ---------- */
   const tourPoster =
@@ -233,15 +183,31 @@ export default function PageClient(props: PageClientProps) {
       {/* Film: separate high-performance desktop and mobile edits */}
       <YardenVideoHero site={props.site} releaseName={projects[0]?.title || "ANGEL"} releaseHref={projects[0] ? listenOf(projects[0]) : SOCIAL.youtube} />
 
+      {/* A kinetic album-era ticker, not a second oversized hero. */}
+      <div className="angel-ticker" aria-label="ANGEL, the debut album, out now, thirteen tracks">
+        <div className="angel-ticker__track" aria-hidden="true">
+          {Array.from({ length: 4 }).map((_, i) => <span key={i}>ANGEL <b>✳</b> YARDEN <b>✳</b> THE DEBUT ALBUM <b>✳</b> 13 TRACKS <b>✳</b> </span>)}
+        </div>
+      </div>
+
       {/* Discography: ANGEL-led album listening room and the singles rail */}
       <YardenMusicGallery releases={releases} />
 
-      <section className="ym-bridge" aria-label="The feeling behind the music">
-        <p>THE SOUND HAS A SOUL / THE STORY HAS MANY SIDES</p>
-        <h2>From his father’s DJ records and his mother’s gospel, <em>a sound with its own heartbeat.</em></h2>
-        <div className="ym-bridge__story">
-          <p>Raised in Lagos, Yarden learned early that music could carry almost anything. Old records, church melodies, 80s synths, and the kind of feeling that stays after a song ends.</p>
-          <p>From <i>Wetin</i> to <i>Muse</i> and now <i>ANGEL</i>, he follows the contrasts: tenderness and swagger, light and shadow. No single mood tells the whole story.</p>
+      <section className="angel-editorial" id="the-story" aria-label="Meet the artist behind ANGEL">
+        <div className="angel-editorial__media rv">
+          <div className="angel-editorial__hero-image"><img src="/Pictures/hero2.png" loading="lazy" decoding="async" alt="Portrait of Yarden wearing an ankh necklace" /></div>
+          <div className="angel-editorial__stamp" aria-hidden="true"><span>THE</span><strong>ANGEL</strong><span>ERA</span></div>
+          <div className="angel-editorial__inset"><img src="/Pictures/yarden3.png" loading="lazy" decoding="async" alt="Yarden, artistic portrait" /></div>
+          <span className="angel-editorial__photoline">THE ARTIST / THE MANY SIDES</span>
+        </div>
+        <div className="angel-editorial__story rv">
+          <span className="angel-editorial__eyebrow"><span /> BEHIND THE SOUND · 02 / 04</span>
+          <div className="angel-editorial__index" aria-hidden="true">Y.</div>
+          <h2>Not one mood.<br/><em>A whole world.</em></h2>
+          <p className="angel-editorial__lead">Raised in Lagos, surrounded by his mother’s gospel and his father’s DJ records, Yarden grew up hearing music from more than one direction.</p>
+          <p>There’s tenderness and tension in his melodies. Traces of old-school pop, modern rhythm and the freedom to move between genres. <i>ANGEL</i> is the latest chapter in that search.</p>
+          <div className="angel-editorial__line" aria-hidden="true" />
+          <a href="#visuals" className="angel-editorial__link">Step into the visuals <span>↗</span></a>
         </div>
       </section>
 
@@ -253,32 +219,36 @@ export default function PageClient(props: PageClientProps) {
             <a className="btn btn--line" href={SOCIAL.youtube} target="_blank" rel="noreferrer">YouTube <span className="arw"><Arrow s={15} /></span></a>
           </div>
           <div className="vis rv">
-            <div className={"vfeat" + (playing ? " playing" : "")}>
-              <div id="yt-slot" />
-              {!playing && (
-                <>
-                  <img src={vids[vIdx]?.yid ? `https://img.youtube.com/vi/${vids[vIdx].yid}/maxresdefault.jpg` : artOf(props.heroA?.src)} alt={vids[vIdx]?.title ?? "Video"} />
-                  <div className="vfeat__grad" /><div className="vfeat__play"><span><Play s={24} /></span></div>
-                  <div className="vfeat__cap"><div className="k">{vids[vIdx]?.kind} · {vids[vIdx]?.year}</div><h3>{vids[vIdx]?.title}</h3></div>
-                </>
-              )}
-              {playing && (
-                <button className="vmute" onClick={toggleMute} aria-label={muted ? "Unmute" : "Mute"}>
-                  {muted
-                    ? <svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M11 5L6 9H3v6h3l5 4V5z" /><path d="M17 9l4 6M21 9l-4 6" /></svg>
-                    : <svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M11 5L6 9H3v6h3l5 4V5z" /><path d="M16 9a4 4 0 0 1 0 6" /></svg>}
+            <div className={"vfeat" + (videoStarted ? " playing" : "")}>
+              {videoStarted && selectedVisual ? (
+                <iframe
+                  key={selectedVisual.yid}
+                  src={`https://www.youtube-nocookie.com/embed/${selectedVisual.yid}?autoplay=1&playsinline=1&rel=0`}
+                  title={`${selectedVisual.title} — Yarden official video`}
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                  allowFullScreen
+                  referrerPolicy="strict-origin-when-cross-origin"
+                />
+              ) : (
+                <button type="button" className="vfeat__launch" onClick={() => selectedVisual && setVideoStarted(true)} aria-label={`Play ${selectedVisual?.title || "Yarden video"}`}>
+                  <img src={selectedVisual?.yid ? `https://img.youtube.com/vi/${selectedVisual.yid}/hqdefault.jpg` : artOf(props.heroA?.src)} alt="" />
+                  <span className="vfeat__grad" />
+                  <span className="vfeat__play"><span><Play s={27} /></span></span>
+                  <span className="vfeat__cap"><span className="k">{selectedVisual?.kind || "VISUAL STORY"} · {selectedVisual?.year || "YARDEN"}</span><strong>{selectedVisual?.title || "Explore the visuals"}</strong></span>
                 </button>
               )}
+              {selectedVisual && <a className="vfeat__external" href={selectedVisual.href} target="_blank" rel="noopener noreferrer" aria-label={`Watch ${selectedVisual.title} on YouTube`}>↗</a>}
             </div>
             <div className="queue">
-              <div className="queue__lbl"><span>Playing now · auto</span><span>{vids.length} films</span></div>
+              <div className="queue__lbl"><span>CHOOSE A FILM</span><span>{vids.length} VISUALS</span></div>
               {vids.slice(0, 6).map((v: any, i: number) => (
-                <button className={"q" + (i === vIdx ? " active" : "")} key={v.id} onClick={() => setVIdx(i)}>
+                <button className={"q" + (i === vIdx ? " active" : "")} key={v.id} onClick={() => selectVisual(i)} type="button">
                   <span className="q__thumb"><img src={`https://img.youtube.com/vi/${v.yid}/mqdefault.jpg`} alt="" loading="lazy" /><span className="q__eq"><span /><span /><span /></span></span>
-                  <div className="q__b"><div className="q__t">{v.title}</div><div className="q__m">{[v.kind, v.year].filter(Boolean).join(" · ")}</div></div>
+                  <span className="q__b"><span className="q__t">{v.title}</span><span className="q__m">{[v.kind, v.year].filter(Boolean).join(" · ")}</span></span>
                   <span className="q__arw"><Arrow /></span>
                 </button>
               ))}
+              <a className="queue__more" href={SOCIAL.youtube} target="_blank" rel="noopener noreferrer">ALL VIDEOS ON YOUTUBE <span aria-hidden="true">↗</span></a>
             </div>
           </div>
         </div>
@@ -293,7 +263,7 @@ export default function PageClient(props: PageClientProps) {
           </div>
           <div className="tour rv">
             <div className="ledger">
-              {shows.length === 0 && <div className="rounded-2xl border border-white/10 p-7 text-sm text-white/65">No tour dates have been announced yet. Check back for official updates.</div>}
+              {shows.length === 0 && <div className="tour__empty"><span>01 / LIVE EXPERIENCES</span><strong>The next chapter<br/><em>is coming.</em></strong><p>Nothing announced yet. Real dates and official ticket links will appear here first.</p><a href="#join">Get official updates <Arrow s={16} /></a></div>}
               {shows.map((s: any) => {
                 const [m, d] = String(s.dateLabel ?? "").split(" ");
                 const status = s.status ?? "announce";
@@ -324,6 +294,7 @@ export default function PageClient(props: PageClientProps) {
             {(props.storeConfig as any)?.storeHref ? <a className="btn btn--line" href={(props.storeConfig as any).storeHref} target="_blank" rel="noreferrer">Full store <span className="arw"><Arrow s={15} /></span></a> : null}
           </div>
           <div className="shop2 rv">
+            {merch.length === 0 && <div className="shop2__empty"><span>THE ARCHIVE / YARDEN OBJECTS</span><h3>Something to<br/><em>keep close.</em></h3><p>Merchandise hasn't been announced. Join the list for official drops.</p><a href="#join">JOIN THE LIST ↗</a></div>}
             {merch.map((p: any) => {
               const direct = p.href || p.links?.find((l: any) => l.href && l.href !== "#")?.href;
               const href = p.available && direct ? direct : "#join";
@@ -373,9 +344,10 @@ export default function PageClient(props: PageClientProps) {
       <section className="join" id="join">
         <div className="join__glow" />
         <div className="ankh-wm" aria-hidden="true"><svg width="360" height="540" viewBox="0 0 26 40" fill="none"><g stroke="currentColor" strokeWidth={1.3} strokeLinecap="round"><ellipse cx="13" cy="10" rx="7" ry="8.2" /><line x1="13" y1="18" x2="13" y2="35" /><line x1="5.5" y1="23" x2="20.5" y2="23" /></g></svg></div>
-        <div className="wrap"><div className="rv">
+        <div className="wrap join__layout"><div className="rv join__main">
+          <span className="join__eyebrow">YOU'RE INVITED / NO GATEKEEPING</span>
           <span className="ankh-big"><Ankh s={60} /></span>
-          <h2>Join the <span className="it">descendants</span></h2>
+          <h2>This world<br/>is <span className="it">yours too.</span></h2>
           <p>For the people who hear more than a melody. Make your free Yard Pass, then choose whether you want the news from Yarden’s world.</p>
           <div className="form"><button className="btn btn--gold" onClick={openPass} style={{ width: "100%", justifyContent: "center" }}>Generate your Pass <span className="arw"><Arrow s={15} /></span></button></div>
           <form onSubmit={joinAudience} className="mx-auto mt-6 max-w-lg space-y-3 rounded-2xl border border-white/15 bg-white/[0.03] p-5 text-left">
@@ -394,7 +366,15 @@ export default function PageClient(props: PageClientProps) {
             <a href={SOCIAL.x} target="_blank" rel="noreferrer" aria-label="X"><XI /></a>
             <a href={SOCIAL.youtube} target="_blank" rel="noreferrer" aria-label="YouTube"><YTIcon /></a>
           </div>
-        </div></div>
+        </div>
+          <div className="join__card rv" aria-hidden="true">
+            <span className="join__card-orbit">✳</span>
+            <span className="join__card-small">YARDEN — THE YARD</span>
+            <span className="join__card-ankh"><Ankh s={126} /></span>
+            <strong>ANGEL.</strong>
+            <div><span>YOUR PASS / YOUR STORY</span><span>EST. MMXXVI</span></div>
+          </div>
+        </div>
       </section>
 
       {/* FOOTER */}
@@ -426,7 +406,8 @@ export default function PageClient(props: PageClientProps) {
               <div className="foot__col"><h4>Site</h4><a href="#music">Music</a><a href="#tour">Live</a><a href="#store">Store</a><a href="#press">Press</a></div>
             </div>
           </div>
-          <div className="foot__base"><span>© {new Date().getFullYear()} Yarden. All rights reserved.</span><span>Etins Records · thisisyarden.com</span></div>
+          <div className="foot__wordmark" aria-hidden="true">YARDEN<span>✳</span></div>
+          <div className="foot__base"><span>© {new Date().getFullYear()} Yarden. All rights reserved.</span><span>Etins Records · Yarden / ANGEL</span></div>
         </div>
       </footer>
 

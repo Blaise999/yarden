@@ -1,3 +1,7 @@
+# Yarden V10 — ANGEL cinematic edition
+
+**Start here:** [V10-ANGEL-DEPLOY-AND-VIDEO-FIX.md](V10-ANGEL-DEPLOY-AND-VIDEO-FIX.md) — sharp HD film playback, Git LFS / Vercel Blob video troubleshooting, ANGEL redesign, safe deployment.
+
 # YARDEN V8 — CMS, Yard Pass & Email
 
 **Start with [`EMAIL-AND-ENV-SETUP.md`](EMAIL-AND-ENV-SETUP.md)** for production environment variables, Upstash Redis, Vercel Blob, Resend and how to rotate an exposed email API key.
