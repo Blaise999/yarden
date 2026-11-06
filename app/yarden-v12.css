@@ -1,0 +1,30 @@
+/* ANGEL / V12. Keep the header on the actual film; no separate navigation bar. */
+.yd > header.nav:not(.scrolled){background:transparent!important;border-bottom-color:transparent!important;box-shadow:none!important;backdrop-filter:none!important}
+.yd > header.nav{z-index:90!important;isolation:isolate}
+.yd > header.nav:not(.scrolled)::before{content:"";position:absolute;inset:0 0 -30px;z-index:-1;pointer-events:none;background:linear-gradient(180deg,rgba(5,5,10,.52),transparent)}
+.yd > header.nav .nav__in{height:clamp(74px,7vw,92px);width:min(1680px,calc(100% - clamp(30px,7vw,130px)))}
+.yd > header.nav .brand{font-size:clamp(25px,2.4vw,33px);font-weight:400;letter-spacing:-.055em;color:#fffaf4;text-shadow:0 2px 20px #0006}
+.yd > header.nav .nav__links a{color:#fff2e6;opacity:.94;letter-spacing:.12em}
+.yd > header.nav .nav__cta .btn--ghost{color:#fff5eb}
+.yd .yv--v12{background:#0b090f;min-height:620px}
+.yd .yv--v12 .yv__video{will-change:auto!important;transform:none!important;filter:none!important;transition:opacity .45s ease;backface-visibility:visible;object-position:center center}
+.yd .yv--v12 .yv__noise{display:none!important}
+.yd .yv--v12 .yv__frame{padding-top:clamp(115px,10vw,170px)}
+.yd .yv--v12 .yv__gradient{background:linear-gradient(90deg,rgba(7,7,10,.55) 0%,rgba(7,7,10,.20) 60%,transparent 100%),linear-gradient(0deg,rgba(7,5,10,.82) 0%,rgba(7,5,10,.15) 34%,transparent 65%,rgba(7,5,10,.2) 100%)}
+.yd .yv--v12 .yv__video-controls{align-items:center;gap:5px}
+.yd .yv--v12 .yv__film-quality{margin-right:2px;color:#fff5e9;font-weight:500;letter-spacing:.12em}
+.yd .yv--v12 .yv__video-controls button{background:rgba(12,10,14,.28);backdrop-filter:none;border:1px solid rgba(255,248,237,.42)}
+.yd .yv--v12 .yv__loading{position:absolute;right:6%;top:48%;font-size:10px;letter-spacing:.25em;color:#fff8efac;animation:yardBreath 2s ease-in-out infinite;pointer-events:none}
+@keyframes yardBreath{50%{opacity:.3}}
+/* Stop costly full-viewport turbulence over an already moving hero. */
+.yd > .grain{display:none!important}
+@media (max-width:767px){
+  .yd > header.nav .nav__in{height:74px;width:calc(100% - 40px)}
+  .yd > header.nav .nav__cta .btn--ghost{display:none}
+  .yd .yv--v12{min-height:630px;height:100svh}
+  .yd .yv--v12 .yv__frame{padding:116px 21px max(25px,env(safe-area-inset-bottom))}
+  .yd .yv--v12 .yv__video-controls{gap:4px}
+  .yd .yv--v12 .yv__film-quality{font-size:8px;padding-inline:8px}
+  .yd .yv--v12 .yv__loading{top:30%}
+}
+@media(prefers-reduced-motion:reduce){.yd .yv--v12 .yv__loading{animation:none}.yd .yv--v12 .yv__video{transition:none}}
