@@ -73,18 +73,16 @@ export default function CookieConsent() {
           aria-label="Cookie preferences"
           className="fixed inset-x-0 bottom-0 z-[100] flex justify-center px-4 pb-4 sm:px-6 sm:pb-6"
         >
-          <div className="pointer-events-auto w-full max-w-2xl overflow-hidden rounded-2xl border border-white/10 bg-[#0b0a16]/90 shadow-[0_20px_80px_-20px_rgba(139,92,246,0.45)] backdrop-blur-xl">
-            {/* violet accent hairline */}
-            <div className="h-px w-full bg-gradient-to-r from-transparent via-violet-500/70 to-transparent" />
+          <div className="pointer-events-auto w-full max-w-2xl overflow-hidden rounded-none border border-white/10 bg-[#171c14]/90 shadow-[0_20px_80px_-20px_rgba(80,100,50,0.45)] backdrop-blur-xl">
+            {/* lime accent hairline */}
+            <div className="h-px w-full bg-gradient-to-r from-transparent via-lime-500/70 to-transparent" />
             <div className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:gap-5 sm:p-6">
               <div className="flex items-start gap-3">
-                <span className="mt-0.5 grid h-9 w-9 shrink-0 place-items-center rounded-full bg-violet-500/10 text-violet-300 ring-1 ring-violet-400/30">
+                <span className="mt-0.5 grid h-9 w-9 shrink-0 place-items-center rounded-full bg-lime-500/10 text-lime-300 ring-1 ring-lime-400/30">
                   <AnkhMark className="h-4 w-4" />
                 </span>
                 <p className="text-sm leading-relaxed text-white/70">
-                  We use a few cookies to keep the site running and to
-                  understand what people play most. No noise — just the essentials
-                  and some anonymous stats.{" "}
+                  Essential cookies keep your Yard Pass and admin session working. Embedded music and video services may set their own cookies when opened.{" "}
                   <a
                     href="/privacy"
                     className="text-white/90 underline decoration-white/30 underline-offset-2 transition hover:decoration-white"

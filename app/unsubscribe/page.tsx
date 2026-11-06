@@ -1,6 +1,7 @@
 export const metadata = { title: "Unsubscribe | Yarden", robots: { index: false, follow: false } };
 export const dynamic = "force-dynamic";
-export default function UnsubscribePage({ searchParams }: { searchParams: { token?: string } }) {
+export default async function UnsubscribePage({ searchParams: params }: { searchParams: Promise<{ token?: string }> }) {
+  const searchParams = await params;
   const token = typeof searchParams?.token === "string" && /^[a-f0-9]{64}$/.test(searchParams.token) ? searchParams.token : "";
   return <main style={{minHeight:"100vh",background:"#111",color:"#fff",fontFamily:"Arial,sans-serif",display:"grid",placeItems:"center",padding:24}}>
     <section style={{maxWidth:450,textAlign:"center"}}><p style={{letterSpacing:4}}>YARDEN / THE YARD</p><h1 style={{fontSize:38}}>Email preferences</h1>

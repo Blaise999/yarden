@@ -258,7 +258,7 @@ export function NewsletterSection(props: {
         setDraftBg(String(parsed.backgroundImage));
       }
     } catch {}
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [props.editable]);
 
   useEffect(() => {

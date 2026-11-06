@@ -7,9 +7,12 @@ const scrypt = promisify(scryptCb);
 const AUTH_KEY = "yarden:admin:auth:v2";
 export const ADMIN_COOKIE = "yard_admin_session";
 export type AdminRecord = { salt: string; hash: string; revision: number; createdAt: number; changedAt: number };
+export class SessionSecretNotConfigured extends Error {
+  constructor() { super("ADMIN_SESSION_SECRET is not set or is not a 64-character hex value."); this.name = "SessionSecretNotConfigured"; }
+}
 function sessionKey() {
   const secret = process.env.ADMIN_SESSION_SECRET;
-  if (!secret || !/^[0-9a-fA-F]{64,}$/.test(secret)) throw new Error("ADMIN_SESSION_SECRET must be a random hex value of at least 64 characters");
+  if (!secret || !/^[0-9a-fA-F]{64,}$/.test(secret)) throw new SessionSecretNotConfigured();
   return secret;
 }
 const passwordStrong = (password: string) => typeof password === "string" && password.length >= 12 && password.length <= 256;
@@ -43,19 +46,19 @@ export async function adminLogin(password: string): Promise<AdminRecord | null> 
   return (await verifyPassword(password, record)) ? record : null;
 }
 function sign(raw: string) { return createHmac("sha256", sessionKey()).update(raw).digest("hex"); }
-export function issueAdminCookie(record: AdminRecord) {
+export async function issueAdminCookie(record: AdminRecord) {
   const exp = Date.now() + 12 * 60 * 60 * 1000;
   const raw = `${record.revision}.${exp}.${randomBytes(24).toString("hex")}`;
   const token = `${raw}.${sign(raw)}`;
-  cookies().set(ADMIN_COOKIE, token, {
+  (await cookies()).set(ADMIN_COOKIE, token, {
     httpOnly: true, secure: process.env.NODE_ENV === "production", sameSite: "strict", path: "/", maxAge: 12 * 3600,
   });
 }
-export function clearAdminCookie() {
-  cookies().set(ADMIN_COOKIE, "", { httpOnly: true, secure: process.env.NODE_ENV === "production", sameSite: "strict", path: "/", maxAge: 0 });
+export async function clearAdminCookie() {
+  (await cookies()).set(ADMIN_COOKIE, "", { httpOnly: true, secure: process.env.NODE_ENV === "production", sameSite: "strict", path: "/", maxAge: 0 });
 }
 export async function isAdmin(): Promise<boolean> {
-  const value = cookies().get(ADMIN_COOKIE)?.value;
+  const value = (await cookies()).get(ADMIN_COOKIE)?.value;
   if (!value) return false;
   const parts = value.split(".");
   if (parts.length !== 4) return false;
@@ -73,17 +76,19 @@ export async function changeAdminPassword(currentPassword: string, newPassword: 
   if (!record) return false;
   const updated = await createPasswordRecord(newPassword, record.revision + 1, record.createdAt);
   await saveRecord(AUTH_KEY, updated);
-  issueAdminCookie(updated);
+  await issueAdminCookie(updated);
   return true;
 }
 // Protect state-changing operations against cross-origin form/request attacks.
 export function sameOriginRequest(req: Request): boolean {
   const origin = req.headers.get("origin");
   if (!origin) return false;
-  const url = new URL(req.url);
-  const forwardedHost = req.headers.get("x-forwarded-host") || req.headers.get("host") || url.host;
-  const host = new URL(origin).host;
-  return host === forwardedHost;
+  try {
+    const expected = new URL(req.url);
+    const supplied = new URL(origin);
+    const host = req.headers.get("host") || expected.host;
+    return ["http:", "https:"].includes(supplied.protocol) && supplied.host === host && supplied.protocol === expected.protocol;
+  } catch { return false; }
 }
 export function clientRateKey(req: Request, purpose: string): string {
   // No raw IP retained: hash the address, scoped to the current signing key.

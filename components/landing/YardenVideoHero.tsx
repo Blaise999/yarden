@@ -1,5 +1,6 @@
 "use client";
 
+import { ArrowUpRight, ArrowDown, Pause, Play } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 type SiteFilm = {
@@ -14,11 +15,10 @@ type SiteFilm = {
 };
 
 type Props = { releaseName: string; releaseHref: string; site?: SiteFilm };
-type Quality = "hd" | "4k";
 
 const DEFAULTS = {
-  desktop: "/videos/yarden-desktop.mp4",
-  mobile: "/videos/yarden-mobile.mp4",
+  desktop: "/videos/yarden-desktop-uhd.mp4",
+  mobile: "/videos/yarden-mobile-uhd.mp4",
   desktop4k: "/videos/yarden-desktop-4k.mp4",
   mobile4k: "/videos/yarden-mobile-4k.mp4",
   desktopPoster: "/videos/yarden-desktop-poster.webp",
@@ -27,65 +27,40 @@ const DEFAULTS = {
 
 function preferredFilm(cms: string | undefined, original: string, fromEnvironment?: string) {
   // An explicit production Blob URL must be able to rescue a stale CMS video path.
-  return fromEnvironment || (cms && cms !== original ? cms : original);
-}
-
-/** A successful 200 from Vercel is not sufficient: a Git LFS pointer is text, not a film. */
-async function isRealFilm(url: string, signal: AbortSignal): Promise<boolean> {
-  try {
-    const res = await fetch(url, { method: "HEAD", cache: "no-store", signal });
-    if (!res.ok) return false;
-    const type = res.headers.get("content-type") || "";
-    const bytes = Number(res.headers.get("content-length") || "0");
-    return !/(text\/|json|html)/i.test(type) && (bytes === 0 || bytes > 1_000_000);
-  } catch { return false; }
+  return fromEnvironment || (cms && !/^\/videos\/yarden-(desktop|mobile)(-4k)?\.mp4$/.test(cms) ? cms : original);
 }
 
 export default function YardenVideoHero({ releaseName, releaseHref, site }: Props) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const sectionRef = useRef<HTMLElement>(null);
   const progressRef = useRef<HTMLSpanElement>(null);
-  const resumeAtRef = useRef(0);
   const resumeRef = useRef(true);
   const [portrait, setPortrait] = useState<boolean | null>(null);
-  const [quality, setQuality] = useState<Quality>("hd");
-  const [fourKAvailable, setFourKAvailable] = useState(false);
   const [ready, setReady] = useState(false);
   const [playing, setPlaying] = useState(false);
+  const [reducedMotion, setReducedMotion] = useState(false);
   const [blocked, setBlocked] = useState(false);
   const [buffering, setBuffering] = useState(false);
   const [failed, setFailed] = useState(false);
 
   useEffect(() => {
+    const motion = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const syncMotion = () => setReducedMotion(motion.matches);
+    syncMotion(); motion.addEventListener("change", syncMotion);
     const media = window.matchMedia("(max-width: 767px)");
-    const update = () => { setPortrait(media.matches); setQuality("hd"); };
+    const update = () => { setPortrait(media.matches); };
     update();
     media.addEventListener("change", update);
-    return () => media.removeEventListener("change", update);
+    return () => { media.removeEventListener("change", update); motion.removeEventListener("change", syncMotion); };
   }, []);
 
-  const desktopHD = preferredFilm(site?.desktopVideo, DEFAULTS.desktop, process.env.NEXT_PUBLIC_YARDEN_DESKTOP_VIDEO_URL);
-  const mobileHD = preferredFilm(site?.mobileVideo, DEFAULTS.mobile, process.env.NEXT_PUBLIC_YARDEN_MOBILE_VIDEO_URL);
-  const desktop4K = process.env.NEXT_PUBLIC_YARDEN_DESKTOP_4K_URL || DEFAULTS.desktop4k;
-  const mobile4K = process.env.NEXT_PUBLIC_YARDEN_MOBILE_4K_URL || DEFAULTS.mobile4k;
+  const desktopHD = preferredFilm(site?.desktopVideo, DEFAULTS.desktop, process.env.NEXT_PUBLIC_YARDEN_DESKTOP_4K_URL || process.env.NEXT_PUBLIC_YARDEN_DESKTOP_VIDEO_URL);
+  const mobileHD = preferredFilm(site?.mobileVideo, DEFAULTS.mobile, process.env.NEXT_PUBLIC_YARDEN_MOBILE_4K_URL || process.env.NEXT_PUBLIC_YARDEN_MOBILE_VIDEO_URL);
   const hd = portrait ? mobileHD : desktopHD;
-  const fourK = portrait ? mobile4K : desktop4K;
   const poster = portrait
     ? process.env.NEXT_PUBLIC_YARDEN_MOBILE_POSTER_URL || site?.mobilePoster || DEFAULTS.mobilePoster
     : process.env.NEXT_PUBLIC_YARDEN_DESKTOP_POSTER_URL || site?.desktopPoster || DEFAULTS.desktopPoster;
-  const src = portrait === null ? undefined : quality === "4k" && fourKAvailable ? fourK : hd;
-
-  // The default is ALWAYS HD. Native UHD on autoplay makes phones stutter and burns data.
-  // 4K is offered only if a real asset is present, and only after a visitor selects it.
-  useEffect(() => {
-    if (portrait === null) return;
-    const controller = new AbortController();
-    setFourKAvailable(false);
-    void isRealFilm(fourK, controller.signal).then(ok => {
-      if (!controller.signal.aborted) setFourKAvailable(ok);
-    });
-    return () => controller.abort();
-  }, [fourK, portrait]);
+  const src = portrait === null ? undefined : hd;
 
   const play = useCallback(async () => {
     const film = videoRef.current;
@@ -113,12 +88,8 @@ export default function YardenVideoHero({ releaseName, releaseHref, site }: Prop
     setBlocked(false);
     film.muted = true;
     film.volume = 0;
-    film.load();
+    // React updates the source; avoid a second load that cancels the native request.
     const readyToPlay = () => {
-      if (resumeAtRef.current > 0 && Number.isFinite(film.duration)) {
-        try { film.currentTime = Math.min(resumeAtRef.current, Math.max(0, film.duration - 0.3)); } catch { /* not seekable yet */ }
-        resumeAtRef.current = 0;
-      }
       if (visible && resumeRef.current && !reducedMotion.matches) void play();
     };
     const observer = new IntersectionObserver(([entry]) => {
@@ -129,14 +100,7 @@ export default function YardenVideoHero({ releaseName, releaseHref, site }: Prop
     film.addEventListener("canplay", readyToPlay);
     observer.observe(section);
     return () => { film.removeEventListener("canplay", readyToPlay); observer.disconnect(); };
-  }, [src, play]);
-
-  const switchQuality = () => {
-    const film = videoRef.current;
-    resumeAtRef.current = film?.currentTime || 0;
-    resumeRef.current = film ? !film.paused : true;
-    setQuality(prev => prev === "4k" ? "hd" : "4k");
-  };
+  }, [src, play, reducedMotion]);
 
   const togglePlayback = () => {
     const film = videoRef.current;
@@ -146,10 +110,6 @@ export default function YardenVideoHero({ releaseName, releaseHref, site }: Prop
   };
 
   const handleError = () => {
-    if (quality === "4k") {
-      setQuality("hd"); // recover without stranding the visitor on a broken 4K URL
-      return;
-    }
     setFailed(true);
     setBlocked(true);
     setReady(false);
@@ -165,11 +125,11 @@ export default function YardenVideoHero({ releaseName, releaseHref, site }: Prop
         className={`yv__video ${ready ? "is-ready" : ""}`}
         src={src}
         poster={poster}
-        autoPlay
+        autoPlay={!reducedMotion}
         muted
         playsInline
         loop
-        preload="metadata"
+        preload={reducedMotion ? "none" : "auto"}
         disablePictureInPicture
         aria-label="Silent ANGEL cinematic film"
         onLoadedData={() => { setReady(true); setBuffering(false); }}
@@ -186,29 +146,16 @@ export default function YardenVideoHero({ releaseName, releaseHref, site }: Prop
       />
       <div className="yv__gradient" aria-hidden="true" />
       <div className="yv__frame">
-        <div className="yv__topline">
-          <span className="yv__edition">{site?.eyebrow || "YARDEN / THE ANGEL ERA"}</span>
-          <span className="yv__now"><span className="yv__pulse" /> SILENT FILM / 2026</span>
-        </div>
+        <div className="yv__topline"><span>FROM LAGOS, WITH FEELING.</span><span>THE ANGEL ERA / 2026</span></div>
         <div className="yv__content">
-          <p className="yv__kicker">{site?.tagline || "THE DEBUT ALBUM / OUT NOW"}</p>
+          <span className="hero-release-label"><i/> THE DEBUT ALBUM — OUT NOW</span>
           <h1>{site?.title || "ANGEL."}</h1>
-          <p className="yv__description">{site?.description || "Thirteen songs. An entire world of feeling."}</p>
-          <div className="yv__actions">
-            <a className="yv__primary" href={releaseHref} target="_blank" rel="noopener noreferrer">STREAM {releaseName || "ANGEL"} <span aria-hidden="true" className="yv__link-arrow">↗</span></a>
-            <a className="yv__secondary" href="#music">Explore the catalogue <span aria-hidden="true">↘</span></a>
-          </div>
+          <div className="hero-release-bottom"><p>{site?.description || "Thirteen songs. Every shade of feeling."}</p><a href={releaseHref} target="_blank" rel="noreferrer" aria-label={`Stream ${releaseName}`}>STEP INSIDE <ArrowUpRight size={23}/></a></div>
         </div>
-        <div className="yv__bottomline">
-          <span>YARDEN / ANGEL — THE FULL EXPERIENCE</span>
-          <span className="yv__scroll">SCROLL TO EXPLORE <span aria-hidden="true">↓</span></span>
-          <div className="yv__video-controls" aria-label="Silent film controls">
-            <span className="yv__film-quality">{quality === "4k" ? "4K / UHD" : "HD / FAST"}</span>
-            {fourKAvailable && <button type="button" onClick={switchQuality} aria-label={quality === "4k" ? "Switch to HD" : "Switch to 4K"}>{quality === "4k" ? "HD" : "4K"}</button>}
-          </div>
-        </div>
-        {blocked && !playing && <button className="yv__blocked" type="button" onClick={togglePlayback}>{failed ? "Film couldn't load — retry" : "Play silent film"} <span aria-hidden="true">▶</span></button>}
-        {buffering && !failed && !blocked && <span className="yv__loading" aria-live="polite">LOADING FILM</span>}
+        <div className="hero-signature" aria-hidden="true">YARDEN</div>
+        <div className="yv__bottomline"><a href="#music">EXPLORE THE RECORDS <ArrowDown size={15}/></a><div className="yv__video-controls"><span>{portrait ? "4K" : "2160P"} / SILENT FILM</span><button type="button" onClick={togglePlayback} aria-label={playing ? "Pause background film" : "Resume background film"}>{playing ? <Pause size={15}/> : <Play size={15}/>}</button></div></div>
+        {failed && <span className="yv__loading" role="status">Film unavailable. Use the film control to retry.</span>}
+        {buffering && !failed && !blocked && <span className="yv__loading" role="status">Loading the film…</span>}
       </div>
       <div className="yv__progress" aria-hidden="true"><span ref={progressRef} style={{ transform: "scaleX(0)" }} /></div>
     </section>

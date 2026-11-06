@@ -297,14 +297,15 @@ function WatchOverlay(props: {
     setIframeReady(false);
   }, [props.item?._key]);
 
+  const {open: modalOpen, onClose: closeModal} = props;
   useEffect(() => {
-    if (!props.open) return;
+    if (!modalOpen) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") props.onClose();
+      if (e.key === "Escape") closeModal();
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [props.open, props.onClose]);
+  }, [modalOpen, closeModal]);
 
   if (!props.open || !props.item) return null;
 

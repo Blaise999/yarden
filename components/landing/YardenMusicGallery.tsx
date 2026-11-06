@@ -1,117 +1,16 @@
 "use client";
-
-import { useEffect, useMemo, useRef, useState } from "react";
-import Image from "next/image";
-import type { ReleaseItem } from "./ReleasesSection";
-
-type Props = { releases: ReleaseItem[] };
-
-const artFallback = "/Pictures/muse.jpg";
-const ART_OVERRIDES: Record<string, string> = {
-  "Ifeoma": "https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/d2/31/53/d23153b6-0111-f293-25ec-4f65ae571209/764656160401_cover.jpg/3000x3000bb.jpg",
-  "Soul": "https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/ef/90/fd/ef90fd34-b9fd-df52-0966-0deed1a60d73/24UMGIM73843.rgb.jpg/3000x3000bb.jpg",
-  "Wetin": "https://is1-ssl.mzstatic.com/image/thumb/Music112/v4/3b/e3/f6/3be3f62d-fa81-cfbf-3c29-9dfc7d8b93ab/685457911491_cover.jpg/3000x3000bb.jpg",
-};
-const isProject = (r: ReleaseItem) => {
-  const marker = `${r.format ?? ""} ${r.subtitle ?? ""} ${(r.chips ?? []).join(" ")}`;
-  return /\b(ep|album|mixtape|lp)\b/i.test(marker) || (!/\bsingle\b/i.test(marker) && !!r.tracklist?.length && r.tracklist.length > 1);
-};
-const releaseUrl = (r: ReleaseItem) => {
-  if (r.primary && r.links?.[r.primary]) return r.links[r.primary]!;
-  return r.fanLink || r.links?.spotify || r.links?.apple || r.links?.audiomack || r.links?.youtube || "#";
-};
-const releaseArt = (r: ReleaseItem) => {
-  if (r.art && !r.art.startsWith("/images/releases/")) return r.art;
-  return ART_OVERRIDES[r.title] || "";
-};
-const services: Array<[keyof ReleaseItem["links"], string]> = [
-  ["spotify", "Spotify"], ["apple", "Apple Music"], ["audiomack", "Audiomack"], ["youtube", "YouTube"],
-];
-
-export default function YardenMusicGallery({ releases }: Props) {
-  const projects = useMemo(() => releases.filter(isProject), [releases]);
-  const singles = useMemo(() => releases.filter((r) => !isProject(r)), [releases]);
-  const [selected, setSelected] = useState(0);
-  const active = projects[Math.min(selected, Math.max(projects.length - 1, 0))];
-  const railRef = useRef<HTMLDivElement | null>(null);
-  const [artFailed, setArtFailed] = useState<Record<string, boolean>>({});
-  useEffect(() => setSelected((v) => Math.min(v, Math.max(0, projects.length - 1))), [projects.length]);
-  if (!active) return null;
-
-  return (
-    <section id="music" className="ym" aria-labelledby="ym-heading">
-      <div className="ym__wrap">
-        <div className="ym__intro rv">
-          <div>
-            <p className="ym__eyebrow">THE DISCOGRAPHY / LISTEN CLOSELY</p>
-            <h2 id="ym-heading">Every side of <em>Yarden.</em></h2>
-          </div>
-          <p className="ym__intro-copy">Start with ANGEL. Then follow the melodies back to where this story began.</p>
-        </div>
-
-        <div className="ym__feature rv">
-          <div className="ym__artwork" key={`${active.title}-art`}>
-            <div className="ym__art-glow" aria-hidden="true" />
-            <a href={releaseUrl(active)} target="_blank" rel="noopener noreferrer" className="ym__big-cover" aria-label={`Listen to ${active.title}`}>
-              <Image src={releaseArt(active) || artFallback} alt={`${active.title} official artwork`} fill sizes="(max-width: 800px) 92vw, 46vw" priority={active.title.trim().toLowerCase() === "angel"} unoptimized={releaseArt(active).startsWith("http")} />
-              <span className="ym__cover-play" aria-hidden="true">▶</span>
-            </a>
-            <span className="ym__artnote">{active.title.trim().toLowerCase() === "angel" ? "ANGEL — OFFICIAL ARTWORK / ETINS RECORDS" : "RELEASE ART / " + (active.year || "YARDEN")}</span>
-          </div>
-
-          <div className="ym__details" key={`${active.title}-details`}>
-            <div className="ym__type">FEATURED PROJECT <span className="ym__mini-line" /> {active.format || "EP"}</div>
-            <h3>{active.title}</h3>
-            <p className="ym__release-description">{active.year} <span>·</span> {active.tracklist?.length || 0} tracks <span>·</span> Yarden</p>
-            <div className="ym__tracks">
-              {(active.tracklist || []).slice(0, active.format?.toLowerCase() === "album" ? 13 : 7).map((t, index) => (
-                <a className="ym__track" key={`${active.title}-${index}`} href={releaseUrl(active)} target="_blank" rel="noopener noreferrer">
-                  <span className="ym__track-no">{String(index + 1).padStart(2, "0")}</span>
-                  <span className="ym__track-name">{t.title}{t.meta && <small>{t.meta}</small>}</span>
-                  <span className="ym__track-duration">{t.duration || "↗"}</span>
-                </a>
-              ))}
-            </div>
-            <div className="ym__actions">
-              <a className="ym__listen" href={releaseUrl(active)} target="_blank" rel="noopener noreferrer"><span aria-hidden="true">▶</span> Play release <span aria-hidden="true">↗</span></a>
-              <div className="ym__platforms" aria-label="Streaming platforms">
-                {services.filter(([key]) => !!active.links?.[key]).map(([key, label]) => <a key={key} href={active.links[key]!} target="_blank" rel="noopener noreferrer">{label}</a>)}
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {projects.length > 1 && <div className="ym__chooser rv" role="group" aria-label="Choose featured album or EP">
-          <p>MORE PROJECTS</p>
-          <div className="ym__chooser-items">
-            {projects.map((project, index) => <button key={project.title} className={index === selected ? "is-current" : ""} type="button" aria-pressed={index === selected} onClick={() => setSelected(index)}>
-              <Image src={releaseArt(project) || artFallback} alt="" width={54} height={54} sizes="54px" unoptimized={releaseArt(project).startsWith("http")} />
-              <span><strong>{project.title}</strong><small>{project.year} · {project.format || "Project"}</small></span>
-              <span className="ym__choose-arrow" aria-hidden="true">↗</span>
-            </button>)}
-          </div>
-        </div>}
-
-        {singles.length > 0 && <div className="ym__singles rv">
-          <div className="ym__singles-head">
-            <div><p className="ym__eyebrow">THE MOMENTS THAT LED HERE</p><h3>Earlier <em>singles.</em></h3></div>
-            <div className="ym__rail-controls"><button type="button" aria-label="Scroll singles left" onClick={() => railRef.current?.scrollBy({left:-320,behavior:"smooth"})}>←</button><button type="button" aria-label="Scroll singles right" onClick={() => railRef.current?.scrollBy({left:320,behavior:"smooth"})}>→</button></div>
-          </div>
-          <div className="ym__single-rail" ref={railRef}>
-            {singles.map((r) => {
-              const src = releaseArt(r);
-              return <a className="ym__single" key={r.title} href={releaseUrl(r)} target="_blank" rel="noopener noreferrer" aria-label={`Listen to ${r.title}`}>
-                <div className="ym__single-cover">
-                  {src && !artFailed[r.title] ? <Image src={src} fill alt={`${r.title} single artwork`} sizes="(max-width: 640px) 74vw, 255px" unoptimized={src.startsWith("http")} onError={() => setArtFailed((x) => ({ ...x, [r.title]: true }))} /> : <span className="ym__art-fallback"><span>yarden</span><strong>{r.title}</strong></span>}
-                  <span className="ym__single-play" aria-hidden="true">▶</span>
-                </div>
-                <div className="ym__single-meta"><span><strong>{r.title}</strong><small>{r.year || ""} · Single</small></span><span aria-hidden="true">↗</span></div>
-              </a>;
-            })}
-          </div>
-          <p className="ym__single-end">The songs before the chapter became an album.</p>
-        </div>}
-      </div>
-    </section>
-  );
+import {useMemo,useState} from 'react';
+import {AnimatePresence,motion,useReducedMotion} from 'framer-motion';
+import {ArrowLeft,ArrowRight,ArrowUpRight,Play} from 'lucide-react';
+import type {ReleaseItem} from './ReleasesSection';
+const isProject=(r:ReleaseItem)=>/\b(album|ep|mixtape|lp)\b/i.test(`${r.format} ${r.subtitle} ${r.chips?.join(' ')}`);
+const link=(r:ReleaseItem)=>r.links?.[r.primary||'apple']||r.fanLink||r.links?.apple||r.links?.spotify||'#';
+export default function YardenMusicGallery({releases}:{releases:ReleaseItem[]}){
+ const projects=useMemo(()=>releases.filter(isProject),[releases]);const singles=useMemo(()=>releases.filter(r=>!isProject(r)),[releases]);
+ const [albumIndex,setAlbumIndex]=useState(0),[singleIndex,setSingleIndex]=useState(0);const reduced=useReducedMotion();
+ const album=projects[Math.min(albumIndex,projects.length-1)],single=singles[Math.min(singleIndex,singles.length-1)];
+ const transition={duration:reduced?0:.3};
+ return <section id="music" className="music-section section-pad"><div className="section-heading"><div><p className="eyeline"><span className="signal"/>THE RECORDS / THE FEELINGS</p><h2>A world<br/>of <em>sound.</em></h2></div><p>Some songs stay with you.<br/>Start here.</p></div>{album&&<><div className="album-tabs" role="group" aria-label="Choose an album">{projects.map((r,i)=><button key={r.title} className={albumIndex===i?'active':''} aria-pressed={albumIndex===i} onClick={()=>setAlbumIndex(i)}>{r.title}<span>{r.year}</span></button>)}</div><div className="album-room"><div className="album-art-column"><AnimatePresence mode="wait" initial={false}><motion.a key={album.title} href={link(album)} target="_blank" rel="noreferrer" className="album-cover" initial={{opacity:0,y:15}} animate={{opacity:1,y:0}} exit={{opacity:0,y:-10}} transition={transition} aria-label={`Listen to ${album.title}`}><img src={album.art} alt={`${album.title} artwork`} loading="lazy"/><span className="cover-link"><Play size={17} fill="currentColor"/> ENTER THE RECORD</span></motion.a></AnimatePresence><p className="album-art-note">{album.format} / {album.year}<span>YARDEN</span></p></div><div className="album-info"><p className="eyeline">IN FOCUS / {album.tracklist?.length||0} TRACKS</p><AnimatePresence mode="wait" initial={false}><motion.div key={album.title} initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}} transition={transition}><h3>{album.title}</h3><div className="tracklist">{album.tracklist?.map((t,i)=><a href={link(album)} target="_blank" rel="noreferrer" key={t.title}><span>{String(i+1).padStart(2,'0')}</span><strong>{t.title}{t.meta&&<small>{t.meta}</small>}</strong><span>{t.duration||<ArrowUpRight size={14}/>}</span></a>)}</div><div className="album-services">{Object.entries(album.links||{}).filter(([,v])=>v).map(([name,href])=><a key={name} href={href} target="_blank" rel="noreferrer">{name==='apple'?'Apple Music':name}<ArrowUpRight size={14}/></a>)}</div></motion.div></AnimatePresence></div></div></>}
+ {single&&<div className="singles-room"><div className="singles-heading"><p className="eyeline">THE SINGLES COLLECTION</p><div className="gallery-arrows"><button aria-label="Previous single" onClick={()=>setSingleIndex((singleIndex-1+singles.length)%singles.length)}><ArrowLeft/></button><button aria-label="Next single" onClick={()=>setSingleIndex((singleIndex+1)%singles.length)}><ArrowRight/></button></div></div><div className="single-stage"><div className="single-title"><span>{single.year} / SINGLE</span><AnimatePresence mode="wait" initial={false}><motion.div key={single.title} initial={{opacity:0,y:12}} animate={{opacity:1,y:0}} exit={{opacity:0,y:-12}} transition={transition}><h3>{single.title}</h3><a className="text-link" href={link(single)} target="_blank" rel="noreferrer">Listen to the track <ArrowUpRight/></a></motion.div></AnimatePresence></div><div className="single-cover-stack"><div className="vinyl" aria-hidden="true"/><AnimatePresence mode="wait" initial={false}><motion.a key={single.art} href={link(single)} target="_blank" rel="noreferrer" aria-label={`Listen to ${single.title}`} initial={{opacity:0,rotate:-5}} animate={{opacity:1,rotate:0}} exit={{opacity:0,rotate:5}} transition={transition}><img src={single.art} alt={`${single.title} artwork`} loading="lazy"/></motion.a></AnimatePresence></div></div><div className="singles-rail" role="group" aria-label="Choose a single">{singles.map((r,i)=><button key={r.title} aria-pressed={singleIndex===i} className={singleIndex===i?'active':''} onClick={()=>setSingleIndex(i)}><img src={r.art} alt="" loading="lazy"/><span>{r.title}<small>{r.year}</small></span></button>)}</div></div>}
+ </section>
 }

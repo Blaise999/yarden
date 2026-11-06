@@ -1,108 +1,149 @@
-// components/landing/pass/YardPassGen.tsx
-// Self-contained, working Yard Pass generator.
-// Renders a live canvas pass, lets the user download it, and POSTs to /api/passes.
 "use client";
 
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import "./yard-pass-v12.css";
 
 type Gender = "male" | "female" | "";
+type PassDesign = { name: string; title: string; status: string; id: string; year: number; issued: boolean };
 
-function genId() {
-  const s = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-  let out = "";
-  for (let i = 0; i < 8; i++) out += s[Math.floor(Math.random() * s.length)];
-  return `YRD-${out.slice(0, 4)}-${out.slice(4)}`;
-}
-
-/* draw the pass onto a canvas (2x for crispness) */
-function drawPass(
-  canvas: HTMLCanvasElement,
-  data: { name: string; title: string; status: string; id: string; year: number }
-) {
-  const W = 1000, H = 620, S = 2;
-  canvas.width = W * S; canvas.height = H * S;
+/** A genuine printable/exportable canvas, not a screenshot or remotely stored photo. */
+function renderPass(canvas: HTMLCanvasElement, pass: PassDesign, scale = 1) {
+  const W = 1080, H = 660;
+  canvas.width = Math.round(W * scale);
+  canvas.height = Math.round(H * scale);
   const ctx = canvas.getContext("2d");
   if (!ctx) return;
-  ctx.scale(S, S);
+  ctx.scale(scale, scale);
 
-  const GOLD = "#E4B13C", GOLD_D = "#b98a29", INK = "#0A0A0F", BONE = "#F3ECDD", MUT = "#9A93A8";
+  const ivory = "#efeee7";
+  const muted = "#b6c2a6";
+  const gold = "#d9ecab";
+  const royal = "#20291c";
+  const isAngel = pass.title.toLowerCase().includes("angel");
 
-  // background
-  ctx.fillStyle = INK; ctx.fillRect(0, 0, W, H);
-  const g = ctx.createRadialGradient(W * 0.82, H * 0.15, 40, W * 0.82, H * 0.15, 620);
-  g.addColorStop(0, "rgba(228,177,60,.20)"); g.addColorStop(1, "rgba(228,177,60,0)");
-  ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+  // ANGEL-era plum black / muted rose-metallic foil, not the old yellow ticket.
+  const ink = ctx.createLinearGradient(0, 0, W, H);
+  ink.addColorStop(0, "#12180e");
+  ink.addColorStop(.54, "#303d24");
+  ink.addColorStop(1, "#0d120b");
+  ctx.fillStyle = ink;
+  ctx.fillRect(0, 0, W, H);
 
-  // gold frame
-  ctx.strokeStyle = "rgba(228,177,60,.55)"; ctx.lineWidth = 1.5;
+  const light = ctx.createRadialGradient(770, 180, 10, 770, 180, 690);
+  light.addColorStop(0, "rgba(245,188,177,.20)");
+  light.addColorStop(.58, "rgba(190,129,166,.09)");
+  light.addColorStop(1, "rgba(190,129,166,0)");
+  ctx.fillStyle = light;
+  ctx.fillRect(0, 0, W, H);
+
+  // Very fine technical grid gives the card a crafted, printed quality.
+  ctx.strokeStyle = "rgba(249,225,216,.045)";
+  ctx.lineWidth = 1;
+  for (let x = 0; x < W; x += 36) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke(); }
+  for (let y = 0; y < H; y += 36) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke(); }
+
+  // Brushed-metal outer border and inner rule.
+  const foil = ctx.createLinearGradient(0, 0, W, H);
+  foil.addColorStop(0, "rgba(255,236,225,.88)");
+  foil.addColorStop(.35, "rgba(198,143,161,.39)");
+  foil.addColorStop(.75, "rgba(255,219,193,.7)");
+  foil.addColorStop(1, "rgba(255,234,222,.22)");
+  ctx.strokeStyle = foil;
+  ctx.lineWidth = 2;
   ctx.strokeRect(24, 24, W - 48, H - 48);
+  ctx.strokeStyle = "rgba(250,216,217,.13)";
+  ctx.lineWidth = 1;
+  ctx.strokeRect(33, 33, W - 66, H - 66);
 
-  // right gold stub
-  const stubX = W - 150;
-  ctx.fillStyle = GOLD;
-  ctx.beginPath();
-  ctx.moveTo(stubX, 24); ctx.lineTo(W - 24, 24); ctx.lineTo(W - 24, H - 24); ctx.lineTo(stubX, H - 24);
-  ctx.closePath(); ctx.fill();
-  // perforation dots
-  ctx.fillStyle = INK;
-  for (let y = 60; y < H - 40; y += 26) { ctx.beginPath(); ctx.arc(stubX, y, 4, 0, Math.PI * 2); ctx.fill(); }
-  // vertical text on stub
+  // Right exhibition panel, with engraved concentric ANGEL halos.
+  const rightStart = 740;
+  const panel = ctx.createLinearGradient(rightStart, 0, W, H);
+  panel.addColorStop(0, "rgba(128,73,102,.34)");
+  panel.addColorStop(1, "rgba(53,31,47,.12)");
+  ctx.fillStyle = panel;
+  ctx.fillRect(rightStart, 34, W - rightStart - 34, H - 68);
+  ctx.strokeStyle = "rgba(248,206,200,.32)";
+  ctx.beginPath(); ctx.moveTo(rightStart, 34); ctx.lineTo(rightStart, H - 34); ctx.stroke();
+
   ctx.save();
-  ctx.translate(W - 74, H / 2); ctx.rotate(-Math.PI / 2);
-  ctx.fillStyle = INK; ctx.font = "700 30px Georgia, serif"; ctx.textAlign = "center";
-  ctx.fillText("THE DESCENDANTS", 0, 8);
+  ctx.translate(910, 312);
+  for (let n = 0; n < 7; n++) {
+    ctx.beginPath();
+    ctx.ellipse(0, 0, 73 + n * 20, 108 + n * 16, -0.21, 0, Math.PI * 2);
+    ctx.strokeStyle = `rgba(242,199,189,${Math.max(.09, .46 - n * .055)})`;
+    ctx.lineWidth = n === 0 ? 2.3 : 1;
+    ctx.stroke();
+  }
+  // Custom engraved ankh: curved top and cross, not an emoji or a photograph.
+  ctx.strokeStyle = "#eff4df";
+  ctx.lineWidth = 6;
+  ctx.lineCap = "round";
+  ctx.beginPath(); ctx.ellipse(0, -33, 29, 42, 0, 0, Math.PI * 2); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(0, 9); ctx.lineTo(0, 105); ctx.moveTo(-43, 50); ctx.lineTo(43, 50); ctx.stroke();
   ctx.restore();
 
-  // ankh (top-left)
-  const ax = 66, ay = 74;
-  ctx.strokeStyle = GOLD; ctx.lineWidth = 5; ctx.lineCap = "round";
-  ctx.beginPath(); ctx.ellipse(ax, ay - 6, 14, 17, 0, 0, Math.PI * 2); ctx.stroke();
-  ctx.beginPath(); ctx.moveTo(ax, ay + 10); ctx.lineTo(ax, ay + 44); ctx.stroke();
-  ctx.beginPath(); ctx.moveTo(ax - 16, ay + 20); ctx.lineTo(ax + 16, ay + 20); ctx.stroke();
-
-  // wordmark
-  ctx.fillStyle = BONE; ctx.textAlign = "left";
-  ctx.font = "italic 600 40px Georgia, serif";
-  ctx.fillText("Yarden", 96, 88);
-
-  // top-right label
-  ctx.fillStyle = GOLD; ctx.textAlign = "right";
-  ctx.font = "700 15px system-ui, sans-serif";
-  ctx.fillText("Y A R D   P A S S", stubX - 40, 66);
-  ctx.fillStyle = MUT; ctx.font = "500 12px system-ui, sans-serif";
-  ctx.fillText(`EST. ${data.year}`, stubX - 40, 88);
-
-  // holder
+  // Foil masthead and the album era label.
   ctx.textAlign = "left";
-  ctx.fillStyle = MUT; ctx.font = "600 14px system-ui, sans-serif";
-  ctx.fillText("PASS HOLDER", 66, 300);
-  ctx.fillStyle = BONE; ctx.font = "600 62px Georgia, serif";
-  const name = (data.name || "Your Name").slice(0, 20);
-  ctx.fillText(name, 64, 360);
+  ctx.fillStyle = ivory;
+  ctx.font = "italic 500 55px Georgia, serif";
+  ctx.fillText("Yarden", 69, 111);
+  ctx.fillStyle = gold;
+  ctx.font = "700 17px Arial, sans-serif";
+  ctx.fillText("T H E   Y A R D   /   M E M B E R S H I P", 72, 152);
 
-  // title
-  ctx.fillStyle = GOLD; ctx.font = "700 22px system-ui, sans-serif";
-  ctx.fillText(data.title.toUpperCase(), 66, 404);
+  ctx.fillStyle = muted;
+  ctx.font = "600 14px Arial, sans-serif";
+  ctx.fillText("CARD HOLDER", 72, 277);
+  let fontSize = 66;
+  const holder = pass.name.trim() || "YOUR NAME";
+  do {
+    ctx.font = `500 ${fontSize}px Georgia, serif`;
+    if (ctx.measureText(holder).width <= 620 || fontSize <= 31) break;
+    fontSize -= 2;
+  } while (true);
+  ctx.fillStyle = ivory;
+  ctx.fillText(holder, 68, 354, 620);
 
-  // divider
-  ctx.strokeStyle = "rgba(243,236,221,.16)"; ctx.lineWidth = 1;
-  ctx.beginPath(); ctx.moveTo(66, 470); ctx.lineTo(stubX - 40, 470); ctx.stroke();
+  ctx.fillStyle = gold;
+  ctx.font = "500 26px Georgia, serif";
+  ctx.fillText(pass.title || "YARD MEMBER", 71, 407);
+  ctx.strokeStyle = "rgba(249,226,215,.29)";
+  ctx.beginPath(); ctx.moveTo(72, 450); ctx.lineTo(682, 450); ctx.stroke();
 
-  // status + id
-  ctx.fillStyle = MUT; ctx.font = "500 13px system-ui, sans-serif";
-  ctx.fillText("STATUS", 66, 512);
-  ctx.fillStyle = BONE; ctx.font = "600 20px Georgia, serif";
-  ctx.fillText(data.status, 66, 540);
+  ctx.fillStyle = muted;
+  ctx.font = "600 13px Arial, sans-serif";
+  ctx.fillText("MEMBERSHIP ID", 72, 502);
+  ctx.fillText("JOINED", 515, 502);
+  ctx.fillStyle = ivory;
+  ctx.font = "600 22px monospace";
+  ctx.fillText(pass.issued ? pass.id : "ISSUED AFTER REGISTRATION", 71, 536, 410);
+  ctx.font = "500 24px Georgia, serif";
+  ctx.fillText(String(pass.year), 514, 536);
 
-  ctx.fillStyle = MUT; ctx.font = "500 13px system-ui, sans-serif";
-  ctx.fillText("PASS ID", 360, 512);
-  ctx.fillStyle = BONE; ctx.font = "600 20px ui-monospace, Menlo, monospace";
-  ctx.fillText(data.id, 360, 540);
+  ctx.fillStyle = "rgba(251,230,223,.6)";
+  ctx.font = "600 12px Arial, sans-serif";
+  ctx.fillText("YARDEN / THE ANGEL ERA", 72, 591);
+  ctx.textAlign = "center";
+  ctx.font = "600 15px Arial, sans-serif";
+  ctx.fillStyle = gold;
+  ctx.fillText(isAngel ? "ANGEL / 01" : "DESCENDANT / 01", 910, 94);
+  ctx.font = "700 13px Arial, sans-serif";
+  ctx.fillText(pass.issued ? "YARD PASS — ACTIVE" : "PREVIEW — NOT ISSUED", 905, 570);
+  ctx.font = "400 13px Arial, sans-serif";
+  ctx.fillStyle = "#d9ecab";
+  ctx.fillText("NOT A CONCERT TICKET", 905, 590);
 
-  // faux barcode bottom
-  let bx = 66; const by = 560;
-  ctx.fillStyle = "rgba(243,236,221,.75)";
-  for (let i = 0; i < 46; i++) { const w = (i % 3) + 1; ctx.fillRect(bx, by, w, 22); bx += w + 3; }
+  if (!pass.issued) {
+    ctx.save();
+    ctx.translate(360, 203);
+    ctx.rotate(-Math.PI / 16);
+    ctx.textAlign = "center";
+    ctx.font = "600 17px Arial, sans-serif";
+    ctx.fillStyle = "rgba(250,214,204,.4)";
+    ctx.fillText("L I V E   P R E V I E W", 0, 0);
+    ctx.restore();
+  }
+  void royal; // palette reserved for later card finishes
 }
 
 export default function YardPassGen() {
@@ -110,133 +151,143 @@ export default function YardPassGen() {
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [gender, setGender] = useState<Gender>("");
-  const [idNum, setIdNum] = useState("PREVIEW / ASSIGNED ON JOIN");
+  const [passId, setPassId] = useState("");
+  const [yearJoined, setYearJoined] = useState(new Date().getFullYear());
   const [existing, setExisting] = useState(false);
   const [status, setStatus] = useState<"idle" | "saving" | "done" | "error">("idle");
-  const [msg, setMsg] = useState("");
-  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const [message, setMessage] = useState("");
+  const [serviceStatus, setServiceStatus] = useState<"checking" | "ready" | "unavailable">("checking");
+  const canvasRef = useRef<HTMLCanvasElement>(null);
 
-  const year = new Date().getFullYear();
-  const title = gender === "female" ? "Yarden's Angel" : "Yarden's Descendant";
-  const statusLabel = gender === "female" ? "Angel Certified" : "Descendant Certified";
+  const title = gender === "female" ? "Yarden's Angel" : gender === "male" ? "Yarden's Descendant" : "The Yard / Member";
+  const label = gender === "female" ? "Angel Certified" : "Descendant Certified";
+  const card = useMemo<PassDesign>(() => ({ name, title, status: label, id: passId, year: yearJoined, issued: existing }), [name,title,label,passId,yearJoined,existing]);
 
-  // The pass is keyed to a signed HttpOnly browser cookie. No public ID lookups.
   useEffect(() => {
-    fetch("/api/passes", { cache: "no-store" })
-      .then(async (res) => { if (!res.ok) throw new Error("Pass service unavailable"); return res.json(); })
-      .then(({ pass }) => {
-        if (!pass) return;
-        setExisting(true);
-        setName(pass.name); setEmail(pass.email); setPhone(pass.phone || "");
-        setGender(pass.gender); setIdNum(pass.id); setStatus("done");
-        setMsg("Your Yard Pass is active on this browser. You can download a fresh copy.");
+    const controller = new AbortController();
+    fetch("/api/passes", { cache: "no-store", signal: controller.signal })
+      .then(async res => {
+        const result = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(result.error || "Membership service is unavailable");
+        return result;
       })
-      .catch(() => { /* allow visitor to try registration; endpoint will report errors */ });
+      .then(({ pass }) => {
+        if (controller.signal.aborted) return;
+        setServiceStatus("ready");
+        if (pass) {
+          setExisting(true);
+          setName(pass.name);
+          setEmail(pass.email);
+          setPhone(pass.phone || "");
+          setGender(pass.gender);
+          setPassId(pass.id);
+          setYearJoined(pass.yearJoined);
+          setStatus("done");
+          setMessage("Your membership is active. You can download the card again anytime on this browser.");
+        }
+      })
+      .catch(error => {
+        if (controller.signal.aborted) return;
+        setServiceStatus("unavailable");
+        setStatus("error");
+        setMessage(error instanceof Error ? error.message : "Membership service is temporarily unavailable.");
+      });
+    return () => controller.abort();
   }, []);
 
-  // live preview
   useEffect(() => {
-    if (canvasRef.current) drawPass(canvasRef.current, { name, title, status: statusLabel, id: idNum, year });
-  }, [name, title, statusLabel, idNum, year]);
+    if (canvasRef.current) renderPass(canvasRef.current, card, 1);
+    // The editor preview is 1080 pixels wide; the exported artwork is 2160 pixels.
+  }, [card]);
 
-  const valid = name.trim() && /\S+@\S+\.\S+/.test(email) && gender;
-
-  const downloadCard = useCallback((id: string, form: { name:string; title:string; status:string; year:number }) => {
-    const exportCanvas = document.createElement("canvas");
-    drawPass(exportCanvas, { ...form, id });
-    const a = document.createElement("a");
-    a.href = exportCanvas.toDataURL("image/png");
-    a.download = `yard-pass-${id}.png`;
-    document.body.appendChild(a); a.click(); a.remove();
+  const download = useCallback((data: PassDesign) => {
+    const canvas = document.createElement("canvas");
+    renderPass(canvas, data, 2);
+    const anchor = document.createElement("a");
+    anchor.download = `Yarden-Yard-Pass-${data.id}.png`;
+    anchor.href = canvas.toDataURL("image/png");
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
   }, []);
 
-  const generate = useCallback(async () => {
-    if (existing) {
-      downloadCard(idNum, { name, title, status: statusLabel, year });
+  const generate = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (existing) { download(card); return; }
+    if (serviceStatus === "unavailable") {
+      setStatus("error");
+      setMessage("Membership is currently unavailable. Ask the site administrator to check /api/health.");
       return;
     }
-    if (!valid) { setStatus("error"); setMsg("Enter your name, email and choose a pass type."); return; }
-    setStatus("saving"); setMsg("");
+    if (name.trim().length < 2 || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email.trim()) || !gender) {
+      setStatus("error");
+      setMessage("Enter your name and email, then select a pass style.");
+      return;
+    }
+    setStatus("saving");
+    setMessage("Saving your membership securely…");
     try {
       const res = await fetch("/api/passes", {
-        method: "POST", headers: { "Content-Type": "application/json" },
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name: name.trim(), email: email.trim(), phone: phone.trim(), gender }),
       });
-      const response = await res.json();
-      if (!res.ok || !response.pass) throw new Error(response.error || "Could not register your pass");
-      const pass = response.pass;
-      setExisting(true); setIdNum(pass.id);
-      setName(pass.name); setEmail(pass.email); setPhone(pass.phone || ""); setGender(pass.gender);
-      downloadCard(pass.id, { name: pass.name, title: pass.title, status: pass.status, year: pass.yearJoined });
-      setStatus("done"); setMsg(response.existing ? "You already have a pass. Downloaded your original membership." : "You're officially in. Your unique Yard Pass has been downloaded.");
-    } catch (e: any) {
-      setStatus("error"); setMsg(e?.message || "Could not save your pass. Please try again.");
+      const response = await res.json().catch(() => ({}));
+      if (!res.ok || !response.pass) throw new Error(response.error || "Could not register your Yard Pass");
+      const saved = response.pass;
+      setExisting(true);
+      setName(saved.name);
+      setEmail(saved.email);
+      setPhone(saved.phone || "");
+      setGender(saved.gender);
+      setPassId(saved.id);
+      setYearJoined(saved.yearJoined);
+      setStatus("done");
+      setMessage(response.existing ? "Your existing membership was recovered." : "Welcome to The Yard. Your pass is ready to download.");
+      download({ name: saved.name, title: saved.title, status: saved.status, id: saved.id, year: saved.yearJoined, issued: true });
+    } catch (error) {
+      setStatus("error");
+      setMessage(error instanceof Error ? error.message : "Could not register. Please try again.");
     }
-  }, [valid, name, email, phone, gender, idNum, existing, title, statusLabel, year, downloadCard]);
-
-  const input =
-    "w-full rounded-xl bg-white/[0.04] border border-white/12 px-4 py-3 text-[15px] text-[#F3ECDD] placeholder-white/35 outline-none transition focus:border-[#E4B13C]/70 focus:bg-white/[0.06]";
+  };
 
   return (
-    <div className="grid gap-6 md:grid-cols-[1.05fr_.95fr]">
-      {/* preview */}
-      <div className="order-2 md:order-1">
-        <div className="overflow-hidden rounded-2xl ring-1 ring-white/10 shadow-[0_30px_70px_-30px_rgba(0,0,0,.8)]">
-          <canvas ref={canvasRef} className="block w-full" style={{ aspectRatio: "1000 / 620" }} />
+    <div className="yp12" id="yard-pass-generator">
+      <div className="yp12__art">
+        <div className="yp12__card-shell">
+          <canvas ref={canvasRef} className="yp12__canvas" aria-label="Preview of your ANGEL-era Yard Pass card" />
+          <div className="yp12__card-sheen" aria-hidden="true" />
         </div>
-        <p className="mt-3 text-center text-xs text-white/40">Live preview · updates as you type</p>
-      </div>
-
-      {/* form */}
-      <div className="order-1 md:order-2">
-        <div className="mb-4">
-          <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-[#E4B13C]">Yard Pass</div>
-          <h3 className="mt-1 text-2xl font-semibold text-[#F3ECDD]" style={{ fontFamily: "Lora, Georgia, serif" }}>
-            Mint your pass
-          </h3>
-          <p className="mt-1 text-sm text-white/50">Free. It just means you hear it first.</p>
-        </div>
-
-        <div className="grid gap-3">
-          <input className={input} placeholder="Full name" value={name} onChange={(e) => setName(e.target.value)} maxLength={22} disabled={existing} />
-          <input className={input} placeholder="you@email.com" type="email" value={email} onChange={(e) => setEmail(e.target.value)} disabled={existing} />
-          <input className={input} placeholder="Phone" type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} disabled={existing} />
-
-          <div className="grid grid-cols-2 gap-3">
-            {([["male", "Descendant"], ["female", "Angel"]] as const).map(([g, label]) => (
-              <button
-                key={g}
-                type="button"
-                onClick={() => { if (!existing) setGender(g); }}
-                disabled={existing}
-                className={
-                  "rounded-xl border px-4 py-3 text-sm font-medium transition " +
-                  (gender === g
-                    ? "border-[#E4B13C] bg-[#E4B13C]/12 text-[#E4B13C]"
-                    : "border-white/12 bg-white/[0.03] text-white/70 hover:border-white/25")
-                }
-              >
-                {label}
-              </button>
-            ))}
-          </div>
-
-          <button
-            type="button"
-            onClick={generate}
-            disabled={status === "saving"}
-            className="mt-1 inline-flex items-center justify-center gap-2 rounded-xl bg-[#E4B13C] px-5 py-3.5 text-sm font-semibold text-[#12100a] transition hover:brightness-105 disabled:opacity-60"
-          >
-            {status === "saving" ? "Saving…" : existing ? "Download my Yard Pass" : "Generate & download my pass"}
-          </button>
-
-          {msg ? (
-            <p className={"text-sm " + (status === "done" ? "text-[#E4B13C]" : "text-white/60")}>{msg}</p>
-          ) : (
-            <p className="text-xs text-white/35">Your contact details are stored securely for your pass. Photos are not uploaded or stored. No automatic mailing-list subscription.</p>
-          )}
+        <p className="yp12__caption"><span>✳</span> 1080P LIVE PREVIEW <span>/</span> 2K PNG EXPORT <span>/</span> PRIVATE DETAILS</p>
+        <div className="yp12__card-caption">
+          <span>ONE PASS. ONE PLACE IN THE YARD.</span>
+          <span>COLLECTOR SERIES / 001</span>
         </div>
       </div>
+      <form className="yp12__form" onSubmit={generate}>
+        <div className="yp12__overline">THE YARD <span>—</span> ANGEL COLLECTION</div>
+        <h3>Something to <em>belong to.</em></h3>
+        <p className="yp12__intro">Your own piece of Yarden's world. A digital membership card, beautifully yours. No photos required.</p>
+        <label className="yp12__field">FULL NAME
+          <input type="text" placeholder="How should your name appear?" value={name} onChange={event => setName(event.target.value)} maxLength={90} autoComplete="name" required disabled={existing || status === "saving"} />
+        </label>
+        <label className="yp12__field">EMAIL ADDRESS
+          <input type="email" placeholder="you@example.com" value={email} onChange={event => setEmail(event.target.value)} maxLength={254} autoComplete="email" required disabled={existing || status === "saving"} />
+        </label>
+        <label className="yp12__field">PHONE <span>(OPTIONAL)</span>
+          <input type="tel" placeholder="+234…" value={phone} onChange={event => setPhone(event.target.value)} maxLength={32} autoComplete="tel" disabled={existing || status === "saving"} />
+        </label>
+        <div className="yp12__choice-label">CHOOSE YOUR CARD STYLE</div>
+        <div className="yp12__styles" role="group" aria-label="Yard Pass card style">
+          <button type="button" className={gender === "female" ? "is-selected" : ""} onClick={() => setGender("female")} disabled={existing || status === "saving"}><span>✧</span> ANGEL</button>
+          <button type="button" className={gender === "male" ? "is-selected" : ""} onClick={() => setGender("male")} disabled={existing || status === "saving"}><span>✳</span> DESCENDANT</button>
+        </div>
+        <button className="yp12__submit" type="submit" disabled={status === "saving" || serviceStatus === "unavailable"}>
+          {status === "saving" ? "CREATING MEMBERSHIP…" : existing ? "DOWNLOAD YOUR PASS" : "CREATE YOUR YARD PASS"}<span aria-hidden="true">↗</span>
+        </button>
+        {message && <p role="status" className={`yp12__message ${status === "error" ? "is-error" : ""}`}>{message}</p>}
+        <p className="yp12__privacy">Membership details are kept for your pass; the image is generated on your device. This is not a concert ticket, and signing up does not subscribe you to marketing emails.</p>
+      </form>
     </div>
   );
 }

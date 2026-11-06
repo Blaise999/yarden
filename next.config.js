@@ -10,15 +10,11 @@ const nextConfig = {
     ],
     unoptimized: process.env.NODE_ENV === 'development',
   },
-  // Enable SWC minification for faster builds
-  swcMinify: true,
-  // Experimental features
-  experimental: {
-    // Enable server actions
-    serverActions: {
-      allowedOrigins: ['localhost:3000'],
-    },
-  },
+  poweredByHeader: false,
+  async headers() { return [{ source: '/:path*', headers: [
+    {key:'X-Content-Type-Options',value:'nosniff'},
+    {key:'Referrer-Policy',value:'strict-origin-when-cross-origin'},
+    {key:'X-Frame-Options',value:'DENY'},
+  ]}]; },
 };
-
 module.exports = nextConfig;

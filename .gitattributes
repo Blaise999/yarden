@@ -4,4 +4,6 @@ public/videos/yarden-desktop.mp4 filter=lfs diff=lfs merge=lfs -text
 public/videos/yarden-mobile.mp4 filter=lfs diff=lfs merge=lfs -text
 public/videos/yarden-desktop-4k.mp4 filter=lfs diff=lfs merge=lfs -text
 public/videos/yarden-mobile-4k.mp4 filter=lfs diff=lfs merge=lfs -text
-public/videos/*.mp4 filter=lfs diff=lfs merge=lfs -text
+public/videos/yarden-desktop-uhd.mp4 filter=lfs diff=lfs merge=lfs -text
+public/videos/yarden-mobile-uhd.mp4 filter=lfs diff=lfs merge=lfs -text
+*.mp4 filter=lfs diff=lfs merge=lfs -text

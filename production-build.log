@@ -1,0 +1,60 @@
+npm warn Unknown env config "http-proxy". This will stop working in the next major version of npm.
+
+> yarden-fans@1.0.0 build
+> next build
+
+   ▲ Next.js 15.5.29
+   - Environments: .env.local
+
+   Creating an optimized production build ...
+ ✓ Compiled successfully in 3.3s
+   Linting and checking validity of types ...
+   Collecting page data ...
+   Generating static pages (0/20) ...
+   Generating static pages (5/20) 
+   Generating static pages (10/20) 
+   Generating static pages (15/20) 
+ ✓ Generating static pages (20/20)
+   Finalizing page optimization ...
+   Collecting build traces ...
+
+Route (app)                                 Size  First Load JS
+┌ ƒ /                                    21.1 kB         161 kB
+├ ○ /_not-found                            997 B         104 kB
+├ ○ /about                                 173 B         106 kB
+├ ○ /admin                               14.6 kB         117 kB
+├ ƒ /api/admin/cms                         164 B         103 kB
+├ ƒ /api/admin/cms/public                  164 B         103 kB
+├ ƒ /api/admin/cms/reset                   164 B         103 kB
+├ ƒ /api/admin/login                       164 B         103 kB
+├ ƒ /api/admin/newsletter                  164 B         103 kB
+├ ƒ /api/admin/passes                      164 B         103 kB
+├ ƒ /api/admin/password                    164 B         103 kB
+├ ƒ /api/admin/session                     164 B         103 kB
+├ ƒ /api/admin/setup                       164 B         103 kB
+├ ƒ /api/admin/subscribers                 164 B         103 kB
+├ ƒ /api/admin/upload                      164 B         103 kB
+├ ƒ /api/health                            164 B         103 kB
+├ ƒ /api/newsletter                        164 B         103 kB
+├ ƒ /api/passes                            164 B         103 kB
+├ ƒ /api/unsubscribe                       164 B         103 kB
+├ ○ /apple-icon.png                          0 B            0 B
+├ ○ /careers                               173 B         106 kB
+├ ○ /contact                               173 B         106 kB
+├ ○ /icon.svg                                0 B            0 B
+├ ○ /manifest.webmanifest                  164 B         103 kB
+├ ○ /opengraph-image.png                     0 B            0 B
+├ ○ /privacy                               173 B         106 kB
+├ ○ /profile                             1.56 kB         108 kB
+├ ○ /signup                              1.77 kB         105 kB
+├ ○ /terms                                 173 B         106 kB
+└ ƒ /unsubscribe                           164 B         103 kB
++ First Load JS shared by all             103 kB
+  ├ chunks/493-d3099f0aa7768a9d.js       46.6 kB
+  ├ chunks/4bd1b696-c023c6e3521b1417.js  54.2 kB
+  └ other shared chunks (total)          1.94 kB
+
+
+○  (Static)   prerendered as static content
+ƒ  (Dynamic)  server-rendered on demand
+

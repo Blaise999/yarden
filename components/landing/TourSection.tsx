@@ -336,7 +336,7 @@ export function TourSection(props: {
         setDraftConfig(parsed.config);
       }
     } catch {}
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [props.editable]);
 
   const persistDraft = (shows: ShowItem[], config: TourConfig) => {

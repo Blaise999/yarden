@@ -48,7 +48,7 @@ export async function sendEmail(message: {
   };
   try {
     const response = await fetch("https://api.resend.com/emails", {
-      method: "POST", headers, body: JSON.stringify(body), signal: AbortSignal.timeout(10000), cache: "no-store",
+      method: "POST", headers, body: JSON.stringify(body), signal: AbortSignal.timeout(4500), cache: "no-store",
     });
     if (!response.ok) {
       // Never log the key or recipient details. Failed responses remain retryable at the UI level.

@@ -224,7 +224,7 @@ export function HeroSection(props: {
       if (rafEmitRef.current) cancelAnimationFrame(rafEmitRef.current);
       scheduleEmit({ stage: "A", progress: 0, inHero: false });
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, []);
 
   useGSAP(

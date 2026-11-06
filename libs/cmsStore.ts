@@ -44,7 +44,7 @@ export function normalizeCms(input: Partial<CmsData> | null | undefined): CmsDat
     "album-talks-angel-2026",
     "mmc-sdf-oct-2026",
   ]);
-  const newPress = [
+  const newPress = legacy ? [
     ...defaultPress.filter(item => spotlightIds.has(item.id)).map(item => {
       const previous = previousPress.find(old => old.id === item.id);
       return previous ? { ...item, ...previous, image: previous.image || item.image } : item;
@@ -53,7 +53,7 @@ export function normalizeCms(input: Partial<CmsData> | null | undefined): CmsDat
       const matching = defaultPress.find(item => item.id === old.id);
       return !old.image && matching?.image ? { ...old, image: matching.image } : old;
     }),
-  ];
+  ] : previousPress;
   return {
     ...DEFAULT_CMS,
     ...base,
@@ -107,12 +107,30 @@ export function validateCms(value: unknown): string | null {
   if (data.store?.merch && (!Array.isArray(data.store.merch) || data.store.merch.length > 200)) return "Invalid merch items";
   if (data.newsletter?.pressItems && (!Array.isArray(data.newsletter.pressItems) || data.newsletter.pressItems.length > 200)) return "Invalid press entries";
   if (data.newsletter?.videos && (!Array.isArray(data.newsletter.videos) || data.newsletter.videos.length > 100)) return "Invalid video entries";
+  const object = (v: unknown): v is Record<string, any> => !!v && typeof v === "object" && !Array.isArray(v);
+  for (const name of ["site", "tour", "store", "newsletter"] as const) {
+    if (name in data && !object(data[name])) return `Invalid ${name}`;
+  }
+  if (data.site && Object.entries(data.site).some(([,v]) => typeof v !== "string")) return "Site settings must be text";
+  const collections: Array<[unknown, string[]]> = [
+    [data.releases, ["id","title"]], [data.visuals,["id","title","href"]],
+    [data.tour?.shows,["id","city"]], [data.store?.merch,["id","name"]],
+    [data.newsletter?.pressItems,["id","title","href"]], [data.newsletter?.videos,["id","title"]],
+  ];
+  for (const [items, fields] of collections) {
+    if (items === undefined) continue;
+    if (!Array.isArray(items) || items.some(item => !object(item) || fields.some(key => typeof item[key] !== "string"))) return "Invalid content entries";
+  }
+  for (const release of data.releases || []) {
+    if (!object(release.links) || (release.chips !== undefined && (!Array.isArray(release.chips) || release.chips.some(x => typeof x !== "string")))) return "Invalid release links or tags";
+    if (release.tracklist !== undefined && (!Array.isArray(release.tracklist) || release.tracklist.some(t => !object(t) || typeof t.title !== "string"))) return "Invalid tracklist";
+  }
   if (!safeUrlsDeep(data)) return "Links must use http(s) or a local /path";
   return null;
 }
 export async function putCms(input: Partial<CmsData>): Promise<CmsData> {
   const existing = await getCms();
-  const merged = normalizeCms({ ...existing, ...input, updatedAt: Date.now() });
+  const merged = normalizeCms({ ...existing, ...input, site: {...existing.site,...input.site}, tour: {...existing.tour,...input.tour}, store: {...existing.store,...input.store}, newsletter: {...existing.newsletter,...input.newsletter}, updatedAt: Date.now() });
   await saveRecord(CMS_KEY, merged);
   return merged;
 }

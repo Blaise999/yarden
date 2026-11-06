@@ -10,7 +10,7 @@ export async function subscribe(email: string): Promise<boolean> {
   if (existing?.consent) return false;
   const item: Subscriber = { email, createdAt: new Date().toISOString(), consent: true, source: "website" };
   if (existing) await saveRecord(key(email), item);
-  else await createRecord(key(email), item);
+  else if (!await createRecord(key(email), item)) return false;
   await addToSet(index, email);
   return true;
 }

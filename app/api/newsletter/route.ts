@@ -9,7 +9,8 @@ export async function POST(req: NextRequest) {
   try {
     if (await rateLimited(clientRateKey(req, "newsletter"), 10, 3600)) return NextResponse.json({ error: "Too many attempts" }, { status: 429 });
     if (Number(req.headers.get("content-length") || 0) > 2000) return NextResponse.json({ error: "Invalid request" }, { status: 413 });
-    const body = await req.json();
+    const body = await req.json().catch(() => null);
+    if (!body || typeof body !== "object" || Array.isArray(body)) return NextResponse.json({ error: "Invalid signup data" }, { status: 400 });
     const email = String(body.email || "").trim().toLowerCase();
     if (body.consent !== true || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email) || email.length > 254)
       return NextResponse.json({ error: "Enter a valid email and agree to receive updates." }, { status: 400 });

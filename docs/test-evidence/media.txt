@@ -1,0 +1,4 @@
+yarden-desktop-4k.mp4: original bytes preserved; SHA256 6c734f951b7c73a6d16476d4e53e48d27dd4293d1111e67ed5548021265dc2e7
+yarden-mobile-4k.mp4: original bytes preserved; SHA256 8d179fd866e89368bae7bcdca71e3741499c41a51609a7b24f33e9b712e5d0be
+yarden-desktop.mp4: 1920x1080, H.264, 30fps, silent, faststart; 10418919 bytes
+yarden-mobile.mp4: 1080x1920, H.264, 30fps, silent, faststart; 8951098 bytes

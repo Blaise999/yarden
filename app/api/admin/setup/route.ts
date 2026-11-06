@@ -11,7 +11,7 @@ export async function POST(req: NextRequest) {
     const result = await bootstrapAdmin(setupToken, password);
     if (!result) return NextResponse.json({ error: "Invalid setup token or setup already completed" }, { status: 401 });
     const record = await adminLogin(password);
-    if (record) issueAdminCookie(record);
+    if (record) await issueAdminCookie(record);
     return NextResponse.json({ success: true });
   } catch (e: any) {
     return NextResponse.json({ error: e.message || "Setup unavailable" }, { status: 400 });

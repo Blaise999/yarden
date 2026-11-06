@@ -492,15 +492,16 @@ function ReleaseDetailsSheet(props: {
 
   useLockBody(props.open);
 
+  const {open: modalOpen, onClose: closeModal} = props;
   useEffect(() => {
-    if (!props.open) return;
+    if (!modalOpen) return;
 
     function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") props.onClose();
+      if (e.key === "Escape") closeModal();
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [props.open, props.onClose]);
+  }, [modalOpen, closeModal]);
 
   if (!present || !r) return null;
 
@@ -843,7 +844,7 @@ export function ReleasesSection(props: {
 
   const [openDetailsKey, setOpenDetailsKey] = useState<string | null>(null);
 
-  const baseList = props.releases ?? [];
+  const baseList = useMemo(() => props.releases ?? [], [props.releases]);
 
   const filteredSorted = useMemo(() => {
     let list = [...baseList];
@@ -1150,12 +1151,13 @@ export function ReleasesSection(props: {
       requestAnimationFrame(() => ScrollTrigger.refresh());
     }, rootRef);
 
+    const cleanupRoot = rootRef.current;
     return () => {
       localTriggers.forEach((t) => t.kill());
       morphTriggers.forEach((t) => t.kill());
       coverParallaxTriggers.forEach((t) => t.kill());
 
-      const rootNow = rootRef.current;
+      const rootNow = cleanupRoot;
       if (rootNow) {
         const cards = Array.from(rootNow.querySelectorAll<HTMLElement>("[data-release-card='true']"));
         cards.forEach((c) => (c as any).__cleanup?.());

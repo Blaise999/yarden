@@ -1,0 +1,20 @@
+YARDEN V9 — ANGEL trailer TypeScript build fix
+
+Fixes: content/defaultCms.ts:300
+"Official Album Trailer" is now an allowed VisualItem.kind in BOTH type declarations, and appears in the CMS dropdown.
+
+TO INSTALL
+Extract this ZIP at the root of C:\Users\user\Desktop\Yarden-Cms (the folder containing package.json).
+Allow the three files to be replaced.
+
+PUSH (PowerShell):
+cd C:\Users\user\Desktop\Yarden-Cms
+git add content/cmsTypes.ts components/landing/VisualsSection.tsx app/admin/AdminPage.client.tsx
+git commit -m "Fix ANGEL trailer TypeScript build and CMS category"
+git push origin main
+
+VERIFICATION
+Type checked content/defaultCms.ts and content/cmsTypes.ts with TypeScript strict mode (passed).
+Parsed 70 TypeScript/TSX source files for syntax errors (none).
+Full Next.js npm run build was NOT run (npm dependencies cannot be installed here).
+No video files are included; Git LFS history is unaffected.

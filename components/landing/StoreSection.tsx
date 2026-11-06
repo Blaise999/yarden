@@ -276,7 +276,7 @@ export default function StoreSection(props: {
         setDraftConfig(parsed.config);
       }
     } catch {}
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [props.editable]);
 
   // when closing editor, reset drafts to base

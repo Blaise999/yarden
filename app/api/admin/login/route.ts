@@ -14,7 +14,7 @@ export async function POST(request: NextRequest) {
     const { password } = await request.json();
     const record = await adminLogin(password);
     if (!record) return NextResponse.json({ error: "Incorrect password" }, { status: 401 });
-    issueAdminCookie(record);
+    await issueAdminCookie(record);
     return NextResponse.json({ success: true }, { headers: { "Cache-Control": "no-store" } });
   } catch (e) {
     if (e instanceof StoreNotConfigured) return NextResponse.json({ error: e.message }, { status: 503 });
@@ -23,5 +23,5 @@ export async function POST(request: NextRequest) {
 }
 export async function DELETE(request: NextRequest) {
   if (!sameOriginRequest(request)) return NextResponse.json({ error: "Origin rejected" }, { status: 403 });
-  clearAdminCookie(); return NextResponse.json({ success: true });
+  await clearAdminCookie(); return NextResponse.json({ success: true });
 }

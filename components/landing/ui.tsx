@@ -460,14 +460,15 @@ export function FloatingCursorSpotlight(props: { disabled?: boolean; className?:
 export function Modal(props: { open: boolean; onClose: () => void; title: string; children: React.ReactNode }) {
   useLockBody(props.open);
 
+  const {open: modalOpen, onClose: closeModal} = props;
   useEffect(() => {
-    if (!props.open) return;
+    if (!modalOpen) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") props.onClose();
+      if (e.key === "Escape") closeModal();
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [props.open, props.onClose]);
+  }, [modalOpen, closeModal]);
 
   return (
     <AnimatePresence>

@@ -1,0 +1,38 @@
+/* ANGEL-era Yard Pass / keeps output crisp and the editor lightweight. */
+.yp12{display:grid;grid-template-columns:minmax(0,1.08fr) minmax(0,.92fr);gap:clamp(24px,4vw,58px);align-items:center;color:#f7ecde}
+.yp12__art{min-width:0;padding:12px 8px}
+.yp12__card-shell{position:relative;padding:7px;border-radius:17px;background:linear-gradient(136deg,#f5d2c1,#69445e 30%,#372432 52%,#ebc5ae 95%);box-shadow:0 25px 80px #09050ac2,0 1px 20px #a16e894a;transform:perspective(1400px) rotateY(-3deg) rotateX(2deg);transition:transform .6s cubic-bezier(.2,1,.2,1),box-shadow .6s;overflow:hidden}
+.yp12__card-shell:hover{transform:perspective(1400px) rotateY(0deg) rotateX(0deg);box-shadow:0 35px 95px #09050ad0,0 0 32px #ae7b9250}
+.yp12__canvas{display:block;width:100%;height:auto;aspect-ratio:1080/660;border-radius:11px;background:#201621}
+.yp12__card-sheen{position:absolute;inset:0;pointer-events:none;background:linear-gradient(118deg,transparent 10%,#ffe7db0e 43%,#fff6e613 46%,transparent 62%);transform:translateX(-85%);transition:transform .9s ease}
+.yp12__card-shell:hover .yp12__card-sheen{transform:translateX(85%)}
+.yp12__caption{font:600 9px/1.6 Arial,sans-serif;letter-spacing:.14em;color:#b7a8b7;text-align:center;padding-top:20px}
+.yp12__caption span{padding:0 5px;color:#d6a7a6}
+.yp12__card-caption{display:flex;justify-content:space-between;gap:10px;margin-top:31px;padding-top:16px;border-top:1px solid #cfb3b32b;font:500 9px Arial,sans-serif;letter-spacing:.17em;color:#9e8c99}
+.yp12__form{min-width:0}
+.yp12__overline{font:600 10px Arial,sans-serif;letter-spacing:.24em;color:#d9aeaa}
+.yp12__overline span{color:#8e6579;margin-inline:7px}
+.yp12__form h3{font:400 clamp(36px,4vw,56px)/.99 Georgia,serif;letter-spacing:-.065em;color:#fff6eb;margin:16px 0 15px}
+.yp12__form h3 em{font-weight:400;color:#e5bfb7}
+.yp12__intro{font:400 14px/1.7 Arial,sans-serif;color:#b9aab7;max-width:44ch;margin-bottom:26px}
+.yp12__field{display:block;font:600 10px Arial,sans-serif;letter-spacing:.16em;color:#e3c4bc;margin-bottom:13px}
+.yp12__field span{color:#95818e;font-weight:400}
+.yp12__field input{display:block;width:100%;margin-top:9px;border:1px solid #a98c9742;border-radius:5px;padding:14px 14px;color:#fff8ec;background:#ffffff08;outline:none;font:400 14px Arial,sans-serif;letter-spacing:0;transition:background .2s,border-color .2s}
+.yp12__field input:focus{border-color:#e7b7b4;background:#ffffff0b}
+.yp12__field input:disabled{opacity:.65}
+.yp12__field input::placeholder{color:#998a99}
+.yp12__choice-label{font:600 10px Arial,sans-serif;letter-spacing:.16em;color:#e3c4bc;margin:17px 0 11px}
+.yp12__styles{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.yp12__styles button{padding:13px 9px;border:1px solid #a98c9742;border-radius:5px;color:#e8d7d0;background:#ffffff06;font:600 10px Arial,sans-serif;letter-spacing:.13em;cursor:pointer;transition:all .2s}
+.yp12__styles button span{font-size:17px;margin-right:8px}
+.yp12__styles button.is-selected{color:#2a1925;background:#e9c6bd;border-color:#f1dcd2}
+.yp12__styles button:disabled{cursor:default}
+.yp12__submit{display:flex;align-items:center;justify-content:space-between;width:100%;margin-top:18px;padding:17px 20px;background:#eac3b6;color:#241520;border:0;font:700 11px Arial,sans-serif;letter-spacing:.17em;cursor:pointer;transition:background .25s,transform .25s}
+.yp12__submit span{font-size:20px}
+.yp12__submit:hover:not(:disabled){background:#fff0e2;transform:translateY(-2px)}
+.yp12__submit:disabled{cursor:not-allowed;opacity:.5}
+.yp12__message{color:#e6d1c3;font:400 13px/1.55 Arial,sans-serif;margin-top:12px}
+.yp12__message.is-error{color:#ffadb4}
+.yp12__privacy{font:400 11px/1.6 Arial,sans-serif;color:#988994;margin-top:15px}
+@media (max-width:880px){.yp12{grid-template-columns:1fr;gap:22px}.yp12__art{max-width:750px;margin-inline:auto}.yp12__form{max-width:620px;margin-inline:auto;width:100%}.yp12__card-caption{display:none}}
+@media (prefers-reduced-motion:reduce){.yp12__card-shell,.yp12__card-sheen,.yp12__submit{transform:none!important;transition:none!important}}

@@ -1,0 +1,13 @@
+
+> yarden-fans@1.0.0 check:films
+> node scripts/check-film-endpoints.mjs
+
+PASS local yarden-desktop-uhd.mp4 (55.3 MiB)
+PASS local yarden-mobile-uhd.mp4 (55.8 MiB)
+PASS local yarden-desktop.mp4 (9.9 MiB)
+PASS local yarden-mobile.mp4 (8.5 MiB)
+PASS local yarden-desktop-4k.mp4 (55.8 MiB)
+PASS local yarden-mobile-4k.mp4 (55.8 MiB)
+
+4K source files in this folder: 2/2
+Video signature checks passed. Verify browser playback, autoplay, audio, and source resolution after deployment.
