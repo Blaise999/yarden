@@ -143,3 +143,50 @@
 .yd .site-nav .nav-yarden-original{display:inline-flex;align-items:center;gap:0;line-height:1;flex:none}
 .yd .site-nav .nav-yarden-logo{display:block;width:143px;height:auto;max-height:58px;object-fit:contain;flex-shrink:0}
 @media(max-width:767px){.yd .site-nav .nav-yarden-logo{width:124px;max-height:49px}}
+
+/* V20 / The listening room — one CMS-backed event presentation. */
+.yd .lp-section{--lp-ivory:#f2efe6;--lp-wine:#292125;--lp-lime:#d9ecab;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.08fr);background:var(--lp-ivory);color:#20221d;min-height:620px;overflow:hidden}
+.yd .lp-art{position:relative;min-height:660px;background:#1b1b1a;isolation:isolate;overflow:hidden;color:#f5f1e8}
+.yd .lp-art>img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:center 28%;filter:grayscale(.96) contrast(1.05);transition:transform .8s,filter .8s}
+.yd .lp-art:hover>img{transform:scale(1.025);filter:grayscale(.7) contrast(1.06)}
+.yd .lp-art-shade{position:absolute;inset:0;background:linear-gradient(180deg,#0007,transparent 30%,transparent 52%,#000c);z-index:1;pointer-events:none}
+.yd .lp-art-top{position:absolute;top:clamp(26px,3vw,53px);left:clamp(25px,4vw,65px);right:clamp(25px,4vw,65px);z-index:2;display:flex;justify-content:space-between;gap:14px;font-size:9px;letter-spacing:.18em}
+.yd .lp-art-bottom{position:absolute;bottom:clamp(30px,4vw,67px);left:clamp(25px,4vw,65px);right:clamp(25px,4vw,65px);z-index:2}
+.yd .lp-art-symbol{color:var(--lp-lime);font-size:45px;line-height:1;display:block;margin-bottom:16px}
+.yd .lp-art-bottom p{font:italic 400 clamp(32px,3.8vw,55px)/1.07 Georgia,serif;letter-spacing:-.045em;max-width:450px;margin:0 0 14px}
+.yd .lp-art-bottom small{letter-spacing:.16em;font-size:9px;line-height:1.6;color:#e6e5df}
+.yd .lp-editorial{display:flex;flex-direction:column;justify-content:center;align-items:stretch;padding:clamp(46px,5.5vw,95px) clamp(28px,5.7vw,96px)}
+.yd .lp-eyebrow{display:flex;align-items:center;gap:11px;font-size:9px;letter-spacing:.18em;font-weight:600}
+.yd .lp-eyebrow>span:last-child{margin-left:auto;color:#777d6d}
+.yd .lp-pulse{width:6px;height:6px;border-radius:50%;background:#899b55;flex:none}
+.yd .lp-editorial h2{font-family:Arial,Helvetica,sans-serif;font-size:clamp(48px,5.4vw,90px);font-weight:500;line-height:.95;letter-spacing:-.078em;margin:43px 0 20px;overflow-wrap:break-word}
+.yd .lp-editorial h2 em{font-family:Georgia,serif;font-weight:400;letter-spacing:-.065em}
+.yd .lp-description{max-width:470px;font-size:clamp(12px,1.08vw,15px);line-height:1.8;color:#4c5347;margin:0}
+.yd .lp-divider{border-top:1px solid #1a211c33;margin:39px 0 21px}
+.yd .lp-events-label{display:flex;justify-content:space-between;gap:18px;color:#55594d;font-size:9px;letter-spacing:.17em;font-weight:700}
+.yd .lp-events-label>span:first-child{display:flex;align-items:center;gap:9px}
+.yd .lp-events{margin-top:18px;max-height:330px;overflow-y:auto;scrollbar-width:thin}
+.yd .lp-event{appearance:none;border:0;border-top:1px solid #2b332222;background:transparent;color:inherit;padding:18px 2px;display:flex;align-items:center;gap:24px;width:100%;text-align:left;cursor:pointer;transition:background .2s,padding .2s}
+.yd .lp-event:last-child{border-bottom:1px solid #2b332222}
+.yd .lp-event:hover,.yd .lp-event.is-active{background:#d9ecab75;padding-left:11px;padding-right:11px}
+.yd .lp-event-date{display:flex;flex-direction:column;min-width:52px;align-items:center}
+.yd .lp-event-date strong{font-size:31px;font-weight:400;line-height:1;letter-spacing:-.08em}
+.yd .lp-event-date small{font-size:10px;letter-spacing:.12em;margin-top:5px}
+.yd .lp-event-details{display:block;min-width:0;flex:1}
+.yd .lp-event-details strong{display:block;font-weight:600;font-size:clamp(14px,1.4vw,20px);line-height:1.2;margin:0 0 6px}
+.yd .lp-event-details small{display:flex;align-items:center;gap:5px;font-size:10px;color:#60675c;margin-top:4px;line-height:1.4}
+.yd .lp-event-arrow{display:flex;align-items:center;margin-left:auto}
+.yd .lp-empty{padding:30px 0;margin:0;line-height:1.7;font-size:13px;color:#5d6256;max-width:380px}
+.yd .lp-active-desc{border-left:2px solid #8b9c58;margin:20px 0 0;padding-left:16px;font-size:12px;line-height:1.7;color:#565b50}
+.yd .lp-footer{margin-top:30px;display:flex;align-items:center;justify-content:space-between;gap:20px;flex-wrap:wrap}
+.yd .lp-cta{display:inline-flex;align-items:center;justify-content:center;gap:22px;background:#20231c!important;color:#f8f7f0!important;text-decoration:none!important;padding:16px 19px;font-size:10px;letter-spacing:.08em;font-weight:700;white-space:nowrap}
+.yd .lp-cta:hover{background:#3b4330!important}
+.yd .lp-footer>span{font-size:8px;letter-spacing:.12em;color:#646b5a;max-width:220px;line-height:1.5;text-align:right;text-transform:uppercase}
+.yd .film-screen .film-external{position:absolute;right:14px;bottom:12px;z-index:5;display:inline-flex;align-items:center;gap:7px;background:#0e0e0ed9;color:#fff!important;padding:11px 13px;text-decoration:none!important;font-size:10px;font-weight:600;border:1px solid #ffffff52}
+.yd .film-screen .film-external:hover{background:#2d3521}
+@media(max-width:1050px){.yd .lp-section{grid-template-columns:1fr 1fr}.yd .lp-art{min-height:620px}.yd .lp-editorial{padding:52px 36px}.yd .lp-editorial h2{font-size:clamp(49px,6vw,68px)}}
+@media(max-width:767px){.yd .lp-section{grid-template-columns:1fr}.yd .lp-art{min-height:360px;aspect-ratio:5/4}.yd .lp-art-top{top:22px;left:24px;right:24px;font-size:8px}.yd .lp-art-bottom{left:24px;bottom:29px;right:24px}.yd .lp-art-symbol{font-size:30px;margin-bottom:10px}.yd .lp-art-bottom p{font-size:33px;max-width:310px}.yd .lp-editorial{padding:54px 25px 60px}.yd .lp-editorial h2{font-size:clamp(47px,12vw,70px);margin:29px 0 20px}.yd .lp-divider{margin:30px 0 18px}.yd .lp-event{gap:14px}.yd .lp-event-date{min-width:44px}.yd .lp-event-date strong{font-size:27px}.yd .lp-event-details strong{font-size:16px}.yd .lp-footer>span{text-align:left}.yd .film-screen .film-external{font-size:9px;padding:8px 9px;bottom:8px;right:8px}}
+
+/* Use Yarden’s supplied original ankh, not a generic decorative star. */
+.yd .lp-art-symbol{display:block;width:52px;height:72px;object-fit:contain;object-position:left center;margin-bottom:16px;filter:none}
+@media(max-width:767px){.yd .lp-art-symbol{width:46px;height:59px;margin-bottom:10px}}

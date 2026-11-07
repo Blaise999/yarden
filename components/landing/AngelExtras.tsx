@@ -52,10 +52,6 @@ export default function AngelExtras() {
       </form>}</> : <p>{config ? 'Vinyl reservations are currently closed.' : 'Loading availability…'}</p>}
       <p role="status">{error}</p></div>
     </section>
-    <section className="section-pad listening-section" id="listening">
-      <p className="eyeline">IN THE ROOM / TOGETHER</p><h2>The listening parties.</h2>
-      {config?.parties.length ? config.parties.map(p => <article key={p.id}><time dateTime={p.date}>{p.date}</time><div><h3>{p.city}</h3><p>{p.venue} · {p.time}</p></div><span>{p.status}</span>{p.link && <a href={p.link} target="_blank" rel="noreferrer">Details ↗</a>}</article>) : <p>Dates coming soon. First word goes to the Yard.</p>}
-    </section>
     <AngelMugshot />
   </div>;
 }

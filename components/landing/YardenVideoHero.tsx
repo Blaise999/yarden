@@ -67,7 +67,7 @@ export default function YardenVideoHero({ releaseName, releaseHref, site }: Prop
 
   const play = useCallback(async () => {
     const film = videoRef.current;
-    if (!film || !film.currentSrc) return;
+    if (!film) return;
     try {
       film.muted = true;
       film.volume = 0;
@@ -93,6 +93,7 @@ export default function YardenVideoHero({ releaseName, releaseHref, site }: Prop
     film.volume = 0;
     // React updates the source; avoid a second load that cancels the native request.
     const readyToPlay = () => {
+      setBuffering(false);
       if (visible && resumeRef.current && !reducedMotion.matches) void play();
     };
     const observer = new IntersectionObserver(([entry]) => {
@@ -100,10 +101,23 @@ export default function YardenVideoHero({ releaseName, releaseHref, site }: Prop
       if (!visible) film.pause();
       else if (resumeRef.current && !reducedMotion.matches) void play();
     }, { threshold: 0.04 });
+    film.addEventListener("loadedmetadata", readyToPlay);
     film.addEventListener("canplay", readyToPlay);
     observer.observe(section);
-    return () => { film.removeEventListener("canplay", readyToPlay); observer.disconnect(); };
-  }, [src, play, reducedMotion]);
+    // Some remote UHD URLs stall rather than firing `error`. Switch to the local
+    // H.264 stream if no first frame arrives, while preserving a manual retry.
+    const fallbackTimer = window.setTimeout(() => {
+      if (film.readyState < HTMLMediaElement.HAVE_CURRENT_DATA && src !== fallbackSrc && !usingWebFallback) {
+        setUsingWebFallback(true);
+      }
+    }, 12000);
+    return () => {
+      window.clearTimeout(fallbackTimer);
+      film.removeEventListener("loadedmetadata", readyToPlay);
+      film.removeEventListener("canplay", readyToPlay);
+      observer.disconnect();
+    };
+  }, [src, play, reducedMotion, fallbackSrc, usingWebFallback]);
 
   const togglePlayback = () => {
     const film = videoRef.current;
@@ -141,12 +155,13 @@ export default function YardenVideoHero({ releaseName, releaseHref, site }: Prop
         muted
         playsInline
         loop
-        preload={reducedMotion ? "none" : "metadata"}
+        preload={reducedMotion ? "none" : "auto"}
         disablePictureInPicture
         aria-label="Silent ANGEL cinematic film"
-        onLoadedData={() => { setReady(true); setBuffering(false); }}
+        onLoadedData={() => { setReady(true); setBuffering(false); if (resumeRef.current && !reducedMotion) void play(); }}
         onPlaying={() => { setReady(true); setPlaying(true); setBuffering(false); setFailed(false); setBlocked(false); }}
         onWaiting={() => { if (!failed) setBuffering(true); }}
+        onStalled={() => { if (!failed) setBuffering(true); }}
         onPause={() => setPlaying(false)}
         onTimeUpdate={(event) => {
           const film = event.currentTarget;
@@ -166,7 +181,8 @@ export default function YardenVideoHero({ releaseName, releaseHref, site }: Prop
         </div>
         <div className="hero-signature" aria-hidden="true">YARDEN / ANGEL ERA</div>
         <div className="yv__bottomline"><a href="#music">EXPLORE THE RECORDS <ArrowDown size={15}/></a><div className="yv__video-controls"><span>SILENT FILM</span><button type="button" onClick={togglePlayback} aria-label={playing ? "Pause background film" : "Resume background film"}>{playing ? <Pause size={15}/> : <Play size={15}/>}</button></div></div>
-        {failed && <span className="yv__loading" role="status">Film unavailable. Use the film control to retry.</span>}
+        {failed && <span className="yv__loading" role="status">Film unavailable. Tap play to retry.</span>}
+        {blocked && !failed && <span className="yv__loading" role="status">Tap the play icon to start the silent film.</span>}
         {buffering && !failed && !blocked && <span className="yv__loading" role="status">Loading the film…</span>}
       </div>
       <div className="yv__progress" aria-hidden="true"><span ref={progressRef} style={{ transform: "scaleX(0)" }} /></div>
