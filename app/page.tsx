@@ -9,6 +9,52 @@ import type { MerchItem, StoreConfig } from "../components/landing/StoreSection"
 
 import { DEFAULT_CMS, type CmsData } from "../content/defaultCms";
 import PageClient from "./page.client";
+import type { Metadata } from "next";
+import { SITE_URL } from "../libs/seo";
+
+export const metadata: Metadata = {
+  alternates: { canonical: "/" },
+};
+
+const artistRef = `${SITE_URL}/#artist`;
+const structuredData = {
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "WebSite",
+      "@id": `${SITE_URL}/#website`,
+      name: "Yarden",
+      alternateName: ["thisisyarden", "thisisyarden.com"],
+      url: `${SITE_URL}/`,
+      inLanguage: "en",
+      publisher: { "@id": artistRef },
+    },
+    {
+      "@type": "Person",
+      "@id": artistRef,
+      name: "Yarden",
+      url: `${SITE_URL}/`,
+      image: `${SITE_URL}/Pictures/hero2.webp`,
+      jobTitle: "Recording artist and songwriter",
+      sameAs: [
+        "https://www.instagram.com/thisisyarden/",
+        "https://www.youtube.com/@thisisyarden",
+        "https://www.tiktok.com/@thisisyarden",
+        "https://x.com/thisisyarden",
+      ],
+    },
+    {
+      "@type": "MusicAlbum",
+      "@id": `${SITE_URL}/#angel-album`,
+      name: "ANGEL",
+      url: `${SITE_URL}/#music`,
+      byArtist: { "@id": artistRef },
+      image: `${SITE_URL}/Pictures/angel.jpg`,
+      datePublished: "2026-10-30",
+      numTracks: 13,
+    },
+  ],
+};
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -68,6 +114,11 @@ export default async function Page() {
   };
 
   return (
+    <>
+    <script
+      type="application/ld+json"
+      dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData).replace(/</g, "\\u003c") }}
+    />
     <PageClient
       headerOffset={HEADER_OFFSET}
       links={LINKS}
@@ -84,5 +135,6 @@ export default async function Page() {
       site={cms.site}
       isAdmin={adminAccess}
     />
+    </>
   );
 }

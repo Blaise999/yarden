@@ -2,10 +2,10 @@ import type { MetadataRoute } from "next";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "Yarden — Official Site",
+    name: "Yarden — ANGEL & The Yard",
     short_name: "Yarden",
     description:
-      "The official home of Yarden — music, visuals, and live experiences.",
+      "Music, ANGEL, films, vinyl and The Yard — thisisyarden.com.",
     start_url: "/",
     display: "standalone",
     background_color: "#05060A",

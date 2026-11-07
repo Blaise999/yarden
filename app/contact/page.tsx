@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { Metadata } from "next";
 export const metadata: Metadata = {
+  alternates: { canonical: "/contact" },
   title: "Connect with Yarden",
   description: "Find Yarden's public music and social channels. For press and bookings, use confirmed management contact details.",
 };

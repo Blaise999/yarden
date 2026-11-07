@@ -1,0 +1,12 @@
+YARDEN V18 PATCH — APPLY OVER V17
+
+Unzip this archive into the ROOT of your existing V17 Next.js folder, merging existing folders and replacing files when asked.
+
+Then in PowerShell / terminal:
+  npm ci
+  npm run typecheck
+  npm run build
+
+Deploy with Vercel, then verify sitemap.xml / robots.txt / favicon.ico and submit your domain in Google Search Console.
+
+This patch does not replace any videos, mugs, admin pages or other existing V17 logic.

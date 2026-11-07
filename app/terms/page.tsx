@@ -3,6 +3,7 @@ import Link from "next/link";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
+  alternates: { canonical: "/terms" },
   title: "Terms of Service - Yarden",
   description: "Terms of service for Yarden's website and services.",
 };

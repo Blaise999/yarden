@@ -3,6 +3,7 @@ import Link from "next/link";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
+  alternates: { canonical: "/careers" },
   title: "Careers - Yarden",
   description: "Join the team. Explore opportunities with Yarden and Etins Records.",
 };

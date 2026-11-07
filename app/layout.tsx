@@ -2,6 +2,7 @@ import "./globals.css";
 import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import CookieConsent from "../components/CookieConsent";
+import { SITE_URL, SITE_NAME, SITE_DESCRIPTION } from "../libs/seo";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -9,15 +10,8 @@ const inter = Inter({
   variable: "--font-inter",
 });
 
-// Set this to the production origin. Falls back to Vercel's URL, then localhost.
-const SITE_URL =
-  process.env.NEXT_PUBLIC_SITE_URL ??
-  (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : undefined) ??
-  "https://thisisyarden.com";
-
-const TITLE = "Yarden — ANGEL | Debut Album & Yard Pass";
-const DESCRIPTION =
-  "Enter Yarden’s world. Hear ANGEL, the 13-track debut album released October 30, 2026, and explore his music, visuals and the Yard Pass.";
+const TITLE = "Yarden | ANGEL Album, Music & The Yard";
+const DESCRIPTION = SITE_DESCRIPTION;
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
@@ -26,10 +20,14 @@ export const metadata: Metadata = {
     template: "%s · Yarden",
   },
   description: DESCRIPTION,
-  applicationName: "Yarden",
+  applicationName: SITE_NAME,
   keywords: [
     "Yarden",
     "thisisyarden",
+    "thisisyarden.com",
+    "Yarden ANGEL",
+    "Yarden singer",
+    "Yarden official website",
     "Afrobeats",
     "new nostalgia",
     "the descendants",
@@ -42,17 +40,14 @@ export const metadata: Metadata = {
   authors: [{ name: "Yarden" }],
   creator: "Yarden",
   publisher: "Etins Records",
-  alternates: {
-    canonical: "/",
-  },
   openGraph: {
     type: "website",
-    siteName: "Yarden",
+    siteName: SITE_NAME,
     title: TITLE,
     description: DESCRIPTION,
     url: SITE_URL,
     locale: "en_US",
-    // app/opengraph-image.png is picked up automatically by Next.
+    images: [{ url: "/opengraph-image.png", width: 1200, height: 630, alt: "Yarden — ANGEL, the debut album" }],
   },
   twitter: {
     card: "summary_large_image",
@@ -60,6 +55,7 @@ export const metadata: Metadata = {
     description: DESCRIPTION,
     site: "@thisisyarden",
     creator: "@thisisyarden",
+    images: ["/opengraph-image.png"],
   },
   robots: {
     index: true,
@@ -75,7 +71,18 @@ export const metadata: Metadata = {
   formatDetection: {
     telephone: false,
   },
-  // favicon.ico, icon.svg, apple-icon.png in /app are auto-wired.
+  icons: {
+    icon: [
+      { url: "/favicon.ico", sizes: "any" },
+      { url: "/icon-192.png", type: "image/png", sizes: "192x192" },
+    ],
+    shortcut: ["/favicon.ico"],
+    apple: [{ url: "/apple-icon.png", sizes: "180x180" }],
+  },
+  manifest: "/manifest.webmanifest",
+  verification: {
+    google: process.env.GOOGLE_SITE_VERIFICATION || undefined,
+  },
 };
 
 export const viewport: Viewport = {

@@ -2,6 +2,7 @@ import Link from "next/link";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
+  alternates: { canonical: "/about" },
   title: "About Yarden — The ANGEL Era",
   description: "From the gospel and old records of a Lagos childhood to ANGEL, Yarden's 13-track debut album. Music that holds light and darkness at once.",
 };
