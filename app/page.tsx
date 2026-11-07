@@ -1,140 +1,17 @@
-// app/page.tsx
-import { isAdmin } from "../libs/adminAuth";
-import { getCms } from "../libs/cmsStore";
-
-import type { ReleaseItem } from "../components/landing/ReleasesSection";
-import type { VisualItem } from "../components/landing/VisualsSection";
-import type { ShowItem, TourConfig } from "../components/landing/TourSection";
-import type { MerchItem, StoreConfig } from "../components/landing/StoreSection";
-
-import { DEFAULT_CMS, type CmsData } from "../content/defaultCms";
+import type {Metadata} from "next";
+import {SITE_URL} from "../libs/seo";
+import {DEFAULT_CMS} from "../content/defaultCms";
+import {getPublicCms} from "../libs/publicCms";
 import PageClient from "./page.client";
-import type { Metadata } from "next";
-import { SITE_URL } from "../libs/seo";
-
-export const metadata: Metadata = {
-  alternates: { canonical: "/" },
-};
-
-const artistRef = `${SITE_URL}/#artist`;
-const structuredData = {
-  "@context": "https://schema.org",
-  "@graph": [
-    {
-      "@type": "WebSite",
-      "@id": `${SITE_URL}/#website`,
-      name: "Yarden",
-      alternateName: ["thisisyarden", "thisisyarden.com"],
-      url: `${SITE_URL}/`,
-      inLanguage: "en",
-      publisher: { "@id": artistRef },
-    },
-    {
-      "@type": "Person",
-      "@id": artistRef,
-      name: "Yarden",
-      url: `${SITE_URL}/`,
-      image: `${SITE_URL}/Pictures/hero2.webp`,
-      jobTitle: "Recording artist and songwriter",
-      sameAs: [
-        "https://www.instagram.com/thisisyarden/",
-        "https://www.youtube.com/@thisisyarden",
-        "https://www.tiktok.com/@thisisyarden",
-        "https://x.com/thisisyarden",
-      ],
-    },
-    {
-      "@type": "MusicAlbum",
-      "@id": `${SITE_URL}/#angel-album`,
-      name: "ANGEL",
-      url: `${SITE_URL}/#music`,
-      byArtist: { "@id": artistRef },
-      image: `${SITE_URL}/Pictures/angel.jpg`,
-      datePublished: "2026-10-30",
-      numTracks: 13,
-    },
-  ],
-};
-
-export const dynamic = "force-dynamic";
-export const revalidate = 0;
-
-type NavItem = { id: string; label: string };
-
-const HEADER_OFFSET = 84;
-
-async function getPublicCms(): Promise<CmsData> {
-  try { return await getCms(); }
-  catch { return DEFAULT_CMS; }
-}
-
-export default async function Page() {
-  const cms = await getPublicCms();
-
-  const nav: NavItem[] = [
-    { id: "top", label: "Home" },
-    { id: "releases", label: "Music" },
-    { id: "watch", label: "Watch" },
-    { id: "tour", label: "Tour" },
-    { id: "pass", label: "Pass" },
-    { id: "store", label: "Store" },
-    { id: "newsletter", label: "News" },
-  ];
-
-  // Keep your hero images static (or move into CMS later)
-  const heroA = { src: "/Pictures/hero3.jpg", alt: "Yarden cover — clean" };
-  const heroB = { src: "/Pictures/hero2.jpg", alt: "Yarden cover — detailed" };
-
-  // ✅ Use CMS data (fallback to defaults)
-  const releases = ((cms.releases ?? DEFAULT_CMS.releases).filter((r: any) => r?.enabled !== false) ??
-    []) as unknown as ReleaseItem[];
-
-  const visuals = ((cms.visuals ?? DEFAULT_CMS.visuals).filter((v: any) => v?.enabled !== false) ??
-    []) as unknown as VisualItem[];
-
-  const tourConfig = (cms.tour?.config ?? DEFAULT_CMS.tour.config) as unknown as TourConfig;
-  const shows = (cms.tour?.shows ?? DEFAULT_CMS.tour.shows) as unknown as ShowItem[];
-
-  const storeConfig = (cms.store?.config ?? DEFAULT_CMS.store.config) as unknown as StoreConfig;
-  const merch = (cms.store?.merch ?? DEFAULT_CMS.store.merch) as unknown as MerchItem[];
-
-  // press items (from CMS newsletter block, fallback to defaults)
-  const press = ((cms as any).newsletter?.pressItems ?? (DEFAULT_CMS as any).newsletter?.pressItems ?? []) as any[];
-
-  // ✅ If you want admin editing on the live site:
-  const adminAccess = await isAdmin().catch(() => false);
-
-  // links object (you can keep your old hardcoded LINKS, but it’s not needed for CMS rendering)
-  const LINKS: any = {
-    youtubeChannel: "https://www.youtube.com/@thisisyarden",
-    youtubeVideosPage: "https://www.youtube.com/@thisisyarden/videos",
-    youtubeVideos: {},
-    releases: {},
-    spotify: releases?.[0]?.links?.spotify ?? "#",
-  };
-
-  return (
-    <>
-    <script
-      type="application/ld+json"
-      dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData).replace(/</g, "\\u003c") }}
-    />
-    <PageClient
-      headerOffset={HEADER_OFFSET}
-      links={LINKS}
-      nav={nav}
-      heroA={heroA as any}
-      heroB={heroB as any}
-      releases={releases}
-      visuals={visuals}
-      tourConfig={tourConfig}
-      shows={shows}
-      storeConfig={storeConfig}
-      merch={merch}
-      press={press as any}
-      site={cms.site}
-      isAdmin={adminAccess}
-    />
-    </>
-  );
+export const revalidate=30;
+export const metadata:Metadata={alternates:{canonical:"/"}};
+const structuredData={"@context":"https://schema.org","@graph":[
+ {"@type":"WebSite","@id":`${SITE_URL}/#website`,name:"Yarden",alternateName:["thisisyarden","thisisyarden.com"],url:`${SITE_URL}/`,inLanguage:"en"},
+ {"@type":"Person","@id":`${SITE_URL}/#artist`,name:"Yarden",url:`${SITE_URL}/`,image:`${SITE_URL}/editorial/yarden-hero-desktop.webp`,jobTitle:"Recording artist and songwriter",sameAs:["https://www.instagram.com/thisisyarden/","https://www.youtube.com/@thisisyarden","https://www.tiktok.com/@thisisyarden"]},
+ {"@type":"MusicAlbum","@id":`${SITE_URL}/#angel-album`,name:"ANGEL",url:`${SITE_URL}/music`,byArtist:{"@id":`${SITE_URL}/#artist`},image:`${SITE_URL}/Pictures/angel.jpg`,datePublished:"2026-10-30",numTracks:13}
+]};
+export default async function Page(){
+ const cms=await getPublicCms();
+ const releases=(cms.releases??DEFAULT_CMS.releases).filter(r=>r?.enabled!==false);
+ return <><script type="application/ld+json" dangerouslySetInnerHTML={{__html:JSON.stringify(structuredData).replace(/</g,"\\u003c")}}/><PageClient releases={releases}/></>;
 }

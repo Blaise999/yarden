@@ -2120,7 +2120,7 @@ export default function AdminPage() {
           <section className="mx-auto max-w-3xl space-y-6">
             <div className="rounded-2xl border border-white/10 bg-white/[.04] p-6 space-y-4">
               <h2 className="text-xl font-bold">Website / Hero settings</h2>
-              <p className="text-sm text-white/50">Edit the live hero and video paths. Keep videos optimized and hosted under /public/videos or a trusted HTTPS address.</p>
+              <p className="text-sm text-white/50">Legacy video fields are retained for compatibility. V23 uses a static photo hero from the new editorial shoot; these video fields no longer control the homepage.</p>
               {([
                 ["eyebrow", "Hero edition label"], ["tagline", "Eyebrow line"],
                 ["title", "Hero headline"], ["description", "Hero description"],

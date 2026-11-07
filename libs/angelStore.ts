@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { readRecord, saveRecord, addToSet, readSet } from './persistence';
 export type Party={id:string;city:string;venue:string;date:string;time:string;link:string;status:string;image?:string;title?:string;description?:string;buttonText?:string;published?:boolean};
 export type AngelConfig={vinylEnabled:boolean;vinylTitle:string;vinylDescription:string;priceLabel:string;parties:Party[];partyTitle?:string;partyDescription?:string;partyEyebrow?:string;partyImage?:string};
-export const defaultAngel:AngelConfig={vinylEnabled:true,vinylTitle:'ANGEL — on wax.',vinylDescription:'Reserve your copy. Leave your details and the team will contact you with pricing, availability and delivery.',priceLabel:'Price and delivery confirmed by the team',partyTitle:'The listening room.',partyEyebrow:'ANGEL / IN PERSON',partyDescription:'Good music hits differently when we hear it together. Find your place in the room.',partyImage:'/Pictures/yarden4.png',parties:[]};
+export const defaultAngel:AngelConfig={vinylEnabled:true,vinylTitle:'ANGEL — on wax.',vinylDescription:'Reserve your copy. Leave your details and the team will contact you with pricing, availability and delivery.',priceLabel:'Price and delivery confirmed by the team',partyTitle:'The listening room.',partyEyebrow:'ANGEL / IN PERSON',partyDescription:'Good music hits differently when we hear it together. Find your place in the room.',partyImage:'/editorial/yarden-listening.webp',parties:[]};
 export const getAngel=async()=>({...defaultAngel,...await readRecord<AngelConfig>('yarden:angel:config:v1')});
 function safeImage(value: string) {
   return !value || /^\/(?!\/)[\w%./-]+$/.test(value) || /^https:\/\/[^\s]+$/i.test(value);

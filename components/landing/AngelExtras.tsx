@@ -3,17 +3,23 @@ import { useEffect, useState } from 'react';
 import type { FormEvent } from 'react';
 import type { AngelConfig } from '../../libs/angelStore';
 import AngelMugshot from './AngelMugshot';
+import { getPublicAngel } from './angelPublicClient';
 
-export default function AngelExtras() {
+export default function AngelExtras({mode="all"}:{mode?:"all"|"vinyl"|"mugshot"}) {
+  const showVinyl = mode !== "mugshot";
+  const showMugshot = mode !== "vinyl";
   const [config, setConfig] = useState<AngelConfig | null>(null);
   const [error, setError] = useState('');
   const [sent, setSent] = useState('');
   const [busy, setBusy] = useState(false);
   useEffect(() => {
-    fetch('/api/angel')
-      .then(async r => { if (!r.ok) throw Error(); setConfig(await r.json()); })
-      .catch(() => setError('Reservations and dates are temporarily unavailable.'));
-  }, []);
+    let active = true;
+    if (!showVinyl) return;
+    void getPublicAngel()
+      .then(data => { if (active) setConfig(data); })
+      .catch(() => { if (active) setError('Reservations and dates are temporarily unavailable.'); });
+    return () => { active = false; };
+  }, [showVinyl]);
 
   async function order(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -34,7 +40,7 @@ export default function AngelExtras() {
   }
 
   return <div className="angel-extras">
-    <section className="section-pad vinyl-section" id="vinyl">
+    {showVinyl && <section className="section-pad vinyl-section" id="vinyl">
       <div>
         <p className="eyeline">THE RECORD / KEEP IT FOREVER</p><h2>{config?.vinylTitle || 'ANGEL — on wax.'}</h2>
         <div className="vinyl-display"><img src="/Pictures/angel.jpg" alt="ANGEL album sleeve" loading="lazy" /><span aria-hidden="true" /></div>
@@ -51,7 +57,7 @@ export default function AngelExtras() {
         <button disabled={busy}>{busy ? 'Saving your request…' : 'Send vinyl order ↗'}</button><small>Reservation request only. Price, shipping and payment are confirmed by the team.</small>
       </form>}</> : <p>{config ? 'Vinyl reservations are currently closed.' : 'Loading availability…'}</p>}
       <p role="status">{error}</p></div>
-    </section>
-    <AngelMugshot />
+    </section>}
+    {showMugshot && <AngelMugshot />}
   </div>;
 }

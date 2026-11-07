@@ -3,13 +3,14 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "dev": "node init && node scripts/dev.mjs",
-    "build": "node init && next build",
-    "start": "node init && next start",
+    "dev": "node scripts/dev.mjs",
+    "build": "next build",
+    "start": "next start",
     "lint": "eslint app components libs content",
-    "check:films": "node scripts/check-film-endpoints.mjs",
+    "check:films": "node scripts/check-performance.mjs",
     "typecheck": "tsc --noEmit",
-    "test": "node --import tsx --test tests/*.test.ts"
+    "test": "node --import tsx --test tests/*.test.ts",
+    "check:performance": "node scripts/check-performance.mjs"
   },
   "dependencies": {
     "@gsap/react": "^2.1.2",

@@ -4,8 +4,9 @@ import { useEffect, useMemo, useState } from 'react';
 import { ArrowUpRight, CalendarDays, MapPin } from 'lucide-react';
 import type { AngelConfig, Party } from '../../libs/angelStore';
 import AnkhMark from '../AnkhMark';
+import { getPublicAngel } from './angelPublicClient';
 
-const FALLBACK_PHOTO = '/Pictures/yarden4.png';
+const FALLBACK_PHOTO = '/editorial/yarden-listening.webp';
 
 function dateParts(value: string) {
   const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value || '');
@@ -22,7 +23,8 @@ function dateParts(value: string) {
 function PartyPhoto({ src, alt }: { src: string; alt: string }) {
   const [broken, setBroken] = useState(false);
   useEffect(() => setBroken(false), [src]);
-  return <img src={broken ? FALLBACK_PHOTO : src} alt={alt} loading="lazy" decoding="async" onError={() => setBroken(true)} />;
+  const safeSrc = src.startsWith('/Pictures/hero') || src.startsWith('/Pictures/yarden') ? FALLBACK_PHOTO : src;
+  return <img src={broken ? FALLBACK_PHOTO : safeSrc} alt={alt} loading="lazy" decoding="async" onError={() => setBroken(true)} />;
 }
 
 export default function ListeningPartySection() {
@@ -31,15 +33,11 @@ export default function ListeningPartySection() {
   const [loadError, setLoadError] = useState(false);
 
   useEffect(() => {
-    const controller = new AbortController();
-    fetch('/api/angel', { cache: 'no-store', signal: controller.signal })
-      .then(async (response) => {
-        if (!response.ok) throw Error('Unable to load dates');
-        return response.json() as Promise<AngelConfig>;
-      })
-      .then((data) => setConfig(data))
-      .catch((error) => { if (error?.name !== 'AbortError') setLoadError(true); });
-    return () => controller.abort();
+    let active = true;
+    void getPublicAngel()
+      .then((data) => { if (active) setConfig(data); })
+      .catch(() => { if (active) setLoadError(true); });
+    return () => { active = false; };
   }, []);
 
   const parties = useMemo(() => (config?.parties || [])
@@ -84,7 +82,7 @@ export default function ListeningPartySection() {
         ) : <p className="lp-empty">Dates will be announced here. Be first to hear when the next room opens.</p>}
         {current?.description && <p className="lp-active-desc">{current.description}</p>}
         <div className="lp-footer">
-          {current?.link ? <a className="lp-cta" href={current.link} target="_blank" rel="noopener noreferrer">{current.buttonText || 'EVENT DETAILS'} <ArrowUpRight size={18}/></a> : <a className="lp-cta" href="#join">JOIN THE YARD <ArrowUpRight size={18}/></a>}
+          {current?.link ? <a className="lp-cta" href={current.link} target="_blank" rel="noopener noreferrer">{current.buttonText || 'EVENT DETAILS'} <ArrowUpRight size={18}/></a> : <a className="lp-cta" href="/yard">JOIN THE YARD <ArrowUpRight size={18}/></a>}
           <span>{current?.status || 'NO TICKET REQUIRED TO STAY IN THE LOOP'}</span>
         </div>
       </div>

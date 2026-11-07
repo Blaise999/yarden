@@ -1,0 +1,10 @@
+Removed from full project; delete in existing Git checkout by running scripts/V23-REMOVE-OBSOLETE.ps1:
+components/landing/YardenVideoHero.tsx
+public/videos/yarden-desktop-poster.jpg
+public/videos/yarden-desktop-poster.webp
+public/videos/yarden-desktop-web.mp4
+public/videos/yarden-desktop.mp4
+public/videos/yarden-mobile-poster.jpg
+public/videos/yarden-mobile-poster.webp
+public/videos/yarden-mobile-web.mp4
+public/videos/yarden-mobile.mp4

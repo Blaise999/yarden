@@ -55,10 +55,10 @@ export const DEFAULT_CMS: CmsData = {
     title: "ANGEL.",
     tagline: "THE DEBUT ALBUM / OUT NOW",
     description: "Thirteen songs. Every shade of feeling.",
-    desktopVideo: "/videos/yarden-desktop-web.mp4",
-    mobileVideo: "/videos/yarden-mobile-web.mp4",
-    desktopPoster: "/videos/yarden-desktop-poster.webp",
-    mobilePoster: "/videos/yarden-mobile-poster.webp",
+    desktopVideo: "",
+    mobileVideo: "",
+    desktopPoster: "/editorial/yarden-hero-desktop.webp",
+    mobilePoster: "/editorial/yarden-hero-mobile.webp",
   },
 
   // ═══════════════════════════════════════════════════════════════════
@@ -376,7 +376,7 @@ export const DEFAULT_CMS: CmsData = {
   tour: {
     shows: [], // No invented concert dates. Add verified shows in the CMS.
     config: {
-      posterSrc: "/Pictures/yarden4.png",
+      posterSrc: "/editorial/yarden-listening.webp",
       posterAlt: "Tour poster",
       headline: "See it live.",
       description: "Dates, cities, and ticket links — announced here first.",
@@ -467,7 +467,7 @@ export const DEFAULT_CMS: CmsData = {
         outlet: "Ghana Plug",
         date: "Oct 30, 2026",
         href: "https://ghanaplug.com/yarden-unveils-angel-a-genre-bending-debut-album-exploring-the-many-side-of-his-artistry/",
-        image: "/Pictures/yarden4.png",
+        image: "/editorial/yarden-listening.webp",
         tag: "Feature",
         excerpt: "A record moving through Afrosoul, alternative R&B and Afropop.",
       },

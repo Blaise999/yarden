@@ -1,4 +1,6 @@
 import "./globals.css";
+import "./angel.css";
+import "./v23.css";
 import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import CookieConsent from "../components/CookieConsent";
@@ -10,7 +12,7 @@ const inter = Inter({
   variable: "--font-inter",
 });
 
-const TITLE = "Yarden | ANGEL Album, Music & The Yard";
+const TITLE = "Yarden — ANGEL, The Debut Album Out Now";
 const DESCRIPTION = SITE_DESCRIPTION;
 
 export const metadata: Metadata = {
@@ -88,7 +90,7 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
-  themeColor: "#05060A",
+  themeColor: "#0a0e14",
   colorScheme: "dark",
 };
 
@@ -102,12 +104,7 @@ export default function RootLayout({
       <body
         className={`${inter.className} antialiased bg-[#05060A] text-white min-h-screen`}
       >
-        {/* speed: warm up the origins the redesign hits */}
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        <link rel="preconnect" href="https://www.youtube.com" />
-        <link rel="preconnect" href="https://i.ytimg.com" />
-        <link rel="preconnect" href="https://img.youtube.com" />
+        {/* Local next/font files are self-hosted; defer YouTube connections until selected. */}
         {children}
         <CookieConsent />
       </body>
