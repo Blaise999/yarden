@@ -1,3 +1,13 @@
+# V16 deployment notes
+
+Deploy the entire extracted project, not the ZIP itself. Keep all existing production secrets and Redis data. No migration or reset is required. The new campaign settings and orders use new Redis keys.
+
+Remove old `NEXT_PUBLIC_YARDEN_DESKTOP_VIDEO_URL` and `NEXT_PUBLIC_YARDEN_MOBILE_VIDEO_URL` overrides if they point to large masters; otherwise upload the new `*-web.mp4` files to public Blob and set those two variables to the new URLs. Legacy `_4K_URL` variables are no longer used by the hero. Rebuild after environment changes. Built-in old CMS video filenames automatically select the new web copies; custom URLs remain respected.
+
+Git LFS must deliver actual MP4 bytes, not pointer files. If using Blob, use a public store. The existing `.gitattributes` tracks the new video files too.
+
+After deployment verify `/videos/yarden-desktop-web.mp4` and `/videos/yarden-mobile-web.mp4` load, then check the hero actually requests those URLs. Log into `/admin/angel`, add actual listening-party details and verify one consented test order. Production requires the same Upstash credentials and ADMIN_SESSION_SECRET as the existing site.
+
 # Deploy to Vercel
 
 ## Environment

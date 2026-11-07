@@ -1,0 +1,40 @@
+PASS configured development health
+PASS CMS unauthorized read
+PASS passes private
+PASS subscribers private
+PASS malformed origin rejected
+PASS cross origin rejected
+PASS null registration rejected
+PASS malformed newsletter rejected
+PASS consent required
+PASS pass created
+PASS cookie bound retrieval
+PASS pass cannot be overwritten
+PASS other visitors cannot read pass
+PASS newsletter signup
+PASS newsletter duplicate
+PASS admin bootstrap
+PASS admin login
+PASS authenticated CMS read
+PASS CMS save
+PASS edits and deletions persisted
+PASS invalid CMS structure rejected
+PASS CMS restored
+PASS admin sees passes
+PASS admin sees subscribers
+PASS logout
+API assertions completed: 25 checks plus identity assertions.
+PASS vinyl orders private
+PASS campaign edits require admin
+PASS campaign admin read
+PASS save listening party
+PASS vinyl CSRF blocked
+PASS invalid vinyl rejected
+PASS vinyl saved
+PASS vinyl status update
+PASS close reservations
+PASS closed reservations rejected
+PASS campaign restored
+All 39 integration checks passed, including ANGEL features.
+
+Exit: 0

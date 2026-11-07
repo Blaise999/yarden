@@ -1,0 +1,18 @@
+npm warn Unknown env config "http-proxy". This will stop working in the next major version of npm.
+
+> yarden-fans@1.0.0 test
+> node --import tsx --test tests/*.test.ts
+
+✔ ANGEL configuration and private vinyl order persistence (41.911867ms)
+✔ Resend payload, unsubscribe headers, errors and configuration (4.898882ms)
+Yarden Redis health check failed: UpstashError
+✔ production Upstash REST contract and atomic rate limiter (mock transport) (30.513814ms)
+✔ durable local stores, CMS edits, registration and unsubscribe (79.515289ms)
+ℹ tests 4
+ℹ suites 0
+ℹ pass 4
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 269.742149

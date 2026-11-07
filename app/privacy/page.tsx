@@ -32,7 +32,7 @@ export default function PrivacyPage() {
 
       {/* Main Content */}
       <main className="pt-24 pb-16">
-        <div className="mx-auto max-w-4xl px-5 md:px-8">
+        <div className="mx-auto max-w-4xl px-5 md:px-8"><section className="mb-10"><h2 className="text-2xl">Vinyl orders and fan portraits</h2><p>Vinyl requests store your name, email, phone, delivery address, country, quantity and notes so the team can contact you and fulfil your request. These details are available only to authenticated administrators and are not a newsletter signup. The ANGEL portrait tool processes your chosen image on your device; the site does not upload or store that photo. Downloading a portrait does not publish it.</p></section>
           {/* Hero Section */}
           <div className="mb-12">
             <div className="inline-flex items-center gap-2 rounded-full border border-white/12 bg-white/5 px-4 py-2 text-xs uppercase tracking-widest text-white/60 mb-6">

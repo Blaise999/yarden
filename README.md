@@ -1,22 +1,12 @@
-# Yarden — ANGEL complete project
+# V16 — playback repair and ANGEL fan experiences
 
-Use Node.js 22 LTS and npm. This is the entire Next.js project, including the original desktop and mobile film masters, silent original-resolution playback copies (2880×2160 desktop, 2160×3840 mobile), retained HD alternatives, artwork, CMS, and tests.
+Start with `npm install`, then copy `.env.example` to `.env.local` and set your secrets. See DEPLOYMENT.md for production setup.
 
-```sh
-npm install
-cp .env.example .env.local
-npm run dev
-```
-On Windows, copy `.env.example` to `.env.local` in Explorer. Generate separate signing/setup secrets using `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"` twice, then put the results in ADMIN_SESSION_SECRET and YARD_SETUP_TOKEN. Never reuse the example placeholders. Visit `/admin` to create your admin account.
+- Default silent playback now uses `yarden-desktop-web.mp4` (1920×1080) and `yarden-mobile-web.mp4` (1080×1920), with fast-start and lighter overlays. Original masters remain included. These delivery files prioritize clarity and smoothness over forcing 4K.
+- Log into `/admin`, then select **Vinyl orders & listening parties**, or visit `/admin/angel` after login.
+- Edit vinyl title, description, price label and whether reservations are open. Orders include name, email, phone, address, country, quantity and notes; statuses are new/contacted/fulfilled/cancelled. No payment is collected.
+- Add/remove listening-party dates, venue, city, local time/timezone, status and HTTPS details links. No invented dates are seeded.
+- Fans can upload a JPG/PNG/WebP, enter their name, zoom/reposition and download a 1080×1350 ANGEL portrait. Photos remain on their device. This is a graphic composition, not AI background removal or a face replacement.
+- Existing CMS, subscriber and Yard Pass functionality is preserved.
 
-Development uses a local JSON database unless a complete Redis credential pair is supplied. Production requires Redis. Read DEPLOYMENT.md and TEST-REPORT.md before deployment.
-
-```sh
-npm test
-npm run lint
-npm run typecheck
-npm run build
-npm start
-```
-
-The homepage now imports one consolidated `app/angel.css`. Older CSS files remain in the project for reference/compatibility, but are not loaded by the homepage. Original CMS sections and admin routes are preserved.
+Read V16-TEST-REPORT.md for checks and limitations.

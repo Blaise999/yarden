@@ -1334,7 +1334,7 @@ export default function AdminPage() {
               </div>
               <div>
                 <h1 className="text-lg font-bold text-amber-300">The Yard</h1>
-                <p className="text-xs text-white/45">Admin Dashboard</p>
+                <p className="text-xs text-white/45">Admin Dashboard</p><a href="/admin/angel" className="text-lime-200 underline">Vinyl orders & listening parties ↗</a>
               </div>
             </div>
 

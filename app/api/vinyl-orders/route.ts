@@ -1,0 +1,5 @@
+import {NextRequest,NextResponse} from 'next/server';
+import {sameOriginRequest,clientRateKey} from '../../../libs/adminAuth';
+import {rateLimited} from '../../../libs/persistence';
+import {createOrder,getAngel,orderInput} from '../../../libs/angelStore';
+export async function POST(req:NextRequest){if(!sameOriginRequest(req))return NextResponse.json({error:'Origin rejected'},{status:403});try{if(await rateLimited(clientRateKey(req,'vinyl'),5,3600))return NextResponse.json({error:'Too many requests. Please try later.'},{status:429});const raw=await req.text();if(raw.length>8000)return NextResponse.json({error:'Request too large'},{status:413});let input;try{input=orderInput(JSON.parse(raw))}catch(e){return NextResponse.json({error:e instanceof Error?e.message:'Invalid details'},{status:400})}const config=await getAngel();if(!config.vinylEnabled)return NextResponse.json({error:'Reservations are currently closed.'},{status:409});const order=await createOrder(input,config);return NextResponse.json({ok:true,id:order.id},{status:201})}catch{return NextResponse.json({error:'Could not save your order. Please try again.'},{status:503})}}
