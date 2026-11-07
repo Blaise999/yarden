@@ -1,0 +1,26 @@
+YARDEN ANGEL V23.3 — MUSIC + MUGSHOT HOMEPAGE
+
+Small focused homepage update, based on V23.2 with the SilverSiteShell lint fix.
+
+What's new:
+- The homepage features a compact editorial Music collection after the ANGEL album spotlight.
+- Music cover art, release names and links come from the existing admin-managed releases (same data as /music).
+- A new ANGEL Files / Wanted for Love section on the homepage opens the existing AI mugshot generator inline when requested.
+- The existing /mugshot page remains available. No new API keys are required beyond OPENAI_API_KEY for generated images.
+- Hero image, original wordmark, ankh, party admin, vinyl orders and other pages remain unchanged.
+- No autoplay videos or new older portrait photography.
+
+PATCH INSTALLATION
+1. Use your existing V23.2 Git working folder (the folder containing package.json and .git).
+2. Extract the patch ZIP CONTENTS into that folder, preserving directory structure. Overwrite matching files.
+3. Do not delete .git or replace existing .env files.
+4. Run npm run build locally if dependencies are installed.
+5. Push when it passes:
+   git add -A; git commit -m "Yarden V23.3 homepage music and mugshot"; git pull --rebase origin main; if ($LASTEXITCODE -eq 0) { git push origin main }
+
+QA
+- Static syntax/import checks and performance regression checks passed.
+- Full production build was NOT verified in this environment (Next.js dependencies unavailable).
+- Test /, /mugshot, /music and a sample AI generation on Vercel after deployment.
+
+Existing OPENAI_API_KEY must be configured in Vercel Production for the live mugshot generator.

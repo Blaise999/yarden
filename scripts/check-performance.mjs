@@ -12,7 +12,14 @@ const party=await read('components/landing/ListeningPartySection.tsx');
 const global=await read('app/layout.tsx');
 check('Hero is a responsive photo, not a video',page.includes('<picture')&&page.includes('yarden-hero-desktop.webp')&&page.includes('yarden-hero-mobile.webp')&&!page.includes('<video')&&!page.includes('YardenVideoHero'));
 check('New original Yarden wordmark is used',nav.includes('/Pictures/yard2.png'));
-check('Homepage is focused on album, listening parties and newsletter', page.includes('v23-album')&&page.includes('ListeningPartySection')&&page.includes('v23-letters')&&!page.includes('AngelExtras'));
+check('Homepage keeps the focused hero, album, parties, and newsletter', page.includes('v23-album')&&page.includes('ListeningPartySection')&&page.includes('v23-letters')&&!page.includes('AngelExtras'));
+const homeMusic = await read('components/landing/HomeMusicSection.tsx');
+const homeMugshot = await read('components/landing/HomeMugshotSection.tsx');
+check('Homepage includes a CMS-powered music section', page.includes('<HomeMusicSection releases={releases}') && homeMusic.includes('releases.filter') && homeMusic.includes('href={href}'));
+check('Homepage offers the genuine mugshot generator on demand', page.includes('<HomeMugshotSection />') && homeMugshot.includes("import('./AngelMugshot')") && homeMugshot.includes('opened && <MugshotStudio />'));
+check('Mugshot AI component does not inflate the initial page bundle', homeMugshot.includes('ssr: false') && homeMugshot.includes('dynamic('));
+check('Homepage internal music links use Next Link', page.includes('import Link from "next/link";') && !page.includes('<a href="/music"'));
+
 check('Listening parties remain admin editable',party.includes('getPublicAngel')&&party.includes('current?.image')&&cmsRoute.includes('revalidateTag'));
 const sharedAngel = await read('components/landing/angelPublicClient.ts');
 check('Shared ANGEL client exists for public listening parties and vinyl', sharedAngel.includes('export function getPublicAngel') && party.includes("from './angelPublicClient'"));
