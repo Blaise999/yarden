@@ -190,3 +190,9 @@
 /* Use Yarden’s supplied original ankh, not a generic decorative star. */
 .yd .lp-art-symbol{display:block;width:52px;height:72px;object-fit:contain;object-position:left center;margin-bottom:16px;filter:none}
 @media(max-width:767px){.yd .lp-art-symbol{width:46px;height:59px;margin-bottom:10px}}
+
+/* V21: true HD-first video playback, with an optional UHD crossfade.
+   A slow or invalid remote 4K URL must never hide the local H.264 film. */
+.yd .yv__video--base { z-index: auto; }
+.yd .yv__video--enhanced { z-index: auto; opacity: 0; pointer-events: none; }
+.yd .yv__video--enhanced.is-ready { opacity: 1; }

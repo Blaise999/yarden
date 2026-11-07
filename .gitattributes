@@ -3,3 +3,8 @@
 # If manually adding much larger UHD masters later, use Git LFS or public object storage.
 public/videos/*-4k.mp4 filter=lfs diff=lfs merge=lfs -text
 public/videos/*-uhd.mp4 filter=lfs diff=lfs merge=lfs -text
+# Explicitly prevent a repository-wide *.mp4 LFS rule from capturing HD web clips.
+public/videos/yarden-desktop-web.mp4 -filter -diff -merge binary
+public/videos/yarden-mobile-web.mp4 -filter -diff -merge binary
+public/videos/yarden-desktop.mp4 -filter -diff -merge binary
+public/videos/yarden-mobile.mp4 -filter -diff -merge binary
