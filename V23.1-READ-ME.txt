@@ -1,0 +1,21 @@
+YARDEN V23.1 — Missing ANGEL shared client build fix
+
+CAUSE
+The V23 patch ZIP omitted components/landing/angelPublicClient.ts, even though
+AngelExtras.tsx and ListeningPartySection.tsx import that file. The V23 full
+ZIP included it, but GitHub installations updated via the patch did not.
+
+INSTALL
+Unzip this archive directly into the root of your existing Yarden project
+(the folder containing package.json). Merge/overwrite matching folders.
+The correct path is components/landing/angelPublicClient.ts.
+
+CHECK BEFORE PUSHING
+Test-Path .\components\landing\angelPublicClient.ts
+node scripts/check-performance.mjs
+
+COMMIT AND PUSH (PowerShell)
+git add components/landing/angelPublicClient.ts scripts/check-performance.mjs; git commit -m "Fix missing ANGEL shared public client"; git pull --rebase origin main; if ($LASTEXITCODE -eq 0) { git push origin main }
+
+NOTE: Do not extract into an extra enclosing folder.
+No website design, photos, admin settings or data have been changed.

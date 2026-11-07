@@ -14,6 +14,8 @@ check('Hero is a responsive photo, not a video',page.includes('<picture')&&page.
 check('New original Yarden wordmark is used',nav.includes('/Pictures/yard2.png'));
 check('Homepage is focused on album, listening parties and newsletter', page.includes('v23-album')&&page.includes('ListeningPartySection')&&page.includes('v23-letters')&&!page.includes('AngelExtras'));
 check('Listening parties remain admin editable',party.includes('getPublicAngel')&&party.includes('current?.image')&&cmsRoute.includes('revalidateTag'));
+const sharedAngel = await read('components/landing/angelPublicClient.ts');
+check('Shared ANGEL client exists for public listening parties and vinyl', sharedAngel.includes('export function getPublicAngel') && party.includes("from './angelPublicClient'"));
 check('Photo-first CSS is loaded',global.includes('./v23.css'));
 check('No legacy film masters bundled',!page.includes('desktopVideo')&&!page.includes('mobileVideo'));
 for(const [name,max] of [['yarden-hero-desktop.webp',300000],['yarden-hero-mobile.webp',200000]]){
