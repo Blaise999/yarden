@@ -17,7 +17,7 @@ export default function AboutPage() {
     <main className="min-h-screen bg-[#100e13] text-[#f6f0e7]">
       <header className="sticky top-0 z-30 border-b border-white/10 bg-[#100e13]/90 backdrop-blur-xl">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-5">
-          <Link href="/" className="text-xl font-semibold tracking-[.04em]">☥ Yarden</Link>
+          <Link href="/" className="text-xl font-semibold tracking-[.04em]"><img src="/brand/ankh-original-ivory.png" alt="" className="inline-block h-6 w-5 object-contain align-middle mr-2" />Yarden</Link>
           <Link href="/" className="text-sm text-white/70 hover:text-white">← Back to the film</Link>
         </div>
       </header>

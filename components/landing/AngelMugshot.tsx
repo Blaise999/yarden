@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { ArrowUpRight, Download, ImagePlus, RefreshCw } from 'lucide-react';
+import AnkhMark from '../AnkhMark';
 
 const CANVAS_WIDTH = 1024;
 const CANVAS_HEIGHT = 1536;
@@ -128,7 +129,7 @@ export default function AngelMugshot() {
         <p className="eyeline">THE ANGEL FILES / FAN EXPERIENCE</p>
         <h2 id="angel-mugshot-title">Wanted for <em>love.</em></h2>
         <p>Be the face of the ANGEL era. Upload a selfie and get your own cinematic booking photograph, made for you.</p>
-        <span>YARDEN <span aria-hidden="true">☥</span> ANGEL — OUT NOW</span>
+        <span className="angel-mugshot__brandline">YARDEN <AnkhMark className="angel-mugshot__inline-ankh" /> ANGEL — OUT NOW</span>
       </div>
       <div className="angel-mugshot__grid">
         <div className="angel-mugshot__controls">

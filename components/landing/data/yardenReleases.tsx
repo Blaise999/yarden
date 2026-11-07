@@ -90,7 +90,7 @@ export const yardenReleases: ReleaseItem[] = [
     title: "The One Who Descends",
     subtitle: "EP",
     year: "2023",
-    art: "/images/releases/the-one-who-descends.jpg",
+    art: "/Pictures/towd.jpg",
     artSourceLabel: "Linkfire smart link",
     artSourceHref: "https://yarden.lnk.to/towd",
     chips: ["EP", "2023"],

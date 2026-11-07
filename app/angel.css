@@ -85,3 +85,55 @@
 .angel-mugshot__slate small{font-size:clamp(7px,1vw,12px);letter-spacing:.05em}
 .angel-mugshot__corner{position:absolute;bottom:2%;left:0;right:0;text-align:center;font-size:9px;font-weight:700;letter-spacing:.13em;color:#f1eee5}
 @media(max-width:767px){.angel-mugshot__intro{margin-bottom:35px}.angel-mugshot__intro h2{font-size:clamp(54px,13vw,80px)}.angel-mugshot__grid{grid-template-columns:1fr;gap:35px}.angel-mugshot__controls{max-width:none}.angel-mugshot__preview{max-width:480px}.angel-mugshot__slate strong{font-size:clamp(29px,9vw,55px)}.angel-mugshot__slate b{font-size:clamp(18px,5vw,32px)}}
+
+/* V19 FINAL — original YARD mark and gallery-grade cinematic masthead.
+   Deliberately quieter than V16/V17; the film and the artist remain visible. */
+.yd .wordmark {display:inline-flex;align-items:center;gap:11px;text-decoration:none;flex-shrink:0}
+.yd .artist-wordmark {font:600 clamp(25px,2.5vw,32px)/1 var(--font-inter),Arial,sans-serif;letter-spacing:-.085em;white-space:nowrap;color:#f4f2e9}
+.yd .wordmark .wordmark-ankh {display:block;width:19px;height:30px;max-width:none;object-fit:contain;margin:-5px 0 0;opacity:.96;flex-shrink:0}
+.yd .collectible-top .collectible-ankh {height:22px;width:15px;object-fit:contain;margin:0}
+.yd .collectible-original-logo {width:clamp(160px,65%,330px);height:auto;object-fit:contain;align-self:center;margin:auto 0;max-height:62%;filter:drop-shadow(0 3px 18px #06090955)}
+.yd .collectible {min-height:260px}
+.yd .yv{height:100svh;min-height:660px}
+.yd .yv__frame{padding-top:clamp(106px,13vh,152px);padding-bottom:25px;justify-content:space-between}
+.yd .yv__topline{letter-spacing:.19em;opacity:.86}
+.yd .yv__content {width:min(420px,45vw);max-width:420px;margin-top:auto;margin-bottom:clamp(65px,11vh,125px);padding-left:2px}
+.yd .hero-release-label {font-size:9px;letter-spacing:.2em;color:#f5f3e7d6}
+.yd .yv h1 {font:italic 400 clamp(56px,6.2vw,83px)/1.01 Georgia,'Times New Roman',serif;letter-spacing:-.078em;margin:17px 0 20px;text-shadow:0 2px 16px #0005}
+.yd .hero-release-bottom {gap:20px;align-items:center}
+.yd .hero-release-bottom p{font-size:12px;line-height:1.65;max-width:185px;color:#eeeae1}
+.yd .hero-release-bottom a{font-size:9px;padding:11px 0;gap:12px;border-color:#ffffff80}
+.yd .hero-release-bottom a svg{height:16px;width:16px}
+.yd .hero-signature{position:absolute;bottom:80px;right:var(--space);left:auto;font:600 10px/1.4 var(--font-inter),Arial,sans-serif;letter-spacing:.31em;width:auto;max-width:35%;margin:0;opacity:.78;transform:none;text-align:right}
+.yd .yv__gradient{background:linear-gradient(180deg,rgba(0,0,0,.52),rgba(0,0,0,.05) 28%,rgba(0,0,0,.02) 55%,rgba(0,0,0,.58)),linear-gradient(90deg,rgba(0,0,0,.28),transparent 58%)}
+.yd .yv__bottomline{position:relative;z-index:2;border-top:1px solid #fff4;padding-top:17px}
+.yd .yv__video-controls{gap:10px}
+.yd .yv__video,.yd .yv__backdrop{object-position:center center}
+@media(min-width:1600px){.yd .yv__content{width:450px;max-width:450px}.yd .yv h1{font-size:83px}}
+@media(max-width:1000px){.yd .site-nav nav{gap:15px}.yd .yv__content{width:min(420px,50vw)}}
+@media(max-width:767px){
+  .yd .site-nav{height:72px}
+  .yd .artist-wordmark{font-size:27px}
+  .yd .wordmark .wordmark-ankh{width:16px;height:26px;margin-top:-4px}
+  .yd .yv{height:100svh;min-height:600px}
+  .yd .yv__frame{padding-top:97px;padding-bottom:22px}
+  .yd .yv__content{width:min(330px,94%);max-width:330px;margin-top:auto;margin-bottom:clamp(55px,9vh,104px)}
+  .yd .yv h1{font-size:clamp(51px,12.2vw,71px);line-height:1.06;margin:15px 0 17px}
+  .yd .hero-release-bottom{gap:17px;align-items:center;flex-direction:row}
+  .yd .hero-release-bottom p{font-size:11px;max-width:160px}
+  .yd .hero-release-bottom a{font-size:9px;white-space:nowrap}
+  .yd .hero-signature{position:absolute;right:var(--space);bottom:85px;left:auto;font-size:8px;max-width:65%;letter-spacing:.22em;margin:0}
+  .yd .yv__topline{font-size:7px;letter-spacing:.08em}
+  .yd .yv__gradient{background:linear-gradient(180deg,#0008,transparent 33%,transparent 47%,#000b)}
+  .yd .collectible-original-logo{max-height:58%;width:72%}
+  .yd .collectible{min-height:230px}
+}
+@media(max-width:390px){.yd .hero-release-bottom p{max-width:140px}.yd .yv h1{font-size:clamp(48px,12vw,60px)}.yd .hero-signature{letter-spacing:.16em}}
+
+/* Use the supplied original ankh in the mugshot brandline as well. */
+.yd .angel-mugshot__brandline{display:inline-flex;align-items:center;justify-content:center;gap:12px;letter-spacing:.12em;flex-wrap:wrap}
+.yd .angel-mugshot__inline-ankh{display:inline-block!important;width:17px!important;height:24px!important;object-fit:contain;flex:none}
+
+/* V19 refinements: prevent legacy generic wordmark span styling from tinting the artist name. */
+.yd .wordmark .artist-wordmark{color:var(--paper);font-size:clamp(25px,2.5vw,32px);margin:0;align-self:center;font-weight:600}
+@media(max-width:767px){.yd .wordmark .artist-wordmark{font-size:27px}}

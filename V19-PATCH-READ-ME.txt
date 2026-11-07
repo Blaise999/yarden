@@ -1,0 +1,9 @@
+YARDEN ANGEL V19 — PATCH for existing V18 Git checkout
+
+1) Extract all files in this ZIP directly over the ROOT of your existing Yarden project, where package.json lives. Keep the .git folder, existing .env.local and Vercel environment values intact.
+2) Push once: git add . && git commit -m "Yarden V19 final brand and 4K hero" && git push origin HEAD
+3) Let Vercel deploy its production branch. Check actual desktop & mobile video URLs, /favicon.ico, /sitemap.xml, /admin, newsletter and mugshot.
+
+IMPORTANT: the existing 4K URL env vars stay as-is. They now override standard web videos; invalid links fall back to bundled web HD. A public site and API billing are required for image-generation tests.
+
+The full distribution is separate, and the original 4K masters were NOT re-encoded or included in this patch.

@@ -19,8 +19,6 @@ type Props = { releaseName: string; releaseHref: string; site?: SiteFilm };
 const DEFAULTS = {
   desktop: "/videos/yarden-desktop-web.mp4",
   mobile: "/videos/yarden-mobile-web.mp4",
-  desktop4k: "/videos/yarden-desktop-4k.mp4",
-  mobile4k: "/videos/yarden-mobile-4k.mp4",
   desktopPoster: "/videos/yarden-desktop-poster.webp",
   mobilePoster: "/videos/yarden-mobile-poster.webp",
 };
@@ -42,6 +40,7 @@ export default function YardenVideoHero({ releaseName, releaseHref, site }: Prop
   const [blocked, setBlocked] = useState(false);
   const [buffering, setBuffering] = useState(false);
   const [failed, setFailed] = useState(false);
+  const [usingWebFallback, setUsingWebFallback] = useState(false);
 
   useEffect(() => {
     const motion = window.matchMedia("(prefers-reduced-motion: reduce)");
@@ -54,13 +53,17 @@ export default function YardenVideoHero({ releaseName, releaseHref, site }: Prop
     return () => { media.removeEventListener("change", update); motion.removeEventListener("change", syncMotion); };
   }, []);
 
-  const desktopHD = preferredFilm(site?.desktopVideo, DEFAULTS.desktop, process.env.NEXT_PUBLIC_YARDEN_DESKTOP_VIDEO_URL);
-  const mobileHD = preferredFilm(site?.mobileVideo, DEFAULTS.mobile, process.env.NEXT_PUBLIC_YARDEN_MOBILE_VIDEO_URL);
+  const desktopHD = preferredFilm(site?.desktopVideo, DEFAULTS.desktop, process.env.NEXT_PUBLIC_YARDEN_DESKTOP_4K_URL || process.env.NEXT_PUBLIC_YARDEN_DESKTOP_VIDEO_URL);
+  const mobileHD = preferredFilm(site?.mobileVideo, DEFAULTS.mobile, process.env.NEXT_PUBLIC_YARDEN_MOBILE_4K_URL || process.env.NEXT_PUBLIC_YARDEN_MOBILE_VIDEO_URL);
   const hd = portrait ? mobileHD : desktopHD;
   const poster = portrait
     ? process.env.NEXT_PUBLIC_YARDEN_MOBILE_POSTER_URL || site?.mobilePoster || DEFAULTS.mobilePoster
     : process.env.NEXT_PUBLIC_YARDEN_DESKTOP_POSTER_URL || site?.desktopPoster || DEFAULTS.desktopPoster;
-  const src = portrait === null ? undefined : hd;
+  const fallbackSrc = portrait ? DEFAULTS.mobile : DEFAULTS.desktop;
+  const src = portrait === null ? undefined : (usingWebFallback ? fallbackSrc : hd);
+
+  // Restore the preferred UHD/CDN source when the device orientation or CMS selection changes.
+  useEffect(() => { setUsingWebFallback(false); }, [portrait, desktopHD, mobileHD]);
 
   const play = useCallback(async () => {
     const film = videoRef.current;
@@ -110,6 +113,15 @@ export default function YardenVideoHero({ releaseName, releaseHref, site }: Prop
   };
 
   const handleError = () => {
+    // Bad/unavailable CDN URL should not leave fans with a blank masthead.
+    // Switch to the bundled, optimized silent web video before reporting failure.
+    if (!usingWebFallback && src && src !== fallbackSrc) {
+      setUsingWebFallback(true);
+      setReady(false);
+      setBuffering(true);
+      setBlocked(false);
+      return;
+    }
     setFailed(true);
     setBlocked(true);
     setReady(false);
@@ -129,7 +141,7 @@ export default function YardenVideoHero({ releaseName, releaseHref, site }: Prop
         muted
         playsInline
         loop
-        preload={reducedMotion ? "none" : "auto"}
+        preload={reducedMotion ? "none" : "metadata"}
         disablePictureInPicture
         aria-label="Silent ANGEL cinematic film"
         onLoadedData={() => { setReady(true); setBuffering(false); }}
@@ -148,12 +160,12 @@ export default function YardenVideoHero({ releaseName, releaseHref, site }: Prop
       <div className="yv__frame">
         <div className="yv__topline"><span>FROM LAGOS, WITH FEELING.</span><span>THE ANGEL ERA / 2026</span></div>
         <div className="yv__content">
-          <span className="hero-release-label"><i/> THE DEBUT ALBUM — OUT NOW</span>
+          <span className="hero-release-label"><i/> THE DEBUT ALBUM / OUT NOW</span>
           <h1>{site?.title || "ANGEL."}</h1>
           <div className="hero-release-bottom"><p>{site?.description || "Thirteen songs. Every shade of feeling."}</p><a href={releaseHref} target="_blank" rel="noreferrer" aria-label={`Stream ${releaseName}`}>STEP INSIDE <ArrowUpRight size={23}/></a></div>
         </div>
-        <div className="hero-signature" aria-hidden="true">YARDEN</div>
-        <div className="yv__bottomline"><a href="#music">EXPLORE THE RECORDS <ArrowDown size={15}/></a><div className="yv__video-controls"><span>HD / SILENT FILM</span><button type="button" onClick={togglePlayback} aria-label={playing ? "Pause background film" : "Resume background film"}>{playing ? <Pause size={15}/> : <Play size={15}/>}</button></div></div>
+        <div className="hero-signature" aria-hidden="true">YARDEN / ANGEL ERA</div>
+        <div className="yv__bottomline"><a href="#music">EXPLORE THE RECORDS <ArrowDown size={15}/></a><div className="yv__video-controls"><span>SILENT FILM</span><button type="button" onClick={togglePlayback} aria-label={playing ? "Pause background film" : "Resume background film"}>{playing ? <Pause size={15}/> : <Play size={15}/>}</button></div></div>
         {failed && <span className="yv__loading" role="status">Film unavailable. Use the film control to retry.</span>}
         {buffering && !failed && !blocked && <span className="yv__loading" role="status">Loading the film…</span>}
       </div>

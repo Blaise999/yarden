@@ -17,7 +17,7 @@ export default function TermsPage() {
           <div className="flex items-center justify-between">
             <Link href="/" className="flex items-center gap-3">
               <div className="grid h-10 w-10 place-items-center rounded-2xl border border-white/12 bg-white/5">
-                <span className="text-lg leading-none">☥</span>
+                <img src="/brand/ankh-original-ivory.png" alt="" className="inline-block h-6 w-5 object-contain" />
               </div>
               <span className="text-lg font-semibold tracking-tight">Yarden</span>
             </Link>
@@ -37,7 +37,7 @@ export default function TermsPage() {
           {/* Hero Section */}
           <div className="mb-12">
             <div className="inline-flex items-center gap-2 rounded-full border border-white/12 bg-white/5 px-4 py-2 text-xs uppercase tracking-widest text-white/60 mb-6">
-              <span className="opacity-70">☥</span>
+              <img src="/brand/ankh-original-ivory.png" alt="" className="inline-block h-5 w-4 object-contain opacity-70" />
               Legal
             </div>
             <h1 className="text-4xl md:text-5xl font-semibold tracking-tight mb-4">

@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
+import AnkhMark from "./AnkhMark";
 
 const STORAGE_KEY = "yarden_cookie_consent_v1";
 export type ConsentChoice = "all" | "essential";
@@ -21,22 +22,6 @@ export function getConsent(): ConsentChoice | null {
   }
 }
 
-function AnkhMark({ className }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 64 64" className={className} fill="none" aria-hidden>
-      <g
-        stroke="currentColor"
-        strokeWidth={5}
-        strokeLinecap="round"
-        fill="none"
-      >
-        <ellipse cx="32" cy="20.5" rx="8.4" ry="10" />
-        <line x1="32" y1="30" x2="32" y2="55" />
-        <line x1="20.5" y1="35.5" x2="43.5" y2="35.5" />
-      </g>
-    </svg>
-  );
-}
 
 export default function CookieConsent() {
   const [open, setOpen] = useState(false);

@@ -1,22 +1,6 @@
 import Image from "next/image";
 
-export function BrandLogo({
-  className = "",
-  size = 44,
-}: {
-  className?: string;
-  size?: number;
-}) {
-  return (
-    <div className={["inline-flex items-center justify-center", className].join(" ")}>
-      <Image
-        src="/Pictures/logo.png"
-        alt="The Yard logo"
-        width={size}
-        height={size}
-        priority
-        className="h-auto w-auto object-contain"
-      />
-    </div>
-  );
+/** The original full YARD logo, not a substituted or synthesized wordmark. */
+export function BrandLogo({ className = "", size = 160 }: { className?: string; size?: number }) {
+  return <Image src="/brand/yard-original-ivory.png" alt="The Yard — original YARD and ankh logo" width={size} height={Math.round(size * 509 / 811)} className={className} />;
 }
