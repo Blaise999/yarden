@@ -137,3 +137,9 @@
 /* V19 refinements: prevent legacy generic wordmark span styling from tinting the artist name. */
 .yd .wordmark .artist-wordmark{color:var(--paper);font-size:clamp(25px,2.5vw,32px);margin:0;align-self:center;font-weight:600}
 @media(max-width:767px){.yd .wordmark .artist-wordmark{font-size:27px}}
+
+/* Navbar wordmark: exact original Yarden artwork from the user-supplied project.
+   Its ankh is embedded in the letter d; do not add a second ankh. */
+.yd .site-nav .nav-yarden-original{display:inline-flex;align-items:center;gap:0;line-height:1;flex:none}
+.yd .site-nav .nav-yarden-logo{display:block;width:143px;height:auto;max-height:58px;object-fit:contain;flex-shrink:0}
+@media(max-width:767px){.yd .site-nav .nav-yarden-logo{width:124px;max-height:49px}}
