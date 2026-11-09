@@ -57,7 +57,6 @@ export default function AngelMerchSection() {
 
     <div className="v25-campaign v25-reveal">
       <div className="v25-campaign-photo"><img src={image(2)} alt="Yarden's Angel campaign: models wearing the black and white editions" loading="lazy" decoding="async" width={1350} height={1800}/><span className="v25-campaign-stamp">THE FIRST DROP / 2026</span></div>
-      <div className="v25-campaign-typography" aria-hidden="true"><span className="v25-campaign-topline">FROM THE ANGEL ERA</span><strong>YARDEN&apos;S<br/><span>ANGEL.</span></strong><span className="v25-campaign-bottomline">WHITE EDITION / BLACK EDITION</span><span className="v25-angel-circle">✳</span></div>
     </div>
 
     <div className="v25-merch-ticker" aria-hidden="true"><div>BLACK EDITION <span>✳</span> WHITE EDITION <span>✳</span> ANGEL / DROP 01 <span>✳</span> CAMPAIGN ARCHIVE <span>✳</span> BLACK EDITION <span>✳</span> WHITE EDITION <span>✳</span> ANGEL / DROP 01 <span>✳</span> CAMPAIGN ARCHIVE <span>✳</span></div></div>

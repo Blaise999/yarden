@@ -41,8 +41,12 @@ const layout=await read('app/layout.tsx'),home=await read('app/page.client.tsx')
 assert('V25 CSS loads after V23',layout.indexOf('v25.css')>layout.indexOf('v23.css'));
 assert('New homepage music and merch both remain present',home.includes('<HomeMusicSection')&&home.includes('<AngelMerchSection'));
 assert('Original photo hero is retained without video',home.includes('yarden-hero-desktop.webp')&&!home.includes('<video'));
-assert('Merch uses all 13 original images in the archive',merch.includes('archive.map')&&[...Array(13).keys()].every(i=>merch.includes(`number: ${i},`)));
+assert('Merch uses all 13 original images in the archive',(merch.includes('archive.map')||merch.includes('marquee.map'))&&[...Array(13).keys()].every(i=>merch.includes(`number: ${i},`)));
 assert('Merch pricing is TBA, no invented prices',merch.includes('PRICE TBA')&&merch.includes('COMING SOON'));
+assert('V25.2 removed standalone merch campaign typography panel',!merch.includes('className="v25-campaign-typography"'));
+assert('V25.2 merch photo remains fully visible and keeps scrolling strip',(await read('app/v25.css')).includes('v25-campaign-photo>img{position:relative;z-index:1;width:100%;height:100%;object-fit:contain')&&merch.includes('v25-merch-ticker'));
+assert('V25.2 ANGEL hero uses editorial serif typography',(await read('app/v23.css')).includes('font-family:"Bodoni MT","Didot"'));
+
 assert('New vinyl still uses admin availability and existing order API',vinyl.includes('getPublicAngel()')&&vinyl.includes("'/api/vinyl-orders'")&&vinyl.includes('config?.vinylEnabled'));
 assert('Vinyl form has consent and validates quantity',vinyl.includes('name="consent"')&&vinyl.includes('max="10"'));
 assert('Private album URL restricts destination to Vercel private Blob host',support.includes('.private.blob.vercel-storage.com')&&download.includes("redirect:'error'"));
