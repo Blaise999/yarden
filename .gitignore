@@ -44,7 +44,6 @@ temp_interactive_push.bat
 config.bat
 
 # local credentials and environment secrets
-.env*
 !.env.example
 
 .local-data/
