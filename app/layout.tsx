@@ -2,6 +2,7 @@ import "./globals.css";
 import "./angel.css";
 import "./v23.css";
 import "./v25.css";
+import "./v255.css";
 import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import CookieConsent from "../components/CookieConsent";
