@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react';
 import type { FormEvent } from 'react';
 import Link from 'next/link';
-import { ArrowUpRight, Check, Disc3, RotateCw } from 'lucide-react';
+import { ArrowUpRight, Check, Disc3 } from 'lucide-react';
 import type { AngelConfig } from '../../libs/angelStore';
 import AngelMugshot from './AngelMugshot';
 import { getPublicAngel } from './angelPublicClient';
@@ -14,7 +14,6 @@ export default function AngelExtras({mode="all"}:{mode?:"all"|"vinyl"|"mugshot"}
   const [error, setError] = useState('');
   const [sent, setSent] = useState('');
   const [busy, setBusy] = useState(false);
-  const [spinning, setSpinning] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -52,14 +51,18 @@ export default function AngelExtras({mode="all"}:{mode?:"all"|"vinyl"|"mugshot"}
           <h1 id="v25-vinyl-title">ANGEL on vinyl.</h1>
           <p>{config?.vinylDescription || 'The songs you know, in a format you can keep. Leave your details to register interest in the ANGEL vinyl edition.'}</p>
           <div className="v25-vinyl-facts"><div><span>THE RECORD</span><strong>ANGEL</strong></div><div><span>THE ARTIST</span><strong>YARDEN</strong></div><div><span>AVAILABILITY</span><strong>{config?.priceLabel || 'TO BE CONFIRMED'}</strong></div></div>
-          <button type="button" className="v25-vinyl-spin" onClick={() => setSpinning(v => !v)} aria-pressed={spinning} aria-label={spinning ? 'Stop rotating the record illustration' : 'Rotate the record illustration'}><RotateCw size={17} aria-hidden="true"/>{spinning?'Pause record motion':'Spin the record'}</button>
-          <small>Collector concept. Final packaging, price and pressing details will be confirmed by Yarden&apos;s team.</small>
+          <small>Collector concept artwork. Final pressing, packaging, price and availability will be confirmed by Yarden&apos;s team.</small>
         </div>
-        <div className={`v25-vinyl-stage ${spinning ? 'is-spinning' : ''}`} aria-label="Illustration of the ANGEL album sleeve and a black vinyl record">
-          <div className="v25-vinyl-halo" aria-hidden="true"/>
-          <div className="v25-vinyl-disc" aria-hidden="true"><div className="v25-vinyl-disc-label"><img src="/Pictures/angel.jpg" alt="" loading="lazy" /></div><span className="v25-vinyl-spindle"/></div>
-          <div className="v25-vinyl-sleeve"><img src="/Pictures/angel.jpg" alt="ANGEL album cover by Yarden" loading="lazy" decoding="async" width={650} height={650}/></div>
-          <div className="v25-vinyl-strip" aria-hidden="true"><div>ANGEL VINYL <span>✳</span> SIDE A / SIDE B <span>✳</span> REGISTER INTEREST <span>✳</span> YARDEN <span>✳</span> ANGEL VINYL <span>✳</span> SIDE A / SIDE B <span>✳</span></div></div>
+        <div className="v25-vinyl-stage v253-vinyl-stage">
+          <img
+            className="v253-vinyl-art"
+            src="/editorial/angel-vinyl-cutout.webp"
+            alt="ANGEL vinyl concept: Yarden album sleeve with a glossy black record partly pulled out to the right"
+            width={1099}
+            height={789}
+            loading="eager"
+            decoding="async"
+          />
         </div>
       </div>
       <div className="v25-vinyl-reservations">

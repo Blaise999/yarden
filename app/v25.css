@@ -111,3 +111,46 @@
 .yd.v23 .v25-campaign:hover .v25-campaign-photo>img{transform:none;filter:none}
 .yd.v23 .v25-campaign-stamp{z-index:2}
 @media(max-width:700px){.yd.v23 .v25-campaign{aspect-ratio:3/4;min-height:0}.yd.v23 .v25-campaign-photo{height:100%;min-height:0}.yd.v23 .v25-campaign-photo>img{object-fit:contain;object-position:center}}
+
+/* V25.3: approved ANGEL vinyl product artwork (transparent cutout; no poster background).
+   The old CSS-drawn sleeve/disc is intentionally not used by the JSX. */
+.yd.v23 .v25-vinyl-stage.v253-vinyl-stage {
+  width:100%;
+  min-height:clamp(340px,44vw,660px);
+  max-width:820px;
+  margin-inline:auto;
+  padding:24px 0;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  overflow:visible;
+  perspective:none;
+  background:none;
+}
+.yd.v23 .v253-vinyl-art {
+  display:block;
+  width:100%;
+  max-width:790px;
+  height:auto;
+  object-fit:contain;
+  filter:drop-shadow(0 22px 28px rgba(0,0,0,.24));
+  animation:v253VinylHover 8s ease-in-out infinite alternate;
+  transition:filter .65s ease;
+}
+.yd.v23 .v253-vinyl-stage:hover .v253-vinyl-art {
+  filter:drop-shadow(0 30px 38px rgba(0,0,0,.35));
+}
+@keyframes v253VinylHover {
+  from{transform:translateY(4px)}
+  to{transform:translateY(-6px)}
+}
+@media(max-width:1000px){
+  .yd.v23 .v25-vinyl-stage.v253-vinyl-stage{min-height:clamp(280px,58vw,550px);padding:8px 0 20px}
+}
+@media(max-width:700px){
+  .yd.v23 .v25-vinyl-stage.v253-vinyl-stage{min-height:0;padding:18px 0 30px}
+  .yd.v23 .v253-vinyl-art{max-width:100%;}
+}
+@media(prefers-reduced-motion:reduce){
+  .yd.v23 .v253-vinyl-art{animation:none!important;transform:none!important;transition:none!important}
+}
