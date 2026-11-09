@@ -1,0 +1,9 @@
+"use client";
+import {useEffect,useState} from 'react';
+import Link from 'next/link';
+type Row={ref:string;name:string;email:string;kind:string;amount:number;currency:string;status:string;createdAt:string;transactionId?:number;emailSent?:boolean};
+export default function SupportAdminPage(){
+ const [orders,setOrders]=useState<Row[]>([]);const [state,setState]=useState('Loading secured payments…');const [ready,setReady]=useState(false);
+ useEffect(()=>{let active=true;fetch('/api/admin/support',{cache:'no-store',credentials:'include'}).then(async r=>{const j=await r.json();if(!r.ok)throw Error(j.error||'Unable to load');if(active){setOrders(j.orders);setReady(j.ready);setState('');}}).catch(e=>{if(active)setState(e instanceof Error?e.message:'Request failed');});return()=>{active=false}},[]);
+ return <main style={{minHeight:'100vh',background:'#0b1119',color:'#f0f4f8',padding:'clamp(26px,5vw,74px)',fontFamily:'Arial,sans-serif'}}><nav><Link href="/admin">← Admin dashboard</Link></nav><h1 style={{fontSize:'clamp(32px,5vw,65px)',letterSpacing:'-.05em'}}>ANGEL / Support</h1><p style={{color:'#afbac8'}}>Secure Flutterwave ledger · USD · {ready?'Checkout configured':'Checkout not enabled'}</p><p role="status">{state}</p><div style={{overflowX:'auto',marginTop:38}}><table style={{width:'100%',borderCollapse:'collapse',textAlign:'left'}}><thead><tr>{['Date','Supporter','Email','Option','Amount','Status','Reference'].map(x=><th key={x} style={{padding:15,borderBottom:'1px solid #a7b6c449'}}>{x}</th>)}</tr></thead><tbody>{orders.map(x=><tr key={x.ref}>{[new Date(x.createdAt).toLocaleDateString(),x.name,x.email,x.kind,`$${x.amount}`,x.status,x.ref].map((v,i)=><td key={i} style={{padding:15,borderBottom:'1px solid #a7b6c42b',fontSize:12}}>{v}</td>)}</tr>)}</tbody></table></div>{!state&&orders.length===0?<p>No checkouts yet.</p>:null}</main>
+}

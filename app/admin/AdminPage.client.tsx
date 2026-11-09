@@ -1,5 +1,6 @@
 // app/admin/passes/AdminPage.client.tsx
 "use client";
+import Link from "next/link";
 
 import React, {
   useCallback,
@@ -1334,7 +1335,7 @@ export default function AdminPage() {
               </div>
               <div>
                 <h1 className="text-lg font-bold text-amber-300">The Yard</h1>
-                <p className="text-xs text-white/45">Admin Dashboard</p><a href="/admin/angel" className="text-lime-200 underline">Manage listening parties, artwork & vinyl ↗</a>
+                <p className="text-xs text-white/45">Admin Dashboard</p><Link href="/admin/angel" className="text-lime-200 underline">Manage listening parties, artwork & vinyl ↗</Link><span className="mx-2">·</span><Link href="/admin/support" className="text-lime-200 underline">ANGEL digital purchases ↗</Link>
               </div>
             </div>
 
@@ -1362,7 +1363,7 @@ export default function AdminPage() {
 
           {/* Tabs */}
           <div className="mt-4 flex gap-2 overflow-x-auto pb-2 -mb-2">
-            <a href="/admin/angel" className="px-4 py-2 rounded-lg text-sm font-semibold whitespace-nowrap bg-lime-200 text-black">Listening parties ↗</a>
+            <Link href="/admin/angel" className="px-4 py-2 rounded-lg text-sm font-semibold whitespace-nowrap bg-lime-200 text-black">Listening parties ↗</Link>
             {(
               ["passes", "audience", "releases", "videos", "tour", "merch", "newsletter", "settings"] as Tab[]
             ).map((t) => (
@@ -1648,7 +1649,7 @@ export default function AdminPage() {
             <div className="bg-white/[0.03] rounded-2xl p-5 shadow-sm flex flex-wrap items-center justify-between gap-3">
               <div>
                 <h2 className="text-lg font-bold text-white">Legacy show schedule</h2>
-                <p className="mt-2 text-xs text-amber-200">The homepage listening parties are managed under <a href="/admin/angel" className="underline">ANGEL → Listening Parties</a>, not this legacy show list.</p>
+                <p className="mt-2 text-xs text-amber-200">The homepage listening parties are managed under <Link href="/admin/angel" className="underline">ANGEL → Listening Parties</Link>, not this legacy show list.</p>
                 <p className="text-sm text-white/50">{cms.tour.shows.length} shows</p>
               </div>
               <div className="flex gap-2">

@@ -7,6 +7,8 @@ const links = [
   ["Music", "/music"],
   ["Listening parties", "/#tour"],
   ["Films", "/films"],
+  ["Merch", "/#merch"],
+  ["Support ANGEL", "/#support-angel"],
   ["Vinyl", "/vinyl"],
   ["Mugshot", "/mugshot"],
   ["Journal", "/journal"],
@@ -37,7 +39,7 @@ export default function SilverSiteShell({children}:{children:React.ReactNode}) {
    <a className="v23-skip" href="#main-content">Skip to content</a>
    <header className="v23-nav">
      <Link className="v23-brand" href="/" aria-label="Yarden home"><img src="/Pictures/yard2.png" width={1778} height={696} alt="Yarden" /></Link>
-     <nav className="v23-primary" aria-label="Main navigation"><Link href="/music">Music</Link><Link href="/#tour">Listening parties</Link><Link href="/yard">The Yard</Link></nav>
+     <nav className="v23-primary" aria-label="Main navigation"><Link href="/music">Music</Link><Link href="/#merch">Merch</Link><Link href="/#tour">Listening parties</Link><Link href="/yard">The Yard</Link></nav>
      <button ref={menuButton} className="v23-menu-button" type="button" aria-controls="v23-menu" aria-expanded={menu} onClick={()=>setMenu(true)}><span>Explore</span><Menu size={19}/></button>
    </header>
    {menu && <div className="v23-menu-overlay" role="dialog" aria-modal="true" id="v23-menu" aria-label="Explore Yarden" ref={menuRef}>
@@ -48,7 +50,7 @@ export default function SilverSiteShell({children}:{children:React.ReactNode}) {
    <main id="main-content">{children}</main>
    <footer className="v23-footer">
      <div className="v23-footer-top"><Link href="/" aria-label="Yarden home"><img src="/Pictures/yard2.png" alt="Yarden" width={1778} height={696}/></Link><p>Music for everything you feel.</p></div>
-     <div className="v23-footer-links"><div><Link href="/music">Music</Link><Link href="/films">Films</Link><Link href="/vinyl">Vinyl</Link><Link href="/mugshot">Mugshot</Link><Link href="/yard">The Yard</Link><Link href="/journal">Journal</Link></div><div><a href="https://www.instagram.com/thisisyarden/" target="_blank" rel="noopener noreferrer">Instagram ↗</a><a href="https://www.youtube.com/@thisisyarden" target="_blank" rel="noopener noreferrer">YouTube ↗</a><a href="https://www.tiktok.com/@thisisyarden" target="_blank" rel="noopener noreferrer">TikTok ↗</a></div></div>
+     <div className="v23-footer-links"><div><Link href="/music">Music</Link><Link href="/films">Films</Link><Link href="/#merch">Merch</Link><Link href="/#support-angel">Support ANGEL</Link><Link href="/vinyl">Vinyl</Link><Link href="/mugshot">Mugshot</Link><Link href="/yard">The Yard</Link><Link href="/journal">Journal</Link></div><div><a href="https://www.instagram.com/thisisyarden/" target="_blank" rel="noopener noreferrer">Instagram ↗</a><a href="https://www.youtube.com/@thisisyarden" target="_blank" rel="noopener noreferrer">YouTube ↗</a><a href="https://www.tiktok.com/@thisisyarden" target="_blank" rel="noopener noreferrer">TikTok ↗</a></div></div>
      <div className="v23-footer-bottom"><span>© {new Date().getFullYear()} Yarden</span><span>DESIGN & DEVELOPMENT / BLAISETECHH</span><span><Link href="/privacy">Privacy</Link> · <Link href="/terms">Terms</Link></span></div>
    </footer>
  </div>;

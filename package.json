@@ -10,7 +10,8 @@
     "check:films": "node scripts/check-performance.mjs",
     "typecheck": "tsc --noEmit",
     "test": "node --import tsx --test tests/*.test.ts",
-    "check:performance": "node scripts/check-performance.mjs"
+    "check:performance": "node scripts/check-performance.mjs",
+    "check:v24": "node scripts/check-v24.mjs"
   },
   "dependencies": {
     "@gsap/react": "^2.1.2",

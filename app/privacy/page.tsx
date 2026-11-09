@@ -69,6 +69,7 @@ export default function PrivacyPage() {
               <ul className="list-disc list-inside space-y-2 ml-4">
                 <li><strong className="text-white">Personal Data:</strong> Name, email address, and other contact details you voluntarily provide.</li>
                 <li><strong className="text-white">Security data:</strong> Short-lived abuse-prevention counters keyed by a hash of the visitor address; server hosting may keep access logs.</li>
+                <li><strong className="text-white">Digital album purchases:</strong> For direct album support, we record the purchaser's name, email, payment amount and verified transaction reference to issue receipts and protect private downloads. Flutterwave handles payment details; the website does not store card numbers. Purchase records are available to authenticated administrators.</li>
                 <li><strong className="text-white">Newsletter Data:</strong> Email address when you subscribe to our newsletter.</li>
                 <li><strong className="text-white">Mugshot photos:</strong> Selfies explicitly submitted for AI editing and corresponding generated images are processed by the API provider to deliver the result. We do not persist them to our site database.</li>
                 <li><strong className="text-white">Pass Data:</strong> Name, email, optional phone number, chosen pass type and issue date. Card images are made on your device and are not stored on our server.</li>

@@ -50,6 +50,7 @@ export default function TermsPage() {
 
           {/* Content */}
           <div className="space-y-8 text-white/70 leading-relaxed">
+            <section className="rounded-3xl border border-white/10 bg-white/[0.02] p-8"><h2 className="text-xl font-semibold text-white mb-4">Digital ANGEL album purchases (coming soon)</h2><p>Digital purchases are not available until Yarden's team completes merchant verification, confirms download rights, and publishes the applicable fulfilment and refund terms. When enabled, purchases will be processed by Flutterwave and digital delivery will follow verified payment. No charge is taken while checkout is disabled.</p></section>
             <section className="rounded-3xl border border-white/10 bg-white/[0.02] p-8">
               <h2 className="text-xl font-semibold text-white mb-4">1. Agreement to Terms</h2>
               <p>

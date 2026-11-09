@@ -6,6 +6,8 @@ import SilverSiteShell from "../components/landing/SilverSiteShell";
 import ListeningPartySection from "../components/landing/ListeningPartySection";
 import HomeMusicSection from "../components/landing/HomeMusicSection";
 import HomeMugshotSection from "../components/landing/HomeMugshotSection";
+import AngelMerchSection from "../components/landing/AngelMerchSection";
+import DigitalSupportSection from "../components/landing/DigitalSupportSection";
 import type {ReleaseItem} from "../components/landing/ReleasesSection";
 
 function albumLink(r?:ReleaseItem){return r?.links?.[r.primary||"apple"]||r?.fanLink||r?.links?.spotify||r?.links?.apple||"/music";}
@@ -36,9 +38,11 @@ export default function PageClient({releases=[]}:{releases:ReleaseItem[]}){
    <div className="v23-album-layout"><div className="v23-album-art"><a href={albumLink(album)} target={albumLink(album).startsWith("http")?"_blank":undefined} rel="noopener noreferrer" aria-label="Stream ANGEL"><img src={album?.art||"/Pictures/angel.jpg"} alt="ANGEL official album cover" loading="lazy" decoding="async" /></a><span>YARDEN / ANGEL · 2026</span></div><div className="v23-album-copy"><h2 id="v23-album-title">The feeling<br/>takes <em>form.</em></h2><p>ANGEL — the debut album. Thirteen songs spanning every part of the story. Listen the way it was meant to be heard.</p><div className="v23-album-actions"><a href={albumLink(album)} target={albumLink(album).startsWith("http")?"_blank":undefined} rel="noopener noreferrer">Stream the album <ArrowUpRight size={18}/></a><Link href="/music">Discography <ArrowUpRight size={18}/></Link></div></div></div>
   </section>
   <HomeMusicSection releases={releases} />
+  <AngelMerchSection />
+  <DigitalSupportSection />
   <div className="v23-listening-heading"><span className="v23-overline">03 / THE GATHERINGS</span><p>More than a listening party.</p></div>
   <ListeningPartySection/>
   <HomeMugshotSection />
-  <section className="v23-letters" aria-labelledby="v23-letters-title"><div><span className="v23-overline">THE YARD / STAY CLOSE</span><h2 id="v23-letters-title">Keep in <em>touch.</em></h2><p>New music, listening sessions and the things worth sharing. Direct from Yarden.</p></div><form onSubmit={signup} aria-busy={sending}><div className="v23-newsletter-field"><label className="sr-only" htmlFor="v23-email">Email address</label><input id="v23-email" type="email" placeholder="Your email address" value={email} onChange={e=>setEmail(e.target.value)} autoComplete="email" required/><button type="submit" disabled={sending||!consent} aria-label="Join the mailing list">{sending?"…":<ArrowRight size={20}/>}</button></div><label className="v23-newsletter-consent"><input type="checkbox" checked={consent} onChange={e=>setConsent(e.target.checked)}/><span>I agree to receive Yarden emails. Unsubscribe any time.</span></label><p className="v23-form-status" role="status" aria-live="polite">{status}</p></form></section>
+  <section className="v23-letters" id="letters" aria-labelledby="v23-letters-title"><div><span className="v23-overline">THE YARD / STAY CLOSE</span><h2 id="v23-letters-title">Keep in <em>touch.</em></h2><p>New music, listening sessions and the things worth sharing. Direct from Yarden.</p></div><form onSubmit={signup} aria-busy={sending}><div className="v23-newsletter-field"><label className="sr-only" htmlFor="v23-email">Email address</label><input id="v23-email" type="email" placeholder="Your email address" value={email} onChange={e=>setEmail(e.target.value)} autoComplete="email" required/><button type="submit" disabled={sending||!consent} aria-label="Join the mailing list">{sending?"…":<ArrowRight size={20}/>}</button></div><label className="v23-newsletter-consent"><input type="checkbox" checked={consent} onChange={e=>setConsent(e.target.checked)}/><span>I agree to receive Yarden emails. Unsubscribe any time.</span></label><p className="v23-form-status" role="status" aria-live="polite">{status}</p></form></section>
  </SilverSiteShell>;
 }
