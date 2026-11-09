@@ -11,7 +11,8 @@
     "typecheck": "tsc --noEmit",
     "test": "node --import tsx --test tests/*.test.ts",
     "check:performance": "node scripts/check-performance.mjs",
-    "check:v24": "node scripts/check-v24.mjs"
+    "check:v24": "node scripts/check-v24.mjs",
+    "check:v25": "node scripts/check-v25.mjs"
   },
   "dependencies": {
     "@gsap/react": "^2.1.2",

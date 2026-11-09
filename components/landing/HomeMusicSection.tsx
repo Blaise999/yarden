@@ -20,8 +20,8 @@ export default function HomeMusicSection({ releases }: { releases: ReleaseItem[]
         <Link href="/music">ALL RELEASES <ArrowUpRight size={16} aria-hidden="true" /></Link>
       </div>
       <div className="v23-home-music-intro">
-        <div><span className="v23-feature-tag"><Disc3 size={16} aria-hidden="true" /> THE SOUND OF YARDEN</span><h2 id="v23-home-music-title">Beyond <em>ANGEL.</em></h2></div>
-        <p>Before ANGEL, there were other chapters. Explore the music and find the feeling that stays with you.</p>
+        <div><span className="v23-feature-tag"><Disc3 size={16} aria-hidden="true" /> THE SOUND OF YARDEN <span className="v25-soundband" aria-hidden="true">{Array.from({length:12},(_,i)=><span key={i} style={{animationDelay:`${-i*.13}s`}} />)}</span></span><h2 id="v23-home-music-title">This is <em>Yarden.</em></h2></div>
+        <p>Before ANGEL, there was more to hear. Start here, then explore the full discography.</p>
       </div>
       <div className="v23-home-releases">
         {catalogue.map((item, index) => {

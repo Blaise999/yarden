@@ -49,7 +49,7 @@ export default function SilverSiteShell({children}:{children:React.ReactNode}) {
    </div>}
    <main id="main-content">{children}</main>
    <footer className="v23-footer">
-     <div className="v23-footer-top"><Link href="/" aria-label="Yarden home"><img src="/Pictures/yard2.png" alt="Yarden" width={1778} height={696}/></Link><p>Music for everything you feel.</p></div>
+     <div className="v23-footer-top"><Link href="/" aria-label="Yarden home"><img src="/Pictures/yard2.png" alt="Yarden" width={1778} height={696}/></Link><p>Listen closely. Stay a while.</p></div>
      <div className="v23-footer-links"><div><Link href="/music">Music</Link><Link href="/films">Films</Link><Link href="/#merch">Merch</Link><Link href="/#support-angel">Support ANGEL</Link><Link href="/vinyl">Vinyl</Link><Link href="/mugshot">Mugshot</Link><Link href="/yard">The Yard</Link><Link href="/journal">Journal</Link></div><div><a href="https://www.instagram.com/thisisyarden/" target="_blank" rel="noopener noreferrer">Instagram ↗</a><a href="https://www.youtube.com/@thisisyarden" target="_blank" rel="noopener noreferrer">YouTube ↗</a><a href="https://www.tiktok.com/@thisisyarden" target="_blank" rel="noopener noreferrer">TikTok ↗</a></div></div>
      <div className="v23-footer-bottom"><span>© {new Date().getFullYear()} Yarden</span><span>DESIGN & DEVELOPMENT / BLAISETECHH</span><span><Link href="/privacy">Privacy</Link> · <Link href="/terms">Terms</Link></span></div>
    </footer>

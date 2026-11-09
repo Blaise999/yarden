@@ -1,23 +1,27 @@
 'use client';
 import { useEffect, useState } from 'react';
 import type { FormEvent } from 'react';
+import Link from 'next/link';
+import { ArrowUpRight, Check, Disc3, RotateCw } from 'lucide-react';
 import type { AngelConfig } from '../../libs/angelStore';
 import AngelMugshot from './AngelMugshot';
 import { getPublicAngel } from './angelPublicClient';
 
 export default function AngelExtras({mode="all"}:{mode?:"all"|"vinyl"|"mugshot"}) {
-  const showVinyl = mode !== "mugshot";
-  const showMugshot = mode !== "vinyl";
+  const showVinyl = mode !== 'mugshot';
+  const showMugshot = mode !== 'vinyl';
   const [config, setConfig] = useState<AngelConfig | null>(null);
   const [error, setError] = useState('');
   const [sent, setSent] = useState('');
   const [busy, setBusy] = useState(false);
+  const [spinning, setSpinning] = useState(false);
+
   useEffect(() => {
     let active = true;
     if (!showVinyl) return;
     void getPublicAngel()
       .then(data => { if (active) setConfig(data); })
-      .catch(() => { if (active) setError('Reservations and dates are temporarily unavailable.'); });
+      .catch(() => { if (active) setError('Vinyl availability is temporarily unavailable.'); });
     return () => { active = false; };
   }, [showVinyl]);
 
@@ -35,28 +39,33 @@ export default function AngelExtras({mode="all"}:{mode?:"all"|"vinyl"|"mugshot"}
       if (!r.ok) throw Error(response.error);
       setSent(response.id);
       form.reset();
-    } catch (e) { setError(e instanceof Error ? e.message : 'Could not save your order.'); }
+    } catch (e) { setError(e instanceof Error ? e.message : 'Could not save your request.'); }
     finally { setBusy(false); }
   }
 
   return <div className="angel-extras">
-    {showVinyl && <section className="section-pad vinyl-section" id="vinyl">
-      <div>
-        <p className="eyeline">THE RECORD / KEEP IT FOREVER</p><h2>{config?.vinylTitle || 'ANGEL — on wax.'}</h2>
-        <div className="vinyl-display"><img src="/Pictures/angel.jpg" alt="ANGEL album sleeve" loading="lazy" /><span aria-hidden="true" /></div>
-        <p>{config?.vinylDescription}</p><small>{config?.priceLabel}</small>
+    {showVinyl && <section className="v25-vinyl" id="vinyl" aria-labelledby="v25-vinyl-title">
+      <div className="v25-vinyl-lead"><span>YARDEN / ANGEL</span><span>THE VINYL EDITION</span></div>
+      <div className="v25-vinyl-grid">
+        <div className="v25-vinyl-editorial">
+          <span className="v25-micro"><Disc3 size={15} aria-hidden="true"/> A RECORD TO HOLD ONTO</span>
+          <h1 id="v25-vinyl-title">Put <em>ANGEL</em><br/>on wax.</h1>
+          <p>{config?.vinylDescription || 'The songs you know, in a format you can keep. Leave your details to register interest in the ANGEL vinyl edition.'}</p>
+          <div className="v25-vinyl-facts"><div><span>THE RECORD</span><strong>ANGEL</strong></div><div><span>THE ARTIST</span><strong>YARDEN</strong></div><div><span>AVAILABILITY</span><strong>{config?.priceLabel || 'TO BE CONFIRMED'}</strong></div></div>
+          <button type="button" className="v25-vinyl-spin" onClick={() => setSpinning(v => !v)} aria-pressed={spinning} aria-label={spinning ? 'Stop rotating the record illustration' : 'Rotate the record illustration'}><RotateCw size={17} aria-hidden="true"/>{spinning?'Stop the record':'Spin the record'}</button>
+          <small>Concept illustration. Final vinyl packaging, price and pressing details are subject to confirmation.</small>
+        </div>
+        <div className={`v25-vinyl-stage ${spinning ? 'is-spinning' : ''}`} aria-label="Illustration of the ANGEL album sleeve and a black vinyl record">
+          <div className="v25-vinyl-halo" aria-hidden="true"/>
+          <div className="v25-vinyl-disc" aria-hidden="true"><div className="v25-vinyl-disc-label"><img src="/Pictures/angel.jpg" alt="" loading="lazy" /></div><span className="v25-vinyl-spindle"/></div>
+          <div className="v25-vinyl-sleeve"><img src="/Pictures/angel.jpg" alt="ANGEL album cover by Yarden" loading="lazy" decoding="async" width={650} height={650}/></div>
+          <span className="v25-vinyl-stage-counter">SIDE A / SIDE B</span>
+        </div>
       </div>
-      <div>{config?.vinylEnabled ? <>{sent ? <div role="status" className="order-success"><h3>Your request is in.</h3><p>Reference: {sent}</p><p>The team will contact you to confirm availability, payment and shipping. No payment has been taken.</p><button onClick={() => setSent('')}>Place another request</button></div> : <form onSubmit={order}>
-        <h3>Reserve your copy.</h3>
-        {([['name', 'Full name'], ['email', 'Email address'], ['phone', 'Phone / WhatsApp'], ['country', 'Country'], ['address', 'Delivery address']] as const).map(([key, label]) =>
-          <label key={key}>{label}<input name={key} type={key === 'email' ? 'email' : 'text'} required maxLength={key === 'email' ? 254 : 500} autoComplete={key === 'name' ? 'name' : key === 'email' ? 'email' : key === 'phone' ? 'tel' : key === 'country' ? 'country-name' : 'street-address'} /></label>
-        )}
-        <label>Copies<input name="quantity" type="number" min="1" max="10" defaultValue="1" required /></label>
-        <label>Anything else?<textarea name="note" maxLength={1000} /></label>
-        <label className="order-consent"><input name="consent" type="checkbox" required /> I agree to be contacted about this order and have read the <a href="/privacy">privacy notice</a>.</label>
-        <button disabled={busy}>{busy ? 'Saving your request…' : 'Send vinyl order ↗'}</button><small>Reservation request only. Price, shipping and payment are confirmed by the team.</small>
-      </form>}</> : <p>{config ? 'Vinyl reservations are currently closed.' : 'Loading availability…'}</p>}
-      <p role="status">{error}</p></div>
+      <div className="v25-vinyl-reservations">
+        <div className="v25-vinyl-reservation-copy"><span className="v25-micro">GET YOUR NAME DOWN</span><h2>Keep a copy<br/><em>for yourself.</em></h2><p>Registration is an expression of interest, not a paid order. Yarden&apos;s team will contact you when pricing, stock and shipping are confirmed.</p></div>
+        <div className="v25-vinyl-form-container">{config?.vinylEnabled ? (sent ? <div role="status" className="v25-vinyl-success"><Check size={35}/><h3>You&apos;re on the list.</h3><p>Request reference: <strong>{sent}</strong></p><p>No payment has been taken. The team will reach out with next steps.</p><button onClick={() => setSent('')} type="button">Submit another request <ArrowUpRight size={18}/></button></div> : <form onSubmit={order} className="v25-vinyl-form"><h3>Vinyl request</h3><div className="v25-vinyl-fields">{([['name', 'Full name'], ['email', 'Email address'], ['phone', 'Phone / WhatsApp'], ['country', 'Country'], ['address', 'Delivery address']] as const).map(([key, label]) => <label key={key}>{label}<input name={key} type={key === 'email' ? 'email' : 'text'} required maxLength={key === 'email' ? 254 : 500} autoComplete={key === 'name' ? 'name' : key === 'email' ? 'email' : key === 'phone' ? 'tel' : key === 'country' ? 'country-name' : 'street-address'} /></label>)}</div><div className="v25-vinyl-fields v25-vinyl-fields-last"><label>Copies<input name="quantity" type="number" min="1" max="10" defaultValue="1" required /></label><label>Order note (optional)<textarea name="note" maxLength={1000}/></label></div><label className="v25-vinyl-consent"><input name="consent" type="checkbox" required/><span>I agree to be contacted about this request and have read the <Link href="/privacy">privacy notice</Link>.</span></label><button className="v25-vinyl-submit" type="submit" disabled={busy}>{busy ? 'Saving your request…' : 'Register interest'} <ArrowUpRight size={18}/></button><small>No deposit. No checkout. No payment required.</small></form>) : <div className="v25-vinyl-notice"><Disc3 size={28}/><h3>Not taking requests yet.</h3><p>{config ? 'The ANGEL vinyl waitlist is currently closed. Follow Yarden for an announcement.' : 'Checking vinyl availability…'}</p><Link href="/#letters">Get release updates <ArrowUpRight size={17}/></Link></div>}{error && <p role="alert" className="v25-vinyl-error">{error}</p>}</div>
+      </div>
     </section>}
     {showMugshot && <AngelMugshot />}
   </div>;

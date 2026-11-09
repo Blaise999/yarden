@@ -9,10 +9,28 @@ export type SupportOrder={ref:string;createdAt:string;updatedAt:string;kind:Supp
 const orderKey=(ref:string)=>`yarden:angel:support:order:${ref}`;
 const downloadKey=(token:string)=>`yarden:angel:support:download:${createHash('sha256').update(token).digest('hex')}`;
 const secureRef=(ref:string)=>/^angel_[0-9a-f-]{36}$/.test(ref);
-export const hasDeliveryFile=()=>Boolean(process.env.ANGEL_ALBUM_PRIVATE_BLOB_PATH && process.env.BLOB_READ_WRITE_TOKEN);
+// Accept either a private Blob URL (SDK-independent token-authenticated delivery)
+// or a private Blob pathname when running @vercel/blob >= 2.3.
+export function verifiedPrivateAlbumUrl(){
+ const value=process.env.ANGEL_ALBUM_PRIVATE_BLOB_URL?.trim();
+ if(!value)return null;
+ try{
+  const url=new URL(value);
+  if(url.protocol!=='https:'||!url.hostname.endsWith('.private.blob.vercel-storage.com')||
+     !/^[a-z0-9-]+\.private\.blob\.vercel-storage\.com$/i.test(url.hostname)||
+     url.username||url.password||url.port||url.search||url.hash||url.pathname==='/')return null;
+  return url.toString();
+ }catch{return null}
+}
+// Use a separate token when the public CMS uploads and album are stored in distinct Blob stores.
+// Older deployments can still use BLOB_READ_WRITE_TOKEN for both when appropriate.
+export const albumPrivateBlobToken=()=>process.env.ANGEL_PRIVATE_BLOB_TOKEN || process.env.BLOB_READ_WRITE_TOKEN;
+export const hasDeliveryFile=()=>Boolean(albumPrivateBlobToken() && (verifiedPrivateAlbumUrl() || process.env.ANGEL_ALBUM_PRIVATE_BLOB_PATH));
 export async function checkoutReady(){
  if(process.env.ANGEL_SUPPORT_CHECKOUT_ENABLED!=='true'||!process.env.FLW_SECRET_KEY||!process.env.FLW_SECRET_HASH||!siteOrigin()||!hasDeliveryFile()||!emailConfigured())return false;
- // Private Blob delivery was added in @vercel/blob 2.3: never accept money with an older SDK.
+ // An authenticated private Blob URL uses the documented token-based access method.
+ // A pathname requires SDK >= 2.3, so never enable checkout using older SDK versions.
+ if(verifiedPrivateAlbumUrl())return true;
  const sdk=await import('@vercel/blob');
  return typeof (sdk as unknown as {get?:unknown}).get==='function';
 }
