@@ -128,7 +128,7 @@ export default function AngelMugshot() {
       <div className="angel-mugshot__intro">
         <p className="eyeline">THE ANGEL FILES / FAN EXPERIENCE</p>
         <h2 id="angel-mugshot-title">Wanted for <em>love.</em></h2>
-        <p>Be the face of the ANGEL era. Upload a selfie and get your own cinematic booking photograph, made for you.</p>
+        <p>Your face. Your ANGEL mugshot.</p>
         <span className="angel-mugshot__brandline">YARDEN <AnkhMark className="angel-mugshot__inline-ankh" /> ANGEL — OUT NOW</span>
       </div>
       <div className="angel-mugshot__grid">
@@ -147,7 +147,7 @@ export default function AngelMugshot() {
           <button className="angel-mugshot__generate" onClick={generate} disabled={!photo || !consent || busy}>
             {busy ? 'Creating your mugshot…' : generated ? 'Generate another mugshot' : 'Get my mugshot'} <ArrowUpRight size={19} />
           </button>
-          <p className="angel-mugshot__note" aria-live="polite" role="status">{busy ? 'Rendering a realistic scene with your face and hands. This can take a moment.' : error || 'A real AI photo transformation, not a face pasted onto a poster. Up to 3 attempts per hour.'}</p>
+          <p className="angel-mugshot__note" aria-live="polite" role="status">{busy ? 'Creating your mugshot…' : error || 'Up to 3 mugshots per hour.'}</p>
           {generated && <>
             <label className="angel-mugshot__field">Adjust the booking slate position
               <input type="range" min="-0.06" max="0.06" step="0.005" value={offset} onChange={e => setOffset(Number(e.target.value))} />

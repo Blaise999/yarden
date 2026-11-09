@@ -20,9 +20,9 @@ export default function HomeMusicSection({ releases }: { releases: ReleaseItem[]
       </div>
       <div className="v23-home-music-intro">
         <div><span className="v23-feature-tag"><Disc3 size={16} aria-hidden="true" /> THE SOUND OF YARDEN <span className="v25-soundband" aria-hidden="true">{Array.from({length:12},(_,i)=><span key={i} style={{animationDelay:`${-i*.13}s`}} />)}</span></span><h2 id="v23-home-music-title">The sound of Yarden.</h2></div>
-        <p>Start with ANGEL, then move through the catalogue. These covers now travel in a continuous left-to-right rail.</p>
+        <p>Singles, EPs, and the music before ANGEL.</p>
       </div>
-      {rail.length > 0 ? <div className="v25-home-music-marquee" aria-label="Yarden releases moving automatically from left to right">
+      {rail.length > 0 ? <div className="v25-home-music-marquee" aria-label="Yarden discography">
         <div className="v25-home-music-track">
           {rail.map((item, index) => {
             const href = releaseHref(item);
@@ -35,7 +35,7 @@ export default function HomeMusicSection({ releases }: { releases: ReleaseItem[]
             );
           })}
         </div>
-      </div> : <p className="v23-home-music-empty">More releases will appear here as they&apos;re added. <Link href="/music">Explore the discography <ArrowUpRight size={14} /></Link></p>}
+      </div> : <p className="v23-home-music-empty">More music from Yarden. <Link href="/music">Explore the discography <ArrowUpRight size={14} /></Link></p>}
     </section>
   );
 }

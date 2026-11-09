@@ -29,11 +29,11 @@ export default function HomeMugshotSection() {
         <div className="v23-home-mugshot-copy">
           <span className="v23-feature-tag"><Camera size={16} aria-hidden="true" /> YOUR FACE. YOUR FILE.</span>
           <h2 id="v23-home-mugshot-title">Wanted for<br /><em>love.</em></h2>
-          <p>Part of the ANGEL story, now with your face in it. Turn your selfie into a personalized Yarden booking photo and share it with the world.</p>
+          <p>Upload your selfie. Get your own ANGEL mugshot.</p>
           <button className="v23-mugshot-button" type="button" aria-expanded={opened} aria-controls="v23-mugshot-studio" onClick={() => setOpened(value => !value)}>
             {opened ? 'Close the studio' : 'Create your mugshot'} {opened ? <X size={18} aria-hidden="true" /> : <ArrowUpRight size={18} aria-hidden="true" />}
           </button>
-          <span className="v23-mugshot-note">AI-GENERATED FAN EXPERIENCE · YOUR PHOTO, YOUR CHOICE</span>
+          <span className="v23-mugshot-note">THE ANGEL FILES · YARDEN</span>
         </div>
         <div className="v23-mugshot-visual" aria-hidden="true">
           <div className="v23-mugshot-measure" />

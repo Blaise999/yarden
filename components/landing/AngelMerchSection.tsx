@@ -52,14 +52,14 @@ export default function AngelMerchSection() {
     <div className="v25-section-top"><span>YARDEN / ANGEL</span><span>MERCHANDISE — DROP 01</span></div>
     <div className="v25-merch-intro v25-reveal">
       <div><span className="v25-micro">A LITTLE PIECE OF ANGEL</span><h2 id="v25-merch-title">ANGEL <span>on you.</span></h2></div>
-      <p>The first Yarden&apos;s ANGEL pieces. Two editions, full campaign archive, and the entire drop story in motion. <strong>Coming soon.</strong></p>
+      <p>Yarden&apos;s ANGEL drop. Black and white editions. <strong>Coming soon.</strong></p>
     </div>
 
     <div className="v25-campaign v25-reveal">
       <div className="v25-campaign-photo"><img src={image(2)} alt="Yarden's Angel campaign: models wearing the black and white editions" loading="lazy" decoding="async" width={1350} height={1800}/><span className="v25-campaign-stamp">THE FIRST DROP / 2026</span></div>
     </div>
 
-    <div className="v25-merch-ticker" aria-hidden="true"><div>BLACK EDITION <span>✳</span> WHITE EDITION <span>✳</span> ANGEL / DROP 01 <span>✳</span> CAMPAIGN ARCHIVE <span>✳</span> BLACK EDITION <span>✳</span> WHITE EDITION <span>✳</span> ANGEL / DROP 01 <span>✳</span> CAMPAIGN ARCHIVE <span>✳</span></div></div>
+    <div className="v25-merch-ticker" aria-hidden="true"><div>BLACK EDITION <span>✳</span> WHITE EDITION <span>✳</span> ANGEL / DROP 01 <span>✳</span> YARDEN&apos;S ANGEL <span>✳</span> BLACK EDITION <span>✳</span> WHITE EDITION <span>✳</span> ANGEL / DROP 01 <span>✳</span> YARDEN&apos;S ANGEL <span>✳</span></div></div>
 
     <div className="v25-products-heading"><h3>The two editions.</h3><span>PRICE TO BE ANNOUNCED / RELEASE DATE COMING SOON</span></div>
     <div className="v25-products">
@@ -73,8 +73,8 @@ export default function AngelMerchSection() {
       </article>
     </div>
 
-    <div className="v25-archive-title v25-reveal"><div><span className="v25-micro">THE FULL ARCHIVE / 13 FRAMES</span><h3>Behind the drop.</h3><p>Every frame from the ANGEL merch world, now scrolling automatically from left to right.</p></div></div>
-    <div className="v25-archive-marquee" aria-label="Yarden's Angel campaign image gallery moving automatically from left to right">
+    <div className="v25-archive-title v25-reveal"><div><h3>Behind the drop.</h3></div></div>
+    <div className="v25-archive-marquee" aria-label="Yarden's ANGEL campaign photos">
       <div className="v25-archive-track">
         {marquee.map((item, idx) => <figure key={`${item.number}-${idx}`} className={`v25-archive-frame ${item.kind === "art" ? "is-art" : ""}`}>
           <div className="v25-archive-image"><img src={image(item.number)} alt={item.alt} loading="lazy" decoding="async" width={item.number === 0 || item.number === 8 ? 1500 : 1100} height={1800}/></div>
